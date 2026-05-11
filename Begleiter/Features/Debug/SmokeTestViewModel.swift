@@ -19,27 +19,31 @@ final class SmokeTestViewModel {
 
     init(service: GemmaService = GemmaService()) {
         self.service = service
-        Task { [weak self] in
-            await self?.bindState()
-        }
     }
 
-    private func bindState() async {
-        await service.setOnStateChange { [weak self] newState in
-            Task { @MainActor in
-                self?.loadState = newState
-            }
-        }
-    }
-
+    /// Kick off model load. While the load is in progress we poll the actor's
+    /// state every 200ms so the progress bar updates without needing a
+    /// callback-based listener (which is fragile under Swift 6 strict
+    /// concurrency when crossing the MainActor / actor boundary).
     func loadModel() {
         errorMessage = nil
         Task {
+            // Mirror state until load resolves (either to .loaded or .failed).
+            let mirror = Task { @MainActor in
+                while !Task.isCancelled {
+                    loadState = await service.state
+                    if case .loaded = loadState { break }
+                    if case .failed = loadState { break }
+                    try? await Task.sleep(for: .milliseconds(200))
+                }
+            }
+            defer { mirror.cancel() }
             do {
                 _ = try await service.loadModel()
             } catch {
                 errorMessage = error.localizedDescription
             }
+            loadState = await service.state
         }
     }
 

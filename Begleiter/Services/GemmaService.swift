@@ -41,10 +41,6 @@ actor GemmaService {
     private var container: ModelContainer?
     private(set) var state: LoadState = .idle
 
-    /// Callback fired on the actor whenever `state` changes. UI views set
-    /// this to mirror state into an `@Observable` view model.
-    private var onStateChange: (@Sendable (LoadState) -> Void)?
-
     init(
         configuration: ModelConfiguration = LLMRegistry.gemma4_e4b_it_4bit,
         maxTokens: Int = 256,
@@ -57,36 +53,39 @@ actor GemmaService {
         )
     }
 
-    func setOnStateChange(_ handler: @escaping @Sendable (LoadState) -> Void) {
-        self.onStateChange = handler
-        handler(state)
-    }
-
     // MARK: - Load
 
     /// Load (or download + load) the model weights. Safe to call repeatedly;
-    /// the second call returns the cached container.
+    /// the second call returns the cached container. Progress is reflected
+    /// into `state`; callers poll `state` while awaiting `loadModel()`.
     @discardableResult
     func loadModel() async throws -> ModelContainer {
         if let container { return container }
 
-        update(state: .loading(progress: 0))
+        state = .loading(progress: 0)
         do {
             let loaded = try await loadModelContainer(
                 from: #hubDownloader(),
                 using: #huggingFaceTokenizerLoader(),
                 configuration: configuration
             ) { progress in
+                let fraction = progress.fractionCompleted
                 Task { [weak self] in
-                    await self?.update(state: .loading(progress: progress.fractionCompleted))
+                    await self?.setLoadingProgress(fraction)
                 }
             }
             self.container = loaded
-            update(state: .loaded)
+            state = .loaded
             return loaded
         } catch {
-            update(state: .failed(message: error.localizedDescription))
+            state = .failed(message: error.localizedDescription)
             throw error
+        }
+    }
+
+    private func setLoadingProgress(_ fraction: Double) {
+        if case .loading = state {
+            state = .loading(progress: fraction)
         }
     }
 
@@ -103,10 +102,4 @@ actor GemmaService {
         return try await session.respond(to: prompt)
     }
 
-    // MARK: - Internal
-
-    private func update(state newState: LoadState) {
-        state = newState
-        onStateChange?(newState)
-    }
 }
