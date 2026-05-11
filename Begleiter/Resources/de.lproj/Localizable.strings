@@ -142,6 +142,9 @@
 "entryDetail.questions" = "Offene Fragen";
 "entryDetail.rawResponseToggle" = "Gemma-Antwort anzeigen (Rohtext)";
 "entryDetail.rawResponseFooter" = "Originalausgabe von Gemma vor der Strukturierung. Bleibt auf dem Gerät und dient der Nachvollziehbarkeit und späteren Verbesserung.";
+"entryDetail.recording" = "Aufnahme";
+"entryDetail.recordingPlay" = "Aufnahme abspielen";
+"entryDetail.recordingPause" = "Pause";
 
 // MARK: - Capture (journal entry composer)
 "capture.title" = "Neuer Eintrag";
@@ -153,6 +156,18 @@
 "capture.submit" = "Eintrag analysieren";
 "capture.busy.extracting" = "Gemma analysiert …";
 "capture.busy.saving" = "Speichere …";
+"capture.voice.button" = "Sprachaufnahme";
+
+// MARK: - Voice recorder sheet
+"voice.title" = "Sprachaufnahme";
+"voice.adopt" = "Übernehmen";
+"voice.start" = "Aufnahme starten";
+"voice.stop" = "Aufnahme stoppen";
+"voice.placeholder" = "Tippen Sie auf \"Aufnahme starten\" und erzählen Sie, was passiert ist. Die Transkription erscheint hier live.";
+"voice.state.idle" = "Bereit";
+"voice.state.preparing" = "Sprachmodell wird vorbereitet …";
+"voice.state.recording" = "Aufnahme läuft …";
+"voice.state.stopped" = "Aufnahme fertig";
 
 // MARK: - Debug / smoke test (developer screen, not shown to parents)
 "debug.section" = "Entwicklung";

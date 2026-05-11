@@ -1,3 +1,4 @@
+import AVFoundation
 import SwiftUI
 
 /// Detail view for a single `JournalEntry`. Shows raw text, all extracted
@@ -12,6 +13,14 @@ struct EntryDetailView: View {
 
         return Form {
             metadataSection
+            if let filename = entry.rawVoiceAudioFilename,
+               let audioURL = audioRecorderStoredURL(filename: filename) {
+                Section {
+                    AudioPlaybackRow(audioURL: audioURL)
+                } header: {
+                    Text(L10n.key("entryDetail.recording"))
+                }
+            }
 
             if let raw = entry.rawText, !raw.isEmpty {
                 Section {
@@ -201,6 +210,97 @@ private struct LabValueRow: View {
 
     private func formatted(_ value: Double) -> String {
         String(format: "%g", value)
+    }
+}
+
+/// Bridge helper — calling the static method on `AudioRecorder` from a
+/// view's body is awkward because AudioRecorder is `@available(iOS 26.0, *)`.
+/// EntryDetailView itself is available everywhere; only audio playback
+/// is iOS 26+ in practice (recordings made on older OSs simply don't
+/// exist).
+private func audioRecorderStoredURL(filename: String) -> URL? {
+    guard let docs = try? FileManager.default.url(
+        for: .documentDirectory, in: .userDomainMask,
+        appropriateFor: nil, create: false
+    ) else { return nil }
+    let url = docs.appendingPathComponent("voice", isDirectory: true)
+        .appendingPathComponent(filename)
+    return FileManager.default.fileExists(atPath: url.path) ? url : nil
+}
+
+/// Tiny play/pause row for a stored .m4a recording. Uses AVAudioPlayer so
+/// it works on iOS 17+ regardless of the recorder's iOS 26+ gate.
+private struct AudioPlaybackRow: View {
+    let audioURL: URL
+    @State private var controller: AudioPlaybackController?
+    @State private var isPlaying = false
+
+    var body: some View {
+        Button {
+            ensureController()
+            if isPlaying {
+                controller?.pause()
+                isPlaying = false
+            } else {
+                controller?.play()
+                isPlaying = true
+            }
+        } label: {
+            HStack {
+                Image(systemName: isPlaying ? "pause.circle.fill" : "play.circle.fill")
+                    .font(.title)
+                Text(L10n.key(isPlaying ? "entryDetail.recordingPause" : "entryDetail.recordingPlay"))
+                Spacer()
+            }
+        }
+        .buttonStyle(.plain)
+        .onAppear {
+            ensureController()
+            controller?.onFinish = {
+                Task { @MainActor in isPlaying = false }
+            }
+        }
+        .onDisappear {
+            controller?.pause()
+        }
+    }
+
+    private func ensureController() {
+        if controller == nil {
+            controller = AudioPlaybackController(url: audioURL)
+        }
+    }
+}
+
+@MainActor
+private final class AudioPlaybackController: NSObject, AVAudioPlayerDelegate {
+    private let url: URL
+    private var player: AVAudioPlayer?
+    var onFinish: (() -> Void)?
+
+    init(url: URL) {
+        self.url = url
+    }
+
+    func play() {
+        if player == nil {
+            do {
+                player = try AVAudioPlayer(contentsOf: url)
+                player?.delegate = self
+                player?.prepareToPlay()
+            } catch {
+                return
+            }
+        }
+        player?.play()
+    }
+
+    func pause() {
+        player?.pause()
+    }
+
+    nonisolated func audioPlayerDidFinishPlaying(_ player: AVAudioPlayer, successfully flag: Bool) {
+        Task { @MainActor in self.onFinish?() }
     }
 }
 

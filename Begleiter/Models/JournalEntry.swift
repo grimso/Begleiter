@@ -32,6 +32,10 @@ final class JournalEntry {
     var rawText: String?
     var rawVoiceTranscript: String?
     var rawPhotoFilenames: [String]
+    /// Basename of the .m4a file in `Documents/voice/`. Set by
+    /// `CaptureViewModel.submit` when the parent used voice input.
+    /// Optional → SwiftData auto-migrates existing entries to nil.
+    var rawVoiceAudioFilename: String?
 
     /// `ExtractedFields` encoded as JSON. Use `extractedFields` accessor.
     var extractedJSON: Data

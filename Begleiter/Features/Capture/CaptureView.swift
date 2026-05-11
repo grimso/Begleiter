@@ -15,6 +15,7 @@ struct CaptureView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
     @State private var model = CaptureViewModel()
+    @State private var presentingVoiceRecorder = false
     @FocusState private var textFocused: Bool
 
     var body: some View {
@@ -38,6 +39,15 @@ struct CaptureView: View {
                         .frame(minHeight: 180)
                         .focused($textFocused)
                         .disabled(model.isBusy)
+                    if #available(iOS 26.0, *) {
+                        Button {
+                            textFocused = false
+                            presentingVoiceRecorder = true
+                        } label: {
+                            Label(L10n.t("capture.voice.button"), systemImage: "mic.fill")
+                        }
+                        .disabled(model.isBusy)
+                    }
                 } header: {
                     Text(L10n.key("capture.text.header"))
                 } footer: {
@@ -86,6 +96,20 @@ struct CaptureView: View {
                 if case .done = new { dismiss() }
             }
             .onAppear { textFocused = true }
+            .sheet(isPresented: $presentingVoiceRecorder) {
+                if #available(iOS 26.0, *) {
+                    VoiceRecorderView { transcript, audioFilename in
+                        // Append to whatever's already in the text field
+                        // so voice + typed text compose cleanly. The
+                        // parent can still edit before tapping
+                        // "Eintrag analysieren".
+                        let prefix = model.text.trimmingCharacters(in: .whitespacesAndNewlines)
+                        model.text = prefix.isEmpty ? transcript : prefix + "\n" + transcript
+                        model.voiceTranscript = transcript
+                        model.voiceAudioFilename = audioFilename
+                    }
+                }
+            }
         }
     }
 

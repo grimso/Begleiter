@@ -21,6 +21,13 @@ final class CaptureViewModel {
     var text: String = ""
     var visitDate: Date = .now
     var phase: Phase = .idle
+    /// Verbatim transcript from the SpeechAnalyzer pass, set when the
+    /// parent uses voice input. Persisted on JournalEntry.rawVoiceTranscript
+    /// alongside the (possibly edited) `text` that gets sent to extraction.
+    var voiceTranscript: String?
+    /// Basename of the .m4a recording in Documents/voice/. Set when the
+    /// parent uses voice input and the recording was successfully written.
+    var voiceAudioFilename: String?
     /// Most recent successful extraction. UI may show a preview before saving.
     private(set) var lastExtraction: ExtractedFields?
 
@@ -64,6 +71,15 @@ final class CaptureViewModel {
                 )
                 lastExtraction = result.fields
                 phase = .saving
+                var modalities: [String] = []
+                if voiceTranscript != nil { modalities.append("voice") }
+                let userEditedText = snapshotText.trimmingCharacters(in: .whitespacesAndNewlines)
+                let voiceText = (voiceTranscript ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+                if !userEditedText.isEmpty, userEditedText != voiceText {
+                    modalities.append("text")
+                } else if voiceTranscript == nil {
+                    modalities.append("text")
+                }
                 let entry = JournalEntry(
                     childId: childId,
                     visitDate: snapshotDate,
@@ -71,11 +87,13 @@ final class CaptureViewModel {
                     dayInPhase: dayInPhase,
                     riskGroup: riskGroup,
                     arm: arm,
-                    inputModalities: ["text"],
+                    inputModalities: modalities,
                     rawText: snapshotText,
+                    rawVoiceTranscript: voiceTranscript,
                     extractedFields: result.fields,
                     rawExtractionResponse: result.rawResponse
                 )
+                entry.rawVoiceAudioFilename = voiceAudioFilename
                 context.insert(entry)
                 try context.save()
                 phase = .done
