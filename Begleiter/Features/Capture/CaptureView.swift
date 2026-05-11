@@ -39,15 +39,13 @@ struct CaptureView: View {
                         .frame(minHeight: 180)
                         .focused($textFocused)
                         .disabled(model.isBusy)
-                    if #available(iOS 26.0, *) {
-                        Button {
-                            textFocused = false
-                            presentingVoiceRecorder = true
-                        } label: {
-                            Label(L10n.t("capture.voice.button"), systemImage: "mic.fill")
-                        }
-                        .disabled(model.isBusy)
+                    Button {
+                        textFocused = false
+                        presentingVoiceRecorder = true
+                    } label: {
+                        Label(L10n.t("capture.voice.button"), systemImage: "mic.fill")
                     }
+                    .disabled(model.isBusy)
                 } header: {
                     Text(L10n.key("capture.text.header"))
                 } footer: {
@@ -97,17 +95,14 @@ struct CaptureView: View {
             }
             .onAppear { textFocused = true }
             .sheet(isPresented: $presentingVoiceRecorder) {
-                if #available(iOS 26.0, *) {
-                    VoiceRecorderView { transcript, audioFilename in
-                        // Append to whatever's already in the text field
-                        // so voice + typed text compose cleanly. The
-                        // parent can still edit before tapping
-                        // "Eintrag analysieren".
-                        let prefix = model.text.trimmingCharacters(in: .whitespacesAndNewlines)
-                        model.text = prefix.isEmpty ? transcript : prefix + "\n" + transcript
-                        model.voiceTranscript = transcript
-                        model.voiceAudioFilename = audioFilename
-                    }
+                VoiceRecorderView { transcript, audioFilename in
+                    // Append to whatever's already in the text field so
+                    // voice + typed text compose cleanly. The parent can
+                    // still edit before tapping "Eintrag analysieren".
+                    let prefix = model.text.trimmingCharacters(in: .whitespacesAndNewlines)
+                    model.text = prefix.isEmpty ? transcript : prefix + "\n" + transcript
+                    model.voiceTranscript = transcript
+                    model.voiceAudioFilename = audioFilename
                 }
             }
         }

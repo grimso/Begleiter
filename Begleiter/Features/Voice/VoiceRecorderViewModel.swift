@@ -1,19 +1,24 @@
+import AVFoundation
 import Foundation
 import SwiftUI
 
 /// View model for the modal voice-recording sheet.
 ///
-/// Wires together `AudioRecorder` (mic capture + file write) and
-/// `TranscriptionService` (Apple SpeechAnalyzer). One mic tap drives both:
-/// the same `AVAudioBuffer` is written to disk for replay AND yielded to
-/// the transcriber as `AnalyzerInput`.
-@available(iOS 26.0, *)
+/// Owns:
+/// - a `TranscriptionEngine` (Apple SFSpeechRecognizer on device, mock on
+///   simulator and in unit tests),
+/// - an `AudioRecorder` that captures mic audio + writes the .m4a file.
+///
+/// Lifecycle is a small state machine and every async operation runs in a
+/// child `Task` so the **Abbrechen** button always works — even mid-prepare.
+/// `prepare()` is wrapped in a 30s timeout so we never hang on a backend
+/// that misbehaves.
 @MainActor
 @Observable
 final class VoiceRecorderViewModel {
     enum Phase: Equatable {
         case idle
-        case preparingModel(progress: Double)
+        case preparing
         case recording
         case stopped
         case failed(String)
@@ -22,22 +27,30 @@ final class VoiceRecorderViewModel {
     var phase: Phase = .idle
     /// Live (volatile) partial transcript shown while recording.
     var partialText: String = ""
-    /// Accumulated finalized segments, joined with spaces. This is what
-    /// gets handed back to `CaptureView` when the parent taps "Übernehmen".
+    /// Accumulated finalized segments. This is what gets handed back to
+    /// `CaptureView` when the parent taps "Übernehmen".
     var finalText: String = ""
-    /// File URL of the recording (set after `start()`). Caller uses
+    /// File URL of the recording (set after recording starts). Caller uses
     /// `.lastPathComponent` for the JournalEntry's
     /// `rawVoiceAudioFilename`.
     private(set) var recordingURL: URL?
 
     private let entryId: UUID
-    private let recorder = AudioRecorder()
-    private let transcription = TranscriptionService()
+    private let recorder: AudioRecorder
+    private let engine: any TranscriptionEngine
+
+    private var prepareTask: Task<Void, Never>?
     private var partialTask: Task<Void, Never>?
     private var finalTask: Task<Void, Never>?
 
-    init(entryId: UUID = UUID()) {
+    init(
+        entryId: UUID = UUID(),
+        recorder: AudioRecorder = AudioRecorder(),
+        engine: any TranscriptionEngine = DefaultTranscriptionEngine.make()
+    ) {
         self.entryId = entryId
+        self.recorder = recorder
+        self.engine = engine
     }
 
     var isRecording: Bool {
@@ -45,8 +58,7 @@ final class VoiceRecorderViewModel {
         return false
     }
 
-    /// Convenience: the transcript the parent should see right now — final
-    /// segments plus the trailing partial (which is volatile).
+    /// Final segments + the trailing partial. UI displays this.
     var displayedTranscript: String {
         let combined = finalText
         if !partialText.isEmpty {
@@ -59,50 +71,64 @@ final class VoiceRecorderViewModel {
 
     // MARK: - Start
 
+    /// Begin preparation, model download (if needed), mic capture, and
+    /// transcription. All in a single child Task that the cancel button
+    /// can interrupt.
     func startRecording() {
         guard phase == .idle || phase == .stopped else { return }
         partialText = ""
         finalText = ""
         recordingURL = nil
-        phase = .preparingModel(progress: 0)
+        phase = .preparing
 
-        Task {
+        prepareTask = Task { [engine, recorder, entryId] in
             do {
-                // 1. Make sure the German model is installed.
-                try await transcription.prepare()
+                // 1. Authorise + ready the recognizer. Wrap in a timeout
+                //    so a hung Apple API doesn't freeze the UI forever.
+                try await Self.withTimeout(.seconds(30)) {
+                    try await engine.prepare()
+                }
+                try Task.checkCancellation()
 
                 // 2. Start mic capture; gives us the audio buffer stream.
                 let url = try await recorder.start(entryId: entryId)
-                recordingURL = url
+                try Task.checkCancellation()
+                await MainActor.run {
+                    self.recordingURL = url
+                }
 
                 guard let bufferStream = await recorder.bufferStream else {
-                    throw TranscriptionService.TranscriptionError.analyzerFailed("audio stream missing")
+                    throw TranscriptionEngineError.engineFailed("audio stream missing")
                 }
 
-                // 3. Wire the buffers into the transcriber.
-                try await transcription.start(audioStream: bufferStream)
+                // 3. Hand the buffer stream to the recognizer.
+                try await engine.start(audioStream: bufferStream)
+                try Task.checkCancellation()
 
                 // 4. Subscribe to result streams.
-                let partialStream = await transcription.partialTextStream
-                let finalStream = await transcription.finalTextStream
-                partialTask = Task { @MainActor [weak self] in
-                    for await text in partialStream {
-                        self?.partialText = text
+                let partialStream = engine.partialResults
+                let finalStream = engine.finalResults
+                await MainActor.run {
+                    self.partialTask = Task { @MainActor in
+                        for await text in partialStream {
+                            self.partialText = text
+                        }
                     }
-                }
-                finalTask = Task { @MainActor [weak self] in
-                    for await text in finalStream {
-                        guard let self else { return }
-                        self.partialText = ""
-                        self.finalText = self.finalText.isEmpty
-                            ? text
-                            : self.finalText + " " + text
+                    self.finalTask = Task { @MainActor in
+                        for await text in finalStream {
+                            self.partialText = ""
+                            self.finalText = self.finalText.isEmpty
+                                ? text
+                                : self.finalText + " " + text
+                        }
                     }
+                    self.phase = .recording
                 }
-
-                phase = .recording
+            } catch is CancellationError {
+                // Cancel button was tapped during prepare/start. Clean up.
+                await self.teardown(reason: nil)
             } catch {
-                phase = .failed(error.localizedDescription)
+                await self.teardown(reason: error.localizedDescription)
             }
         }
     }
@@ -112,12 +138,12 @@ final class VoiceRecorderViewModel {
     func stopRecording() {
         guard case .recording = phase else { return }
         Task {
-            await transcription.stop()
+            await engine.stop()
             _ = await recorder.stop()
             partialTask?.cancel(); partialTask = nil
             finalTask?.cancel(); finalTask = nil
-            // Promote any trailing partial into the final transcript so
-            // nothing the parent saw on screen is lost.
+            // Promote any trailing partial into final so nothing the
+            // parent saw on screen is lost.
             if !partialText.isEmpty {
                 finalText = finalText.isEmpty ? partialText : finalText + " " + partialText
                 partialText = ""
@@ -126,17 +152,50 @@ final class VoiceRecorderViewModel {
         }
     }
 
-    /// Discard the in-progress recording (used by "Abbrechen").
+    /// Cancel — works from any phase. Used by the "Abbrechen" button.
+    /// Safe to call repeatedly.
     func cancel() {
+        prepareTask?.cancel(); prepareTask = nil
         Task {
-            await transcription.stop()
-            _ = await recorder.stop()
-            partialTask?.cancel(); partialTask = nil
-            finalTask?.cancel(); finalTask = nil
-            partialText = ""
-            finalText = ""
-            recordingURL = nil
+            await teardown(reason: nil)
+        }
+    }
+
+    // MARK: - Internals
+
+    private func teardown(reason: String?) async {
+        await engine.stop()
+        _ = await recorder.stop()
+        partialTask?.cancel(); partialTask = nil
+        finalTask?.cancel(); finalTask = nil
+        partialText = ""
+        finalText = ""
+        recordingURL = nil
+        if let reason {
+            phase = .failed(reason)
+        } else {
             phase = .idle
+        }
+    }
+
+    /// Run an async block, throwing `TranscriptionEngineError.timedOut`
+    /// if it doesn't complete within `duration`. The inner task is
+    /// cancelled when the timeout fires.
+    private static func withTimeout<T: Sendable>(
+        _ duration: Duration,
+        operation: @escaping @Sendable () async throws -> T
+    ) async throws -> T {
+        try await withThrowingTaskGroup(of: T.self) { group in
+            group.addTask { try await operation() }
+            group.addTask {
+                try await Task.sleep(for: duration)
+                throw TranscriptionEngineError.timedOut
+            }
+            guard let value = try await group.next() else {
+                throw TranscriptionEngineError.timedOut
+            }
+            group.cancelAll()
+            return value
         }
     }
 }

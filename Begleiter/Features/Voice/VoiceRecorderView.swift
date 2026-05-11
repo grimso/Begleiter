@@ -1,10 +1,10 @@
 import SwiftUI
 
 /// Modal sheet presented from `CaptureView` so the parent can record a
-/// voice memo. Apple's `SpeechAnalyzer` transcribes live in German; on
-/// stop the transcript is handed back to `CaptureView` via the
-/// `onAdopt` callback and the sheet dismisses.
-@available(iOS 26.0, *)
+/// voice memo. The active `TranscriptionEngine` (Apple SFSpeechRecognizer
+/// on device, mock on simulator) transcribes live in German; on stop the
+/// transcript is handed back to `CaptureView` via the `onAdopt` callback
+/// and the sheet dismisses.
 struct VoiceRecorderView: View {
     /// Callback invoked when the parent taps "Übernehmen". Receives the
     /// final transcript and the audio filename (basename only, joined
@@ -78,7 +78,7 @@ struct VoiceRecorderView: View {
         case .idle:
             Label(L10n.t("voice.state.idle"), systemImage: "mic")
                 .foregroundStyle(.secondary)
-        case .preparingModel:
+        case .preparing:
             Label {
                 Text(L10n.key("voice.state.preparing"))
             } icon: {
@@ -112,7 +112,7 @@ struct VoiceRecorderView: View {
             }
             .buttonStyle(.borderedProminent)
             .tint(.red)
-        case .preparingModel:
+        case .preparing:
             Button {} label: {
                 HStack {
                     ProgressView()

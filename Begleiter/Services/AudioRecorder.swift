@@ -1,22 +1,25 @@
 import AVFoundation
 import Foundation
 import OSLog
-@preconcurrency import Speech
 
 private let recorderLog = Logger(subsystem: "io.grimso.Begleiter", category: "speech.recorder")
 
 /// Captures microphone audio via `AVAudioEngine`, simultaneously writing a
-/// compressed `.m4a` file to disk and yielding `AnalyzerInput` buffers to
-/// the live transcriber.
+/// compressed `.m4a` file to disk and yielding raw `AVAudioPCMBuffer`s to
+/// the transcription engine.
 ///
 /// File layout (per spec — everything stays on-device):
 /// - `<Documents>/voice/<entryId>.m4a`
-/// - Excluded from iCloud / iTunes backup via
-///   `NSURLIsExcludedFromBackupKey`.
+/// - Excluded from iCloud / iTunes backup via `NSURLIsExcludedFromBackupKey`.
 ///
-/// The transcriber and the file writer share the same audio tap so the
-/// transcript and the recording stay in lockstep — no second pass needed.
-@available(iOS 26.0, *)
+/// One mic tap dual-purposes the audio so the transcript and the persisted
+/// recording stay in lockstep — no second pass.
+///
+/// **Simulator behavior**: `AVAudioSession.setCategory` is iOS-only; on
+/// macOS-targeted builds we'd no-op. Within iOS simulator builds the
+/// session calls work but the microphone hardware isn't connected, so the
+/// recorder still drives the file writer (silence) and emits an empty
+/// buffer stream — enough to keep the UI flow alive for testing.
 actor AudioRecorder {
 
     enum RecorderError: Error, LocalizedError {
@@ -38,12 +41,12 @@ actor AudioRecorder {
 
     private let engine = AVAudioEngine()
     private var audioFile: AVAudioFile?
-    private var bufferContinuation: AsyncStream<AnalyzerInput>.Continuation?
+    private var bufferContinuation: AsyncStream<AVAudioPCMBuffer>.Continuation?
     private var recordingURL: URL?
 
-    /// AsyncStream of audio buffers fed to the `TranscriptionService`.
-    /// Recreated on each `start(...)` call.
-    private(set) var bufferStream: AsyncStream<AnalyzerInput>?
+    /// AsyncStream of audio buffers fed to the `TranscriptionEngine`.
+    /// Recreated on each `start(...)` call. `nil` when not recording.
+    private(set) var bufferStream: AsyncStream<AVAudioPCMBuffer>?
 
     // MARK: - Lifecycle
 
@@ -58,10 +61,6 @@ actor AudioRecorder {
         let input = engine.inputNode
         let format = input.outputFormat(forBus: 0)
 
-        // Open the destination file using the same hardware format so the
-        // tap callback can write buffers without resampling. The container
-        // format is m4a (AAC inside MPEG-4); AVAudioFile picks AAC by
-        // default when the URL extension is .m4a.
         do {
             audioFile = try AVAudioFile(
                 forWriting: url,
@@ -73,14 +72,10 @@ actor AudioRecorder {
             throw RecorderError.fileWriteFailed(error.localizedDescription)
         }
 
-        // (Re)create the buffer stream that feeds the transcriber.
-        let (stream, continuation) = AsyncStream<AnalyzerInput>.makeStream()
+        let (stream, continuation) = AsyncStream<AVAudioPCMBuffer>.makeStream()
         bufferStream = stream
         bufferContinuation = continuation
 
-        // Single tap dual-purposes the audio: write to file + yield to
-        // transcriber. Tap runs on an audio-thread queue so we keep the
-        // closure tiny.
         input.installTap(onBus: 0, bufferSize: 4096, format: format) { [weak self] buffer, _ in
             guard let self else { return }
             Task { await self.handleBuffer(buffer) }
@@ -99,7 +94,8 @@ actor AudioRecorder {
     }
 
     /// Stop recording. Tears down the engine + closes the file.
-    /// Returns the file URL of the completed recording.
+    /// Returns the file URL of the completed recording, or nil if no
+    /// recording was active.
     func stop() -> URL? {
         if engine.isRunning {
             engine.stop()
@@ -127,7 +123,7 @@ actor AudioRecorder {
                 recorderLog.error("file write failed: \(error.localizedDescription, privacy: .public)")
             }
         }
-        bufferContinuation?.yield(AnalyzerInput(buffer: buffer))
+        bufferContinuation?.yield(buffer)
     }
 
     private func configureAudioSession() throws {
@@ -151,8 +147,6 @@ actor AudioRecorder {
         let voiceDir = docs.appendingPathComponent("voice", isDirectory: true)
         if !FileManager.default.fileExists(atPath: voiceDir.path) {
             try FileManager.default.createDirectory(at: voiceDir, withIntermediateDirectories: true)
-            // Exclude from iCloud / iTunes backup — spec says all data
-            // stays strictly on-device.
             var url = voiceDir
             var values = URLResourceValues()
             values.isExcludedFromBackup = true
