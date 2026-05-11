@@ -3,6 +3,16 @@ import OSLog
 
 private let extractionLog = Logger(subsystem: "io.grimso.Begleiter", category: "gemma.extraction")
 
+/// Outcome of an extraction attempt: parsed structured fields plus the raw
+/// string Gemma emitted (verbatim, with markdown fences if present), plus
+/// which attempt won. Callers persist the raw response on the JournalEntry
+/// so we can re-parse it later or use it as training data.
+nonisolated struct ExtractionResult: Sendable {
+    let fields: ExtractedFields
+    let rawResponse: String
+    let attempt: Int  // 1 = strict-mode-off, 2 = strict-mode-on retry
+}
+
 /// Errors surfaced by `ExtractionService` when extraction cannot proceed.
 enum ExtractionError: Error, LocalizedError {
     case emptyInput
@@ -48,14 +58,15 @@ actor ExtractionService {
     private let gemma: GemmaService
 
     /// Tuned generation parameters for the extraction path.
-    /// - maxTokens: 384 — a fully-populated ExtractedFields JSON with all
-    ///   10 fields + confidence scores comfortably fits in ~300 tokens;
-    ///   the buffer absorbs longer drug / observation lists without
-    ///   truncating mid-object. KV-cache memory at this length is ~40 MB,
-    ///   negligible against the 3.3 GB model footprint.
+    /// - maxTokens: 640 — first device run hit 384 and truncated the
+    ///   summary mid-sentence (no closing `}`, parse fails). Gemma 4 E2B's
+    ///   verbosity varies meaningfully between runs; 640 gives comfortable
+    ///   margin for a fully-populated ExtractedFields plus a long German
+    ///   summary. KV-cache cost at this length is ~70 MB — still trivial
+    ///   against the 3.3 GB model.
     /// - temperature: 0.3 — structured extraction wants more deterministic
     ///   output than chat (default 0.6).
-    init(gemma: GemmaService = GemmaService(maxTokens: 384, temperature: 0.3)) {
+    init(gemma: GemmaService = GemmaService(maxTokens: 640, temperature: 0.3)) {
         self.gemma = gemma
     }
 
@@ -72,14 +83,17 @@ actor ExtractionService {
     ///   - phase: current treatment phase (from `ChildState`).
     ///   - dayInPhase: day number within the phase.
     ///   - visitDate: the date the entry refers to.
-    /// - Returns: parsed `ExtractedFields`.
-    /// - Throws: `ExtractionError` if no usable JSON could be obtained.
+    /// - Returns: `ExtractionResult` carrying both parsed fields and the raw
+    ///   Gemma response (the latter is persisted on the JournalEntry for
+    ///   future re-parsing, A/B comparison, and LoRA training data).
+    /// - Throws: `ExtractionError` if no usable JSON could be obtained even
+    ///   after the stricter retry.
     func extract(
         text: String,
         phase: Phase,
         dayInPhase: Int,
         visitDate: Date
-    ) async throws -> ExtractedFields {
+    ) async throws -> ExtractionResult {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { throw ExtractionError.emptyInput }
 
@@ -91,24 +105,24 @@ actor ExtractionService {
             strictMode: false
         )
 
-        do {
-            let raw = try await gemma.generate(prompt: prompt)
-            extractionLog.debug("attempt=1 raw=\(raw, privacy: .public)")
-            return try Self.parseExtractedFields(from: raw)
-        } catch {
-            extractionLog.warning("attempt=1 parse failed: \(error.localizedDescription, privacy: .public)")
-            // Retry once with stricter instructions.
-            let retryPrompt = Self.buildPrompt(
-                text: trimmed,
-                phase: phase,
-                dayInPhase: dayInPhase,
-                visitDate: visitDate,
-                strictMode: true
-            )
-            let raw = try await gemma.generate(prompt: retryPrompt)
-            extractionLog.debug("attempt=2 raw=\(raw, privacy: .public)")
-            return try Self.parseExtractedFields(from: raw)
+        let raw1 = try await gemma.generate(prompt: prompt)
+        extractionLog.debug("attempt=1 raw=\(raw1, privacy: .public)")
+        if let fields = try? Self.parseExtractedFields(from: raw1) {
+            return ExtractionResult(fields: fields, rawResponse: raw1, attempt: 1)
         }
+
+        extractionLog.warning("attempt=1 parse failed, retrying in strict mode")
+        let retryPrompt = Self.buildPrompt(
+            text: trimmed,
+            phase: phase,
+            dayInPhase: dayInPhase,
+            visitDate: visitDate,
+            strictMode: true
+        )
+        let raw2 = try await gemma.generate(prompt: retryPrompt)
+        extractionLog.debug("attempt=2 raw=\(raw2, privacy: .public)")
+        let fields = try Self.parseExtractedFields(from: raw2)
+        return ExtractionResult(fields: fields, rawResponse: raw2, attempt: 2)
     }
 
     // MARK: - Prompt construction

@@ -140,6 +140,8 @@
 "entryDetail.observations" = "Eigene Beobachtungen";
 "entryDetail.reactions" = "Reaktionen / Nebenwirkungen";
 "entryDetail.questions" = "Offene Fragen";
+"entryDetail.rawResponseToggle" = "Gemma-Antwort anzeigen (Rohtext)";
+"entryDetail.rawResponseFooter" = "Originalausgabe von Gemma vor der Strukturierung. Bleibt auf dem Gerät und dient der Nachvollziehbarkeit und späteren Verbesserung.";
 
 // MARK: - Capture (journal entry composer)
 "capture.title" = "Neuer Eintrag";

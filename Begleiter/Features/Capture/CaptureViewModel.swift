@@ -56,13 +56,13 @@ final class CaptureViewModel {
         phase = .extracting
         Task {
             do {
-                let fields = try await extraction.extract(
+                let result = try await extraction.extract(
                     text: snapshotText,
                     phase: childPhase,
                     dayInPhase: dayInPhase,
                     visitDate: snapshotDate
                 )
-                lastExtraction = fields
+                lastExtraction = result.fields
                 phase = .saving
                 let entry = JournalEntry(
                     childId: childId,
@@ -73,7 +73,8 @@ final class CaptureViewModel {
                     arm: arm,
                     inputModalities: ["text"],
                     rawText: snapshotText,
-                    extractedFields: fields
+                    extractedFields: result.fields,
+                    rawExtractionResponse: result.rawResponse
                 )
                 context.insert(entry)
                 try context.save()

@@ -36,6 +36,16 @@ final class JournalEntry {
     /// `ExtractedFields` encoded as JSON. Use `extractedFields` accessor.
     var extractedJSON: Data
 
+    /// The exact string Gemma emitted before we parsed it. Kept verbatim
+    /// (including markdown fences if present) so we can:
+    /// - re-parse with a future, more permissive parser,
+    /// - A/B compare prompt revisions on the same input,
+    /// - assemble (input, output) pairs for the iter-5 LoRA fine-tune,
+    /// - audit what the model said in support of the parent-facing fields.
+    /// `nil` for entries created before this field existed (SwiftData
+    /// auto-migrates).
+    var rawExtractionResponse: String?
+
     /// Dense semantic embedding. Empty in iteration 3 — filled by the
     /// embedding service in iteration 6.
     var embedding: [Float]
@@ -57,6 +67,7 @@ final class JournalEntry {
         rawVoiceTranscript: String? = nil,
         rawPhotoFilenames: [String] = [],
         extractedFields: ExtractedFields = .empty,
+        rawExtractionResponse: String? = nil,
         embedding: [Float] = [],
         graphNodeIds: [String] = []
     ) {
@@ -73,6 +84,7 @@ final class JournalEntry {
         self.rawVoiceTranscript = rawVoiceTranscript
         self.rawPhotoFilenames = rawPhotoFilenames
         self.extractedJSON = extractedFields.encoded()
+        self.rawExtractionResponse = rawExtractionResponse
         self.embedding = embedding
         self.graphNodeIds = graphNodeIds
     }

@@ -140,6 +140,8 @@
 "entryDetail.observations" = "Your observations";
 "entryDetail.reactions" = "Reactions / side effects";
 "entryDetail.questions" = "Open questions";
+"entryDetail.rawResponseToggle" = "Show Gemma response (raw)";
+"entryDetail.rawResponseFooter" = "Original output from Gemma before structuring. Stays on-device and is kept for traceability and later improvement.";
 
 // MARK: - Capture (journal entry composer)
 "capture.title" = "New entry";

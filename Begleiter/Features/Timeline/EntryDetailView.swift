@@ -123,6 +123,19 @@ struct EntryDetailView: View {
                     Text(L10n.key("entryDetail.questions"))
                 }
             }
+
+            if let raw = entry.rawExtractionResponse, !raw.isEmpty {
+                Section {
+                    DisclosureGroup(L10n.t("entryDetail.rawResponseToggle")) {
+                        Text(raw)
+                            .font(.system(.caption, design: .monospaced))
+                            .textSelection(.enabled)
+                            .padding(.vertical, 4)
+                    }
+                } footer: {
+                    Text(L10n.key("entryDetail.rawResponseFooter"))
+                }
+            }
         }
         .navigationTitle(entry.visitDate.formatted(date: .abbreviated, time: .omitted))
         .navigationBarTitleDisplayMode(.inline)
