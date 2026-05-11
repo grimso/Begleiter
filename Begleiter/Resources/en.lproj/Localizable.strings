@@ -80,6 +80,17 @@
 "home.placeholder.dayLabel" = "Day in this phase";
 "home.placeholder.diagnosisDays" = "Days since diagnosis";
 
+// MARK: - Capture (journal entry composer)
+"capture.title" = "New entry";
+"capture.visitDate" = "Visit date";
+"capture.context.header" = "Context";
+"capture.context.footer" = "Auto-filled: %1$@, day %2$d in this phase.";
+"capture.text.header" = "What happened?";
+"capture.text.footer" = "Type freely — appointment, drugs, reactions, lab values, questions. Gemma 4 structures it on-device.";
+"capture.submit" = "Analyze entry";
+"capture.busy.extracting" = "Gemma is analyzing…";
+"capture.busy.saving" = "Saving…";
+
 // MARK: - Debug / smoke test (developer screen, not shown to parents)
 "debug.section" = "Development";
 "debug.smoke.title" = "Gemma 4 smoke test";
