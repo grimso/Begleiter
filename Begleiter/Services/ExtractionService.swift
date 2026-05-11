@@ -5,9 +5,13 @@ import OSLog
 private let extractionLog = Logger(subsystem: "io.grimso.Begleiter", category: "gemma.extraction")
 
 /// Per-call generation parameters for the extraction path.
-/// - maxTokens: 640 — covers fully-populated ExtractedFields + long summary.
+/// - maxTokens: 1500 — full Befund-PDF inputs can have 15+ lab values,
+///   each ~80 tokens of JSON, plus drugs / observations / summary. 640
+///   truncated mid-array on real lab panels; 1500 has margin even for a
+///   chemistry + CBC printout. KV-cache cost at this length is ~160 MB,
+///   still trivial against the 3.3 GB model.
 /// - temperature: 0.3 — structured extraction wants deterministic output.
-private let extractionParameters = GenerateParameters(maxTokens: 640, temperature: 0.3)
+private let extractionParameters = GenerateParameters(maxTokens: 1500, temperature: 0.3)
 
 /// Outcome of an extraction attempt: parsed structured fields plus the raw
 /// string Gemma emitted (verbatim, with markdown fences if present), plus
