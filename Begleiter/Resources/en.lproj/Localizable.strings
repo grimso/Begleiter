@@ -80,6 +80,29 @@
 "home.placeholder.dayLabel" = "Day in this phase";
 "home.placeholder.diagnosisDays" = "Days since diagnosis";
 
+// MARK: - Timeline
+"timeline.title" = "Journal";
+"timeline.add" = "New entry";
+"timeline.empty.title" = "No entries yet";
+"timeline.empty.description" = "Capture appointments, lab values, and observations — everything stays on your device.";
+"timeline.empty.action" = "Create first entry";
+
+// MARK: - Entry detail
+"entryDetail.context" = "Context";
+"entryDetail.phase" = "Phase";
+"entryDetail.dayInPhase" = "Day in phase";
+"entryDetail.doctor" = "Doctor";
+"entryDetail.visitType" = "Visit type";
+"entryDetail.rawText" = "Original text";
+"entryDetail.summary" = "Summary";
+"entryDetail.drugs" = "Drugs";
+"entryDetail.labs" = "Lab values";
+"entryDetail.procedures" = "Procedures";
+"entryDetail.decisions" = "Team decisions";
+"entryDetail.observations" = "Your observations";
+"entryDetail.reactions" = "Reactions / side effects";
+"entryDetail.questions" = "Open questions";
+
 // MARK: - Capture (journal entry composer)
 "capture.title" = "New entry";
 "capture.visitDate" = "Visit date";

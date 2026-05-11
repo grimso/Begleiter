@@ -80,6 +80,29 @@
 "home.placeholder.dayLabel" = "Tag in dieser Phase";
 "home.placeholder.diagnosisDays" = "Tage seit Diagnose";
 
+// MARK: - Timeline
+"timeline.title" = "Tagebuch";
+"timeline.add" = "Neuer Eintrag";
+"timeline.empty.title" = "Noch keine Einträge";
+"timeline.empty.description" = "Erfassen Sie Termine, Werte und Beobachtungen — alles bleibt auf Ihrem Gerät.";
+"timeline.empty.action" = "Ersten Eintrag erstellen";
+
+// MARK: - Entry detail
+"entryDetail.context" = "Kontext";
+"entryDetail.phase" = "Phase";
+"entryDetail.dayInPhase" = "Tag in der Phase";
+"entryDetail.doctor" = "Ärztin / Arzt";
+"entryDetail.visitType" = "Art des Termins";
+"entryDetail.rawText" = "Originaltext";
+"entryDetail.summary" = "Zusammenfassung";
+"entryDetail.drugs" = "Medikamente";
+"entryDetail.labs" = "Laborwerte";
+"entryDetail.procedures" = "Prozeduren";
+"entryDetail.decisions" = "Entscheidungen des Teams";
+"entryDetail.observations" = "Eigene Beobachtungen";
+"entryDetail.reactions" = "Reaktionen / Nebenwirkungen";
+"entryDetail.questions" = "Offene Fragen";
+
 // MARK: - Capture (journal entry composer)
 "capture.title" = "Neuer Eintrag";
 "capture.visitDate" = "Datum des Termins";

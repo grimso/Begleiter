@@ -38,7 +38,7 @@ struct RootView: View {
 
     var body: some View {
         if let child = children.first {
-            HomePlaceholderView(child: child)
+            TimelineView(child: child)
         } else {
             OnboardingView()
         }
