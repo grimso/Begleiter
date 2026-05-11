@@ -1,4 +1,7 @@
 import Foundation
+import OSLog
+
+private let extractionLog = Logger(subsystem: "io.grimso.Begleiter", category: "gemma.extraction")
 
 /// Errors surfaced by `ExtractionService` when extraction cannot proceed.
 enum ExtractionError: Error, LocalizedError {
@@ -44,12 +47,15 @@ actor ExtractionService {
 
     private let gemma: GemmaService
 
-    /// Default to a smaller max-token cap than GemmaService's default (256).
-    /// Extraction outputs are JSON — typically <120 tokens for a normal
-    /// entry. The tighter cap trims KV-cache headroom, giving us more
-    /// margin under iPhone 14 Pro's per-app limit. Temperature is also
-    /// reduced because structured extraction wants deterministic output.
-    init(gemma: GemmaService = GemmaService(maxTokens: 128, temperature: 0.3)) {
+    /// Tuned generation parameters for the extraction path.
+    /// - maxTokens: 384 — a fully-populated ExtractedFields JSON with all
+    ///   10 fields + confidence scores comfortably fits in ~300 tokens;
+    ///   the buffer absorbs longer drug / observation lists without
+    ///   truncating mid-object. KV-cache memory at this length is ~40 MB,
+    ///   negligible against the 3.3 GB model footprint.
+    /// - temperature: 0.3 — structured extraction wants more deterministic
+    ///   output than chat (default 0.6).
+    init(gemma: GemmaService = GemmaService(maxTokens: 384, temperature: 0.3)) {
         self.gemma = gemma
     }
 
@@ -87,8 +93,10 @@ actor ExtractionService {
 
         do {
             let raw = try await gemma.generate(prompt: prompt)
+            extractionLog.debug("attempt=1 raw=\(raw, privacy: .public)")
             return try Self.parseExtractedFields(from: raw)
         } catch {
+            extractionLog.warning("attempt=1 parse failed: \(error.localizedDescription, privacy: .public)")
             // Retry once with stricter instructions.
             let retryPrompt = Self.buildPrompt(
                 text: trimmed,
@@ -98,6 +106,7 @@ actor ExtractionService {
                 strictMode: true
             )
             let raw = try await gemma.generate(prompt: retryPrompt)
+            extractionLog.debug("attempt=2 raw=\(raw, privacy: .public)")
             return try Self.parseExtractedFields(from: raw)
         }
     }
