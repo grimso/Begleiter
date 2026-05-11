@@ -107,15 +107,19 @@ actor AppleVisionPhotoEngine: PhotoExtractionEngine {
                     ))
                     return
                 }
-                let lines = observations.compactMap { $0.topCandidates(1).first?.string }
+                // Layout-aware reconstruction: cluster observations into
+                // rows by y, sort left-to-right within each row. Critical
+                // for column-organised Befund printouts where parameter
+                // and value sit side-by-side on the same visual line.
+                let text = OCRLayout.reconstruct(observations: observations)
                 let confidences = observations.compactMap { $0.topCandidates(1).first?.confidence }
                 let avg = confidences.isEmpty
                     ? 0.0
                     : Double(confidences.reduce(0, +)) / Double(confidences.count)
                 continuation.resume(returning: PhotoExtractionResult(
-                    recognisedText: lines.joined(separator: "\n"),
+                    recognisedText: text,
                     averageConfidence: avg,
-                    engineLabel: "Apple Vision OCR"
+                    engineLabel: "Apple Vision OCR (layout-aware)"
                 ))
             } catch {
                 continuation.resume(throwing: PhotoExtractionError.recognitionFailed(error.localizedDescription))

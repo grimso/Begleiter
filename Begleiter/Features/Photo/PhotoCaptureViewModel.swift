@@ -151,6 +151,8 @@ final class PhotoCaptureViewModel {
                     try Task.checkCancellation()
                     let result = try await engine.extract(imageData: data)
                     try Task.checkCancellation()
+                    photoCaptureLog.info("image OCR via \(result.engineLabel, privacy: .public): \(result.recognisedText.count, privacy: .public) chars, confidence=\(Int(result.averageConfidence * 100), privacy: .public)%")
+                    photoCaptureLog.debug("OCR text preview: \(result.recognisedText.prefix(800), privacy: .public)")
                     await MainActor.run {
                         self.phase = .done(text: result.recognisedText, confidence: result.averageConfidence)
                     }
@@ -170,9 +172,14 @@ final class PhotoCaptureViewModel {
             throw PhotoExtractionError.unsupportedImage
         }
 
-        // Gather embedded text from all pages.
+        // Gather layout-aware embedded text from all pages. Reading
+        // `PDFPage.string` directly returns text in document-stream
+        // order, which loses row structure on column-organised forms
+        // (the user's lab printouts). OCRLayout.reconstruct(pdfPage:)
+        // uses per-character bounding boxes to cluster characters into
+        // rows by y midpoint and reconstruct left-to-right.
         let embedded = (0..<document.pageCount)
-            .compactMap { document.page(at: $0)?.string }
+            .compactMap { document.page(at: $0).map { OCRLayout.reconstruct(pdfPage: $0) } }
             .joined(separator: "\n\n")
 
         // Render page 1 to a thumbnail for preview regardless of which
@@ -205,7 +212,8 @@ final class PhotoCaptureViewModel {
         let cleanedEmbedded = embedded.trimmingCharacters(in: .whitespacesAndNewlines)
         if !cleanedEmbedded.isEmpty {
             // High-quality path: PDF had digital text. No OCR needed.
-            photoCaptureLog.info("PDF embedded-text extraction: \(cleanedEmbedded.count, privacy: .public) chars over \(document.pageCount, privacy: .public) pages")
+            photoCaptureLog.info("PDF embedded-text extraction: \(cleanedEmbedded.count, privacy: .public) chars over \(document.pageCount, privacy: .public) pages (layout-aware)")
+            photoCaptureLog.debug("PDF text preview: \(cleanedEmbedded.prefix(800), privacy: .public)")
             await MainActor.run {
                 self.phase = .done(text: cleanedEmbedded, confidence: 1.0)
             }
