@@ -79,3 +79,19 @@
 "home.placeholder.phaseLabel" = "Current phase";
 "home.placeholder.dayLabel" = "Day in this phase";
 "home.placeholder.diagnosisDays" = "Days since diagnosis";
+
+// MARK: - Debug / smoke test (developer screen, not shown to parents)
+"debug.section" = "Development";
+"debug.smoke.title" = "Gemma 4 smoke test";
+"debug.smoke.modelSection" = "Model status";
+"debug.smoke.modelFooter" = "First load downloads the model (~2 GB, 4-bit quantized). Later launches read from the on-device cache.";
+"debug.smoke.loadButton" = "Load model";
+"debug.smoke.downloading" = "Downloading …";
+"debug.smoke.state.idle" = "Not loaded";
+"debug.smoke.state.loading" = "Loading … %d%%";
+"debug.smoke.state.loaded" = "Model loaded";
+"debug.smoke.promptSection" = "Test prompt";
+"debug.smoke.promptPlaceholder" = "Question or instruction for Gemma 4";
+"debug.smoke.generateButton" = "Generate response";
+"debug.smoke.generating" = "Generating …";
+"debug.smoke.outputSection" = "Response";

@@ -8,12 +8,10 @@ iOS-native multimodal medical journal for parents of children in AIEOP-BFM ALL 2
 
 | Iteration | Scope | Status |
 |---|---|---|
-| 1 | Protocol state machine + onboarding flow | ✅ scaffolded (this commit) |
-| 2 | Xcode project + MLX-Swift + Gemma 4 E4B loading | ⏳ next |
+| 1 | Protocol state machine + onboarding flow | ✅ done |
+| 2 | Xcode project + MLX-Swift + Gemma 4 E4B loading smoke test | 🟡 code scaffolded, packages to add (see below) |
 | 3 | Text-only journal + GemmaService function calling | ⏳ |
 | 4+ | Voice (WhisperKit), photos (Vision OCR), retrieval, briefing, handoff | ⏳ |
-
-Iteration 1 is intentionally code-only (no `.xcodeproj`) so a clinical advisor can review `Begleiter/Protocol/PhaseMetadata.swift` and `Begleiter/Protocol/PhaseTransitions.swift` before any AI behavior is wired up.
 
 ## Repository layout
 
@@ -51,14 +49,28 @@ The scaffolded source files are designed to drop into a fresh Xcode project. The
    - Localization: add **German** (de) under **Project → Info → Localizations**.
 8. Build and run on the iOS Simulator (or a device). Cold launch should show the German onboarding flow.
 
-## Adding the ML packages (iteration 2, not yet wired up)
+## Adding the ML packages (iteration 2)
 
-When iteration 2 begins, add via **File → Add Package Dependencies…**:
+Iteration 2 scaffolds `Services/GemmaService.swift` + `Features/Debug/SmokeTestView.swift`, which import MLX-Swift modules. Before the code compiles, add these packages via **File → Add Package Dependencies…** in Xcode:
 
-- `https://github.com/ml-explore/mlx-swift`
-- `https://github.com/argmaxinc/WhisperKit`
+| Repository URL | Required products (check boxes) | Add to target |
+|---|---|---|
+| `https://github.com/ml-explore/mlx-swift` | `MLX`, `MLXNN`, `MLXRandom` | Begleiter |
+| `https://github.com/ml-explore/mlx-swift-examples` | `MLXLLM`, `MLXLMCommon` | Begleiter |
+| `https://github.com/argmaxinc/WhisperKit` | `WhisperKit` | Begleiter (not yet imported — iteration 4) |
 
-Neither is required for iteration 1 to build or run.
+After each "Add Package", wait for SPM resolution, then tick only the listed products and confirm the target is `Begleiter` (NOT the test targets).
+
+### Running the smoke test
+
+1. Add the three packages above. Build (Cmd+B) — should be green.
+2. Plug in your iPhone 14 Pro. In Xcode, set the run destination to your device. Sign in to your Apple Developer account under **Xcode → Settings → Accounts**; let Xcode automatic-manage signing for the `Begleiter` target.
+3. Run (Cmd+R). Walk through onboarding once if you haven't already.
+4. From the home placeholder, tap **Entwicklung → Gemma 4 Smoke-Test**.
+5. Tap **Modell laden**. On first launch the model (~2 GB) downloads from Hugging Face; the progress bar shows download fraction. Subsequent launches load from cache.
+6. Tap **Antwort erzeugen** to run the default German prompt. A response should render within a few seconds.
+
+If the load fails with a model-not-found error, update `GemmaService.Configuration.default.modelId` in `Begleiter/Services/GemmaService.swift` to point at the current `mlx-community` repo for Gemma 4 E4B. The placeholder defaults to `mlx-community/gemma-3-4b-it-4bit` — see the `TODO(iteration-2)` comment in that file.
 
 ## Running tests
 

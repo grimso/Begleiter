@@ -29,6 +29,16 @@ struct HomePlaceholderView: View {
                 } header: {
                     Text(L10n.key("home.placeholder.subtitle"))
                 }
+
+                Section {
+                    NavigationLink {
+                        SmokeTestView()
+                    } label: {
+                        Label(L10n.t("debug.smoke.title"), systemImage: "brain.head.profile")
+                    }
+                } header: {
+                    Text(L10n.key("debug.section"))
+                }
             }
             .navigationTitle(L10n.key("home.placeholder.title"))
         }
