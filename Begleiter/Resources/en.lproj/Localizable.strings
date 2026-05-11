@@ -88,7 +88,7 @@
 "debug.smoke.loadButton" = "Load model";
 "debug.smoke.downloading" = "Downloading …";
 "debug.smoke.state.idle" = "Not loaded";
-"debug.smoke.state.loading" = "Loading … %d%%";
+"debug.smoke.state.downloading" = "Loading model — please wait (several minutes on first run)";
 "debug.smoke.state.loaded" = "Model loaded";
 "debug.smoke.promptSection" = "Test prompt";
 "debug.smoke.promptPlaceholder" = "Question or instruction for Gemma 4";

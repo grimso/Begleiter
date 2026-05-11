@@ -9,11 +9,15 @@ struct SmokeTestView: View {
         Form {
             Section {
                 stateRow
-                if case .loading(let progress) = model.loadState {
-                    ProgressView(value: progress) {
-                        Text(L10n.key("debug.smoke.downloading"))
-                            .font(.caption)
-                    }
+                if isLoading {
+                    // The HF HubClient reports progress as files-completed, not
+                    // bytes — and the snapshot's largest file (model.safetensors)
+                    // is downloaded last, so the byte-accurate fraction stays
+                    // ~0 for most of the download. Showing an indeterminate
+                    // ProgressView is more honest than a percentage that
+                    // doesn't move.
+                    ProgressView()
+                        .progressViewStyle(.linear)
                 }
                 Button {
                     model.loadModel()
@@ -91,9 +95,9 @@ struct SmokeTestView: View {
         case .idle:
             Label(L10n.t("debug.smoke.state.idle"), systemImage: "circle")
                 .foregroundStyle(.secondary)
-        case .loading(let progress):
+        case .loading:
             Label(
-                String(format: L10n.t("debug.smoke.state.loading"), Int(progress * 100)),
+                L10n.t("debug.smoke.state.downloading"),
                 systemImage: "arrow.down.circle"
             )
         case .loaded:
