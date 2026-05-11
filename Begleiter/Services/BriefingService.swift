@@ -1,5 +1,8 @@
 import Foundation
 import MLXLMCommon
+import OSLog
+
+private let briefingLog = Logger(subsystem: "io.grimso.Begleiter", category: "gemma.briefing")
 
 /// Generation parameters for briefing: longer maxTokens (5 sections with
 /// multiple cited claims easily runs 400+ tokens), moderate temperature
@@ -59,7 +62,21 @@ actor BriefingService {
             entries: entries
         )
         let raw = try await gemma.generate(prompt: prompt, parameters: briefingParameters)
-        let briefing = try Self.parseBriefing(from: raw, visitDate: visitDate)
+        briefingLog.debug("raw=\(raw, privacy: .public)")
+        let parsed = try Self.parseBriefing(from: raw, visitDate: visitDate)
+
+        // If the tolerant decoder fell back on the targetDate sentinel,
+        // overwrite with the visitDate the caller asked for.
+        let briefing = parsed.targetDate == Date(timeIntervalSince1970: 0)
+            ? Briefing(
+                targetDate: visitDate,
+                aktuellerStand: parsed.aktuellerStand,
+                seitDemLetztenTermin: parsed.seitDemLetztenTermin,
+                offenePunkte: parsed.offenePunkte,
+                fragenVorschlaege: parsed.fragenVorschlaege,
+                mitzunehmen: parsed.mitzunehmen
+            )
+            : parsed
 
         // Verifiable-generation guard: drop claims whose entryId isn't in
         // the input set. Gemma sometimes makes up plausible-looking UUIDs.
