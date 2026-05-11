@@ -88,11 +88,11 @@ final class MemoryWarningObserver {
             )
             for await _ in notifications {
                 MemoryDiagnostics.snapshot(label: "memory-warning")
-                // Iteration 3 surface: the extraction service. Briefing /
-                // handoff services in iter 6 each own their own
-                // GemmaService; their view models can subscribe similarly
-                // when memory pressure becomes a recurring issue there.
-                await ExtractionService.shared.unloadModel()
+                // Drop the single shared model. Extraction, briefing, and
+                // handoff all share this instance, so a single unload
+                // releases the weights for the whole app. Next inference
+                // call re-loads from the on-device HF cache.
+                await GemmaService.shared.unload()
             }
         }
     }

@@ -1,4 +1,10 @@
 import Foundation
+import MLXLMCommon
+
+/// Generation parameters for briefing: longer maxTokens (5 sections with
+/// multiple cited claims easily runs 400+ tokens), moderate temperature
+/// (some German fluency needed but no creative drift).
+private let briefingParameters = GenerateParameters(maxTokens: 640, temperature: 0.5)
 
 /// Errors surfaced by `BriefingService`.
 enum BriefingError: Error, LocalizedError {
@@ -32,7 +38,8 @@ actor BriefingService {
 
     private let gemma: GemmaService
 
-    init(gemma: GemmaService = GemmaService()) {
+    /// Defaults to the app-wide shared GemmaService — one model in memory.
+    init(gemma: GemmaService = .shared) {
         self.gemma = gemma
     }
 
@@ -51,7 +58,7 @@ actor BriefingService {
             child: child,
             entries: entries
         )
-        let raw = try await gemma.generate(prompt: prompt)
+        let raw = try await gemma.generate(prompt: prompt, parameters: briefingParameters)
         let briefing = try Self.parseBriefing(from: raw, visitDate: visitDate)
 
         // Verifiable-generation guard: drop claims whose entryId isn't in

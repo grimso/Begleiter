@@ -44,8 +44,15 @@ actor GemmaService {
         case failed(message: String)
     }
 
+    /// App-wide shared instance. **All callers** (ExtractionService,
+    /// BriefingService, HandoffService) point at this so iPhone 14 Pro
+    /// never holds two copies of the 3.3 GB model in memory at once. Each
+    /// caller passes its own `GenerateParameters` into `generate(...)`
+    /// rather than baking parameters into the service.
+    static let shared = GemmaService()
+
     private let configuration: ModelConfiguration
-    private let generateParameters: GenerateParameters
+    private let defaultGenerateParameters: GenerateParameters
     private var container: ModelContainer?
     private(set) var state: LoadState = .idle
 
@@ -88,7 +95,7 @@ actor GemmaService {
         temperature: Float = 0.6
     ) {
         self.configuration = configuration
-        self.generateParameters = GenerateParameters(
+        self.defaultGenerateParameters = GenerateParameters(
             maxTokens: maxTokens,
             temperature: temperature
         )
@@ -138,18 +145,28 @@ actor GemmaService {
     /// Run a single-turn prompt against the loaded model and return the full
     /// decoded string. ChatSession applies Gemma 4's chat template internally.
     ///
+    /// `parameters` overrides the service-wide default. Extraction wants
+    /// long deterministic output (maxTokens 640, temp 0.3); briefing /
+    /// handoff want moderate creative output (default 0.6). Each caller
+    /// passes its own.
+    ///
     /// Memory-hygiene wrapper: snapshots before + after the generation and
     /// drops MLX's freed-buffer cache after it returns (or throws), which
     /// otherwise accumulates several GB across repeated calls.
-    func generate(prompt: String) async throws -> String {
+    func generate(
+        prompt: String,
+        parameters: GenerateParameters? = nil
+    ) async throws -> String {
         let container = try await loadModel()
         let session = ChatSession(
             container,
-            generateParameters: generateParameters
+            generateParameters: parameters ?? defaultGenerateParameters
         )
         MemoryDiagnostics.snapshot(label: "before-generate")
         defer {
+            #if !targetEnvironment(simulator)
             MLX.Memory.clearCache()
+            #endif
             MemoryDiagnostics.snapshot(label: "after-generate")
         }
         return try await session.respond(to: prompt)

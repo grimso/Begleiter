@@ -1,4 +1,10 @@
 import Foundation
+import MLXLMCommon
+
+/// Generation parameters for handoff: medium maxTokens (only the 3 prose
+/// sections — the rest of the document is assembled deterministically),
+/// lower temperature for clinical phrasing.
+private let handoffParameters = GenerateParameters(maxTokens: 512, temperature: 0.4)
 
 enum HandoffError: Error, LocalizedError {
     case modelReturnedNoJSON
@@ -31,7 +37,8 @@ actor HandoffService {
 
     private let gemma: GemmaService
 
-    init(gemma: GemmaService = GemmaService()) {
+    /// Defaults to the app-wide shared GemmaService — one model in memory.
+    init(gemma: GemmaService = .shared) {
         self.gemma = gemma
     }
 
@@ -64,7 +71,7 @@ actor HandoffService {
             recent: recent,
             language: language
         )
-        let raw = try await gemma.generate(prompt: prompt)
+        let raw = try await gemma.generate(prompt: prompt, parameters: handoffParameters)
         let prose = try Self.parseProseSections(from: raw)
 
         return HandoffDocument(

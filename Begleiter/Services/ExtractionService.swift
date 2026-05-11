@@ -1,7 +1,13 @@
 import Foundation
+import MLXLMCommon
 import OSLog
 
 private let extractionLog = Logger(subsystem: "io.grimso.Begleiter", category: "gemma.extraction")
+
+/// Per-call generation parameters for the extraction path.
+/// - maxTokens: 640 — covers fully-populated ExtractedFields + long summary.
+/// - temperature: 0.3 — structured extraction wants deterministic output.
+private let extractionParameters = GenerateParameters(maxTokens: 640, temperature: 0.3)
 
 /// Outcome of an extraction attempt: parsed structured fields plus the raw
 /// string Gemma emitted (verbatim, with markdown fences if present), plus
@@ -57,16 +63,10 @@ actor ExtractionService {
 
     private let gemma: GemmaService
 
-    /// Tuned generation parameters for the extraction path.
-    /// - maxTokens: 640 — first device run hit 384 and truncated the
-    ///   summary mid-sentence (no closing `}`, parse fails). Gemma 4 E2B's
-    ///   verbosity varies meaningfully between runs; 640 gives comfortable
-    ///   margin for a fully-populated ExtractedFields plus a long German
-    ///   summary. KV-cache cost at this length is ~70 MB — still trivial
-    ///   against the 3.3 GB model.
-    /// - temperature: 0.3 — structured extraction wants more deterministic
-    ///   output than chat (default 0.6).
-    init(gemma: GemmaService = GemmaService(maxTokens: 640, temperature: 0.3)) {
+    /// Defaults to the app-wide shared GemmaService so we never load two
+    /// copies of the model. Per-call generation parameters are passed
+    /// into `gemma.generate(prompt:parameters:)` below.
+    init(gemma: GemmaService = .shared) {
         self.gemma = gemma
     }
 
@@ -105,7 +105,7 @@ actor ExtractionService {
             strictMode: false
         )
 
-        let raw1 = try await gemma.generate(prompt: prompt)
+        let raw1 = try await gemma.generate(prompt: prompt, parameters: extractionParameters)
         extractionLog.debug("attempt=1 raw=\(raw1, privacy: .public)")
         if let fields = try? Self.parseExtractedFields(from: raw1) {
             return ExtractionResult(fields: fields, rawResponse: raw1, attempt: 1)
@@ -119,7 +119,7 @@ actor ExtractionService {
             visitDate: visitDate,
             strictMode: true
         )
-        let raw2 = try await gemma.generate(prompt: retryPrompt)
+        let raw2 = try await gemma.generate(prompt: retryPrompt, parameters: extractionParameters)
         extractionLog.debug("attempt=2 raw=\(raw2, privacy: .public)")
         let fields = try Self.parseExtractedFields(from: raw2)
         return ExtractionResult(fields: fields, rawResponse: raw2, attempt: 2)
