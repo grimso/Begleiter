@@ -1,0 +1,213 @@
+import SwiftData
+import SwiftUI
+
+struct HandoffDocumentView: View {
+    let child: ChildState
+
+    @Query(sort: \JournalEntry.visitDate, order: .reverse) private var entries: [JournalEntry]
+    @State private var model = HandoffViewModel()
+    @State private var presentingShare = false
+    @State private var shareableText: String = ""
+
+    var body: some View {
+        NavigationStack {
+            content
+                .navigationTitle(L10n.key("handoff.title"))
+                .toolbar {
+                    if case .done = model.state {
+                        ToolbarItem(placement: .primaryAction) {
+                            Button {
+                                shareableText = Self.plainText(of: currentDocument!)
+                                presentingShare = true
+                            } label: {
+                                Image(systemName: "square.and.arrow.up")
+                            }
+                            .accessibilityLabel(L10n.t("handoff.share"))
+                        }
+                    }
+                }
+                .sheet(isPresented: $presentingShare) {
+                    ShareSheet(items: [shareableText])
+                }
+        }
+    }
+
+    private var currentDocument: HandoffDocument? {
+        if case .done(let doc) = model.state { return doc }
+        return nil
+    }
+
+    @ViewBuilder
+    private var content: some View {
+        switch model.state {
+        case .idle:
+            controlsForm
+        case .generating:
+            VStack(spacing: 16) {
+                ProgressView()
+                Text(L10n.key("handoff.generating"))
+                    .foregroundStyle(.secondary)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        case .failed(let message):
+            VStack(spacing: 12) {
+                Label {
+                    Text(message)
+                } icon: {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundStyle(.red)
+                }
+                .padding()
+                Button(L10n.t("handoff.retry")) {
+                    model.reset()
+                }
+            }
+        case .done(let doc):
+            documentForm(doc)
+        }
+    }
+
+    private var controlsForm: some View {
+        Form {
+            Section {
+                Picker(selection: $model.language) {
+                    ForEach([HandoffLanguage.german, .english], id: \.self) { lang in
+                        Text(lang.humanLabel).tag(lang)
+                    }
+                } label: {
+                    Text(L10n.key("handoff.language"))
+                }
+                .pickerStyle(.segmented)
+            } header: {
+                Text(L10n.key("handoff.options"))
+            } footer: {
+                Text(L10n.key("handoff.footer"))
+            }
+
+            Section {
+                Button {
+                    model.generate(child: child, entries: entries)
+                } label: {
+                    Text(L10n.key("handoff.generate"))
+                        .frame(maxWidth: .infinity)
+                }
+                .disabled(entries.isEmpty)
+            }
+        }
+    }
+
+    private func documentForm(_ doc: HandoffDocument) -> some View {
+        Form {
+            Section {
+                LabeledContent(L10n.t("handoff.field.patientId"), value: doc.patientId)
+                LabeledContent(L10n.t("handoff.field.diagnose"), value: doc.diagnose)
+                LabeledContent(L10n.t("handoff.field.riskGroup"), value: doc.riskGroupLabel)
+                LabeledContent(L10n.t("handoff.field.arm"), value: doc.randomizationLabel)
+                LabeledContent(L10n.t("handoff.field.phase"), value: doc.phaseLabel)
+                LabeledContent(L10n.t("handoff.field.dayInPhase"), value: "\(doc.dayInPhase)")
+            } header: {
+                Text(L10n.key("handoff.section.identification"))
+            }
+
+            if !doc.behandlungsverlauf.isEmpty {
+                Section {
+                    ForEach(doc.behandlungsverlauf, id: \.self) { Text($0) }
+                } header: {
+                    Text(L10n.key("handoff.section.history"))
+                }
+            }
+
+            if !doc.aktuelleLabore.isEmpty {
+                Section {
+                    ForEach(doc.aktuelleLabore, id: \.self) { line in
+                        HStack {
+                            Text(line.germanLabel)
+                            Spacer()
+                            Text(line.value).font(.body.monospacedDigit())
+                        }
+                    }
+                } header: {
+                    Text(L10n.key("handoff.section.labs"))
+                }
+            }
+
+            if !doc.reaktionen.isEmpty {
+                Section {
+                    ForEach(doc.reaktionen, id: \.self) { Text($0) }
+                } header: {
+                    Text(L10n.key("handoff.section.reactions"))
+                }
+            }
+
+            if !doc.aktuelleMedikation.isEmpty {
+                Section {
+                    ForEach(doc.aktuelleMedikation, id: \.self) { Text($0) }
+                } header: {
+                    Text(L10n.key("handoff.section.medication"))
+                }
+            }
+
+            if !doc.familienanliegen.isEmpty {
+                Section {
+                    ForEach(doc.familienanliegen, id: \.self) { Text($0) }
+                } header: {
+                    Text(L10n.key("handoff.section.familyConcerns"))
+                }
+            }
+        }
+    }
+
+    /// Plain-text serialization for AirDrop / Mail / share sheet.
+    static func plainText(of doc: HandoffDocument) -> String {
+        var lines: [String] = []
+        lines.append("ÜBERGABE — \(doc.patientId)")
+        lines.append("")
+        lines.append("Diagnose: \(doc.diagnose)")
+        lines.append("Risikogruppe: \(doc.riskGroupLabel)")
+        lines.append("Studienarm: \(doc.randomizationLabel)")
+        lines.append("Aktuelle Phase: \(doc.phaseLabel) (Tag \(doc.dayInPhase))")
+        lines.append("")
+        if !doc.behandlungsverlauf.isEmpty {
+            lines.append("BEHANDLUNGSVERLAUF:")
+            lines.append(contentsOf: doc.behandlungsverlauf.map { "  • \($0)" })
+            lines.append("")
+        }
+        if !doc.aktuelleLabore.isEmpty {
+            lines.append("AKTUELLE LABORE:")
+            for lab in doc.aktuelleLabore {
+                var line = "  • \(lab.germanLabel): \(lab.value)"
+                if let ref = lab.referenceRange { line += " (Ref: \(ref))" }
+                lines.append(line)
+            }
+            lines.append("")
+        }
+        if !doc.reaktionen.isEmpty {
+            lines.append("REAKTIONEN / NEBENWIRKUNGEN:")
+            lines.append(contentsOf: doc.reaktionen.map { "  • \($0)" })
+            lines.append("")
+        }
+        if !doc.aktuelleMedikation.isEmpty {
+            lines.append("AKTUELLE MEDIKATION:")
+            lines.append(contentsOf: doc.aktuelleMedikation.map { "  • \($0)" })
+            lines.append("")
+        }
+        if !doc.familienanliegen.isEmpty {
+            lines.append("ANLIEGEN DER FAMILIE:")
+            lines.append(contentsOf: doc.familienanliegen.map { "  • \($0)" })
+            lines.append("")
+        }
+        lines.append("— Erstellt mit Begleiter, on-device.")
+        return lines.joined(separator: "\n")
+    }
+}
+
+/// UIKit share sheet wrapped for SwiftUI.
+private struct ShareSheet: UIViewControllerRepresentable {
+    let items: [Any]
+
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        UIActivityViewController(activityItems: items, applicationActivities: nil)
+    }
+
+    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
+}

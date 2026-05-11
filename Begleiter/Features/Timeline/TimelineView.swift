@@ -15,6 +15,7 @@ struct TimelineView: View {
     @Query(sort: \JournalEntry.visitDate, order: .reverse) private var entries: [JournalEntry]
     @State private var presentingCapture = false
     @State private var presentingBriefing = false
+    @State private var presentingHandoff = false
 
     var body: some View {
         NavigationStack {
@@ -57,6 +58,14 @@ struct TimelineView: View {
                     .disabled(entries.isEmpty)
                 }
                 ToolbarItem(placement: .topBarLeading) {
+                    Button {
+                        presentingHandoff = true
+                    } label: {
+                        Label(L10n.t("handoff.title"), systemImage: "doc.text")
+                    }
+                    .disabled(entries.isEmpty)
+                }
+                ToolbarItem(placement: .topBarLeading) {
                     NavigationLink {
                         SmokeTestView()
                     } label: {
@@ -70,6 +79,9 @@ struct TimelineView: View {
             }
             .sheet(isPresented: $presentingBriefing) {
                 PreVisitBriefingView(child: child)
+            }
+            .sheet(isPresented: $presentingHandoff) {
+                HandoffDocumentView(child: child)
             }
         }
     }

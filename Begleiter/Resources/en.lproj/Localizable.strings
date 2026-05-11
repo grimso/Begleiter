@@ -94,6 +94,30 @@
 "briefing.section.fragen" = "Suggested questions";
 "briefing.section.mitzunehmen" = "What to bring";
 
+// MARK: - Handoff (one-page document for new rotating doctor)
+"handoff.title" = "Handover";
+"handoff.options" = "Options";
+"handoff.language" = "Language";
+"handoff.footer" = "Creates a clinical handover for a new doctor. German by default — English on toggle.";
+"handoff.generate" = "Create handover";
+"handoff.generating" = "Gemma is preparing the handover…";
+"handoff.retry" = "Try again";
+"handoff.share" = "Share handover";
+
+"handoff.field.patientId" = "Patient ID";
+"handoff.field.diagnose" = "Diagnosis";
+"handoff.field.riskGroup" = "Risk group";
+"handoff.field.arm" = "Study arm";
+"handoff.field.phase" = "Current phase";
+"handoff.field.dayInPhase" = "Day in phase";
+
+"handoff.section.identification" = "Patient identification";
+"handoff.section.history" = "Treatment history";
+"handoff.section.labs" = "Recent lab values";
+"handoff.section.reactions" = "Reactions / adverse events";
+"handoff.section.medication" = "Current medication";
+"handoff.section.familyConcerns" = "Current family concerns";
+
 // MARK: - Timeline
 "timeline.title" = "Journal";
 "timeline.add" = "New entry";

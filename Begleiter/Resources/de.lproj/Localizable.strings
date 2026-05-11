@@ -94,6 +94,30 @@
 "briefing.section.fragen" = "Vorschläge für Fragen";
 "briefing.section.mitzunehmen" = "Was mitnehmen";
 
+// MARK: - Handoff (one-page document for new rotating doctor)
+"handoff.title" = "Übergabe";
+"handoff.options" = "Optionen";
+"handoff.language" = "Sprache";
+"handoff.footer" = "Erstellt eine klinische Übergabe für einen neuen Arzt. Standardmäßig auf Deutsch — Englisch auf Wunsch.";
+"handoff.generate" = "Übergabe erstellen";
+"handoff.generating" = "Gemma erstellt die Übergabe …";
+"handoff.retry" = "Erneut versuchen";
+"handoff.share" = "Übergabe teilen";
+
+"handoff.field.patientId" = "Patient-ID";
+"handoff.field.diagnose" = "Diagnose";
+"handoff.field.riskGroup" = "Risikogruppe";
+"handoff.field.arm" = "Studienarm";
+"handoff.field.phase" = "Aktuelle Phase";
+"handoff.field.dayInPhase" = "Tag in der Phase";
+
+"handoff.section.identification" = "Patientenkennung";
+"handoff.section.history" = "Behandlungsverlauf";
+"handoff.section.labs" = "Aktuelle Laborwerte";
+"handoff.section.reactions" = "Reaktionen / unerwünschte Ereignisse";
+"handoff.section.medication" = "Aktuelle Medikation";
+"handoff.section.familyConcerns" = "Aktuelle Anliegen der Familie";
+
 // MARK: - Timeline
 "timeline.title" = "Tagebuch";
 "timeline.add" = "Neuer Eintrag";
