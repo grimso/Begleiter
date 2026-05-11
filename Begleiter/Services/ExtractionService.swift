@@ -134,9 +134,11 @@ actor ExtractionService {
         \(header)
 
         REGELN:
-        - Erfinden Sie NIEMALS Werte, die nicht im Text stehen. Wenn etwas nicht erwähnt wird, lassen Sie das Feld weg oder setzen Sie es auf null.
-        - Geben Sie für jedes ausgefüllte Feld eine Konfidenz zwischen 0.0 und 1.0 an: 1.0 = explizit im Text genannt, 0.5 = wahrscheinlich aber unsicher, < 0.3 = sehr unsicher.
+        - Erfinden Sie NIEMALS Werte, die nicht im Text stehen. Wenn etwas nicht erwähnt wird, **lassen Sie das ganze Feld komplett weg**. NIEMALS "value": null oder "value": [] verwenden — einfach das Feld nicht in das JSON aufnehmen.
+        - Jedes Feld MUSS beide Schlüssel haben: "value" und "confidence" (eine Zahl zwischen 0.0 und 1.0).
+        - Konfidenz-Skala: 1.0 = explizit im Text genannt, 0.5 = wahrscheinlich aber unsicher, < 0.3 = sehr unsicher.
         - Geben Sie KEINE medizinischen Einschätzungen, Empfehlungen oder Diagnosen ab. Sie strukturieren nur, was die Eltern gesagt haben.
+        - Schreiben Sie Eigennamen und medizinische Begriffe genau so wie im Originaltext (z.B. "Vincristin", nicht "Vindchristin"; "Notaufnahme", nicht "Botaufnahme").
 
         KONTEXT (zur Plausibilitätsprüfung, NICHT ins JSON kopieren):
         - Aktuelle Phase: \(phaseLabel)

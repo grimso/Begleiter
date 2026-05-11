@@ -113,17 +113,37 @@ final class ExtractionServiceTests: XCTestCase {
         }
     }
 
-    func test_parseExtractedFields_throwsOnInvalidJSON() {
-        // Balanced braces but JSON structure is wrong for ExtractedFields.
-        XCTAssertThrowsError(try ExtractionService.parseExtractedFields(from: #"{"visitType": "ambulant"}"#)) { error in
-            guard let extractionError = error as? ExtractionError else {
-                return XCTFail("Expected ExtractionError, got \(error)")
-            }
-            if case .modelReturnedInvalidJSON = extractionError {
-                // ok
-            } else {
-                XCTFail("Expected .modelReturnedInvalidJSON, got \(extractionError)")
-            }
+    func test_parseExtractedFields_tolerates_malformedFieldsByDropping() throws {
+        // Mixed JSON: visitType has wrong shape (String instead of
+        // ConfidenceField), summary is well-formed. New tolerant decoder
+        // should drop the bad field and keep the good one.
+        let raw = #"{"visitType": "ambulant", "summary": {"value": "ok", "confidence": 0.8}}"#
+        let fields = try ExtractionService.parseExtractedFields(from: raw)
+        XCTAssertNil(fields.visitType, "malformed visitType field should be dropped silently")
+        XCTAssertEqual(fields.summary?.value, "ok")
+    }
+
+    func test_parseExtractedFields_tolerates_nullValueByDropping() throws {
+        // Real-world Gemma 4 E2B output: `"doctorName": {"value": null}`.
+        // Previously this threw and killed the whole extraction — now we
+        // drop doctorName and keep the rest.
+        let raw = """
+        {
+          "doctorName": {"value": null, "confidence": 0.0},
+          "summary": {"value": "Routine-Termin", "confidence": 0.85}
         }
+        """
+        let fields = try ExtractionService.parseExtractedFields(from: raw)
+        XCTAssertNil(fields.doctorName)
+        XCTAssertEqual(fields.summary?.value, "Routine-Termin")
+    }
+
+    func test_parseExtractedFields_tolerates_missingConfidence() throws {
+        // Another real Gemma output: empty-array fields sometimes omit
+        // `confidence`. ConfidenceField now defaults it to 0.5.
+        let raw = #"{"openQuestions": {"value": []}}"#
+        let fields = try ExtractionService.parseExtractedFields(from: raw)
+        XCTAssertEqual(fields.openQuestions?.value, [])
+        XCTAssertEqual(fields.openQuestions?.confidence ?? 0, 0.5, accuracy: 0.0001)
     }
 }

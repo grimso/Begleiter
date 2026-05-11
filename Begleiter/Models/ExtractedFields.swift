@@ -9,6 +9,25 @@ import Foundation
 nonisolated struct ConfidenceField<Value: Codable & Hashable & Sendable>: Codable, Hashable, Sendable {
     let value: Value
     let confidence: Double
+
+    init(value: Value, confidence: Double) {
+        self.value = value
+        self.confidence = confidence
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case value
+        case confidence
+    }
+
+    /// Tolerant decoder: required `value`, optional `confidence` (defaults to
+    /// 0.5 when the model omits it — Gemma sometimes leaves `confidence`
+    /// off empty-array fields).
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.value = try container.decode(Value.self, forKey: .value)
+        self.confidence = try container.decodeIfPresent(Double.self, forKey: .confidence) ?? 0.5
+    }
 }
 
 /// Visit categorisation. Stable raw strings — used as JSON values and
@@ -73,6 +92,53 @@ nonisolated struct ExtractedFields: Codable, Hashable, Sendable {
     var summary: ConfidenceField<String>?
 
     static let empty = ExtractedFields()
+
+    init(
+        visitType: ConfidenceField<VisitType>? = nil,
+        doctorName: ConfidenceField<String>? = nil,
+        drugsMentioned: ConfidenceField<[DrugMention]>? = nil,
+        labValues: ConfidenceField<[LabValue]>? = nil,
+        proceduresMentioned: ConfidenceField<[String]>? = nil,
+        decisions: ConfidenceField<[String]>? = nil,
+        parentObservations: ConfidenceField<[String]>? = nil,
+        openQuestions: ConfidenceField<[String]>? = nil,
+        reactions: ConfidenceField<[AdverseEvent]>? = nil,
+        summary: ConfidenceField<String>? = nil
+    ) {
+        self.visitType = visitType
+        self.doctorName = doctorName
+        self.drugsMentioned = drugsMentioned
+        self.labValues = labValues
+        self.proceduresMentioned = proceduresMentioned
+        self.decisions = decisions
+        self.parentObservations = parentObservations
+        self.openQuestions = openQuestions
+        self.reactions = reactions
+        self.summary = summary
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case visitType, doctorName, drugsMentioned, labValues
+        case proceduresMentioned, decisions, parentObservations
+        case openQuestions, reactions, summary
+    }
+
+    /// Per-field tolerant decoder. Each field is decoded with `try?` — a
+    /// single malformed field (e.g. `"doctorName": {"value": null}`) drops
+    /// only that field, leaving the rest of the extraction intact.
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        self.visitType           = try? c.decodeIfPresent(ConfidenceField<VisitType>.self,        forKey: .visitType)
+        self.doctorName          = try? c.decodeIfPresent(ConfidenceField<String>.self,           forKey: .doctorName)
+        self.drugsMentioned      = try? c.decodeIfPresent(ConfidenceField<[DrugMention]>.self,    forKey: .drugsMentioned)
+        self.labValues           = try? c.decodeIfPresent(ConfidenceField<[LabValue]>.self,       forKey: .labValues)
+        self.proceduresMentioned = try? c.decodeIfPresent(ConfidenceField<[String]>.self,         forKey: .proceduresMentioned)
+        self.decisions           = try? c.decodeIfPresent(ConfidenceField<[String]>.self,         forKey: .decisions)
+        self.parentObservations  = try? c.decodeIfPresent(ConfidenceField<[String]>.self,         forKey: .parentObservations)
+        self.openQuestions       = try? c.decodeIfPresent(ConfidenceField<[String]>.self,         forKey: .openQuestions)
+        self.reactions           = try? c.decodeIfPresent(ConfidenceField<[AdverseEvent]>.self,   forKey: .reactions)
+        self.summary             = try? c.decodeIfPresent(ConfidenceField<String>.self,           forKey: .summary)
+    }
 }
 
 extension ExtractedFields {
