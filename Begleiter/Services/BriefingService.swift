@@ -152,25 +152,32 @@ actor BriefingService {
 
     // MARK: - Verifiable-generation guard
 
-    /// Drop any claim whose `entryId` is non-nil but not in `validEntryIds`.
+    /// Drop any claim whose `entryId` is non-nil but not in `validEntryIds`,
+    /// and replace advice-shaped claim text with the canonical
+    /// `RefusalService.redirectMessage` (the spec's out-of-scope handler).
+    ///
     /// Claims with `entryId == nil` are kept (they're attributable to the
     /// protocol state machine, not a specific entry).
     static func filterUngroundedClaims(
         _ briefing: Briefing,
         validEntryIds: Set<UUID>
     ) -> Briefing {
+        func scrub(_ claim: BriefingClaim) -> BriefingClaim {
+            BriefingClaim(text: RefusalService.scrubbed(claim.text), entryId: claim.entryId)
+        }
         func keep(_ claim: BriefingClaim) -> Bool {
             guard let id = claim.entryId else { return true }
             return validEntryIds.contains(id)
         }
-        let stand = keep(briefing.aktuellerStand)
-            ? briefing.aktuellerStand
-            : BriefingClaim(text: briefing.aktuellerStand.text, entryId: nil)
+        let standScrubbed = scrub(briefing.aktuellerStand)
+        let stand = keep(standScrubbed)
+            ? standScrubbed
+            : BriefingClaim(text: standScrubbed.text, entryId: nil)
         return Briefing(
             targetDate: briefing.targetDate,
             aktuellerStand: stand,
-            seitDemLetztenTermin: briefing.seitDemLetztenTermin.filter(keep),
-            offenePunkte: briefing.offenePunkte.filter(keep),
+            seitDemLetztenTermin: briefing.seitDemLetztenTermin.filter(keep).map(scrub),
+            offenePunkte: briefing.offenePunkte.filter(keep).map(scrub),
             fragenVorschlaege: briefing.fragenVorschlaege,
             mitzunehmen: briefing.mitzunehmen
         )
