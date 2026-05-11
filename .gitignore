@@ -61,3 +61,5 @@ TestFixtures/private/
 .env
 .env.local
 secrets/
+.cache/
+tools/.cache/
