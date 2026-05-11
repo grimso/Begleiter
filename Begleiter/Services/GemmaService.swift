@@ -29,20 +29,14 @@ actor GemmaService {
     // MARK: - Configuration
 
     struct Configuration: Sendable {
-        /// Hugging Face repository path for the quantized Gemma weights.
+        /// Hugging Face repository path for the quantized Gemma 4 E4B weights.
         ///
-        /// TODO(iteration-3): swap to Gemma 4 E4B when (a) Gemma 4 ships and
-        /// (b) `mlx-community` publishes a 4-bit MLX-compatible repo whose
-        /// tokenizer/vocab shape matches the MLXLLM loader's expectations.
-        ///
-        /// Gemma 3 4B-it 4-bit (`mlx-community/gemma-3-4b-it-4bit`) was tried
-        /// first but failed model-load validation with a
-        /// `lm_head.scales` shape mismatch — Gemma 3 -it 4B-bit uses the
-        /// multimodal tokenizer (262208 vocab = 262144 text + 64 image
-        /// tokens), while MLXLLM 2.29.1's text-only Gemma 3 loader expects
-        /// 262144. Gemma 2 2B-it 4-bit is well-tested with this MLXLLM
-        /// release, ~1.6 GB on disk, comfortable for iPhone 14 Pro, and
-        /// gives us a working smoke test now.
+        /// This is the spec's target model (Gemma 4 E4B, instruction-tuned,
+        /// 4-bit quantized) hosted on the `mlx-community` mirror. Gemma 3 4B-it
+        /// 4-bit was tried first but ships the multimodal tokenizer (262208
+        /// vocab) and the text-only Gemma 3 loader in MLXLLM 2.29.1 expects
+        /// 262144 — fails at first forward pass. The Gemma 4 E4B-it 4-bit
+        /// repo below has a loader path validated for MLXLLM 2.29.x.
         let modelId: String
 
         /// Sampling and length controls for the smoke-test prompt.
@@ -50,7 +44,7 @@ actor GemmaService {
         let temperature: Float
 
         static let `default` = Configuration(
-            modelId: "mlx-community/gemma-2-2b-it-4bit",
+            modelId: "mlx-community/gemma-4-e4b-it-4bit",
             maxTokens: 256,
             temperature: 0.6
         )
