@@ -50,6 +50,15 @@ final class JournalEntry {
     /// auto-migrates).
     var rawExtractionResponse: String?
 
+    /// Concatenated OCR text from photo / PDF Befunde for this entry.
+    /// Passed to Gemma as a separate context block during extraction
+    /// (NOT merged into `rawText`, which stays the parent's free-text
+    /// input). Persisted so we can re-run extraction with a better
+    /// prompt later. Hidden from the main entry-detail UI by default;
+    /// surfaced behind a disclosure for transparency. `nil` for entries
+    /// without photo input.
+    var rawPhotoOCRText: String?
+
     /// Dense semantic embedding. Empty in iteration 3 — filled by the
     /// embedding service in iteration 6.
     var embedding: [Float]

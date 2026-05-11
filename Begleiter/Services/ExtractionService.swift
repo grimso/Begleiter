@@ -83,26 +83,38 @@ actor ExtractionService {
     /// Extract structured fields from a German text journal entry.
     ///
     /// - Parameters:
-    ///   - text: parent's raw German text. Trimmed.
+    ///   - text: parent's raw German text. May be empty if the entry is
+    ///     attachment-only (a Befund PDF with no typed prose).
     ///   - phase: current treatment phase (from `ChildState`).
     ///   - dayInPhase: day number within the phase.
     ///   - visitDate: the date the entry refers to.
+    ///   - ocrText: OCR / PDFKit text from any Befund photos or PDFs
+    ///     attached to this entry. Passed as a separate context block in
+    ///     the prompt so Gemma is explicitly instructed to extract lab
+    ///     values from a clinical printout, rather than treating it as
+    ///     more "parent prose".
     /// - Returns: `ExtractionResult` carrying both parsed fields and the raw
     ///   Gemma response (the latter is persisted on the JournalEntry for
     ///   future re-parsing, A/B comparison, and LoRA training data).
-    /// - Throws: `ExtractionError` if no usable JSON could be obtained even
-    ///   after the stricter retry.
+    /// - Throws: `ExtractionError` if both attempts fail to yield usable
+    ///   JSON.
     func extract(
         text: String,
         phase: Phase,
         dayInPhase: Int,
-        visitDate: Date
+        visitDate: Date,
+        ocrText: String? = nil
     ) async throws -> ExtractionResult {
-        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { throw ExtractionError.emptyInput }
+        let trimmedText = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedOCR = ocrText?.trimmingCharacters(in: .whitespacesAndNewlines)
+        // At least one input source must be non-empty.
+        if trimmedText.isEmpty && (trimmedOCR?.isEmpty ?? true) {
+            throw ExtractionError.emptyInput
+        }
 
         let prompt = Self.buildPrompt(
-            text: trimmed,
+            text: trimmedText,
+            ocrText: trimmedOCR,
             phase: phase,
             dayInPhase: dayInPhase,
             visitDate: visitDate,
@@ -117,7 +129,8 @@ actor ExtractionService {
 
         extractionLog.warning("attempt=1 parse failed, retrying in strict mode")
         let retryPrompt = Self.buildPrompt(
-            text: trimmed,
+            text: trimmedText,
+            ocrText: trimmedOCR,
             phase: phase,
             dayInPhase: dayInPhase,
             visitDate: visitDate,
@@ -134,6 +147,7 @@ actor ExtractionService {
     /// Constructs the full prompt sent to Gemma. Pure function for testability.
     static func buildPrompt(
         text: String,
+        ocrText: String? = nil,
         phase: Phase,
         dayInPhase: Int,
         visitDate: Date,
@@ -146,17 +160,38 @@ actor ExtractionService {
             ? "WICHTIG: Antworten Sie AUSSCHLIESSLICH mit gültigem JSON. Kein Markdown, kein Text vor oder nach dem JSON, keine Erklärungen. Beginnen Sie direkt mit { und enden Sie mit }."
             : "Antworten Sie ausschließlich mit JSON nach dem unten gezeigten Schema."
 
+        // Optional Befund block — only included when OCR text is present.
+        // The lab-extraction rule is conditional on this block existing,
+        // so absent input doesn't force Gemma to invent lab values.
+        let befundBlock: String
+        let labRule: String
+        if let ocrText, !ocrText.isEmpty {
+            befundBlock = """
+
+
+                BEFUND-INHALT (automatisch aus einem Foto oder PDF erkannt):
+                ```
+                \(ocrText)
+                ```
+                """
+            labRule = "- Wenn der BEFUND-INHALT Laborwerte enthält, extrahieren Sie ALLE eindeutig erkennbaren Werte in `labValues` (Parameter, Wert, Einheit). Mehrere Werte sind die Regel, nicht die Ausnahme."
+        } else {
+            befundBlock = ""
+            labRule = "- Erfassen Sie nur Laborwerte, die im Text der Eltern explizit genannt werden."
+        }
+
         return """
         Sie sind ein medizinischer Tagebuch-Assistent für Eltern eines Kindes in der AIEOP-BFM ALL 2017 Behandlung. Ihre einzige Aufgabe ist es, den freien Text der Eltern in strukturierte Felder zu überführen.
 
         \(header)
 
         REGELN:
-        - Erfinden Sie NIEMALS Werte, die nicht im Text stehen. Wenn etwas nicht erwähnt wird, **lassen Sie das ganze Feld komplett weg**. NIEMALS "value": null oder "value": [] verwenden — einfach das Feld nicht in das JSON aufnehmen.
+        - Erfinden Sie NIEMALS Werte, die nicht in den Eingaben stehen. Wenn etwas nicht erwähnt wird, **lassen Sie das ganze Feld komplett weg**. NIEMALS "value": null oder "value": [] verwenden — einfach das Feld nicht in das JSON aufnehmen.
         - Jedes Feld MUSS beide Schlüssel haben: "value" und "confidence" (eine Zahl zwischen 0.0 und 1.0).
-        - Konfidenz-Skala: 1.0 = explizit im Text genannt, 0.5 = wahrscheinlich aber unsicher, < 0.3 = sehr unsicher.
-        - Geben Sie KEINE medizinischen Einschätzungen, Empfehlungen oder Diagnosen ab. Sie strukturieren nur, was die Eltern gesagt haben.
+        - Konfidenz-Skala: 1.0 = explizit genannt, 0.5 = wahrscheinlich aber unsicher, < 0.3 = sehr unsicher.
+        - Geben Sie KEINE medizinischen Einschätzungen, Empfehlungen oder Diagnosen ab. Sie strukturieren nur, was die Eltern gesagt oder als Befund hochgeladen haben.
         - Schreiben Sie Eigennamen und medizinische Begriffe genau so wie im Originaltext (z.B. "Vincristin", nicht "Vindchristin"; "Notaufnahme", nicht "Botaufnahme").
+        \(labRule)
 
         KONTEXT (zur Plausibilitätsprüfung, NICHT ins JSON kopieren):
         - Aktuelle Phase: \(phaseLabel)
@@ -178,7 +213,7 @@ actor ExtractionService {
         }
 
         TEXT DER ELTERN:
-        \(text)
+        \(text.isEmpty ? "(kein eigener Text — Befund liegt unten bei)" : text)\(befundBlock)
 
         JSON:
         """

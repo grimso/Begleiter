@@ -148,6 +148,8 @@
 "entryDetail.photos" = "Photos";
 "entryDetail.trends" = "Trend";
 "entryDetail.trendsFooter" = "Values from all previous entries. The highlighted point is this entry.";
+"entryDetail.ocrToggle" = "Show recognised Befund text";
+"entryDetail.ocrFooter" = "Original text from uploaded Befunde. Not used for display — structured values are shown above.";
 
 // MARK: - Capture (journal entry composer)
 "capture.title" = "New entry";
@@ -160,7 +162,8 @@
 "capture.busy.extracting" = "Gemma is analyzing…";
 "capture.busy.saving" = "Saving…";
 "capture.voice.button" = "Voice recording";
-"capture.photo.button" = "Lab printout";
+"capture.photo.button" = "Add Befund / lab printout";
+"capture.photo.attached" = "%d attachment(s)";
 
 // MARK: - Photo capture sheet
 "photo.title" = "Lab printout";
@@ -169,11 +172,12 @@
 "photo.pickFile" = "Pick from Files (PDF, image)";
 "photo.pickFooter" = "Pick a photo or PDF (e.g. lab printout emailed to you). For PDFs we use embedded text directly when present — otherwise OCR runs on-device.";
 "photo.previewHeader" = "Preview";
-"photo.ocrHeader" = "Recognised text";
+"photo.ocrHeader" = "Status";
+"photo.ocrFooter" = "The recognized text feeds directly into the analysis and is visible later under \"Recognised Befund text\" in the entry detail.";
 "photo.adopt" = "Adopt";
 "photo.state.idle" = "Ready";
 "photo.state.processing" = "Recognising text…";
-"photo.state.done" = "Text recognised (%d %% confidence)";
+"photo.state.done" = "Text recognised (%d %% confidence) — ready to adopt";
 
 // MARK: - Voice recorder sheet
 "voice.title" = "Voice recording";

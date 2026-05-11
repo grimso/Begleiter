@@ -54,6 +54,19 @@ struct CaptureView: View {
                         Label(L10n.t("capture.photo.button"), systemImage: "camera.fill")
                     }
                     .disabled(model.isBusy)
+                    if !model.pendingPhotoData.isEmpty {
+                        Label {
+                            Text(String(
+                                format: L10n.t("capture.photo.attached"),
+                                model.pendingPhotoData.count
+                            ))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        } icon: {
+                            Image(systemName: "paperclip")
+                                .foregroundStyle(.secondary)
+                        }
+                    }
                 } header: {
                     Text(L10n.key("capture.text.header"))
                 } footer: {
@@ -115,15 +128,14 @@ struct CaptureView: View {
             }
             .sheet(isPresented: $presentingPhotoCapture) {
                 PhotoCaptureView { fileData, recognisedText, fileExtension in
-                    // Append the extracted text in a clearly-marked block
-                    // so Gemma can tell what came from a Befund vs typed
-                    // observation.
-                    if !recognisedText.isEmpty {
-                        let prefix = model.text.trimmingCharacters(in: .whitespacesAndNewlines)
-                        let block = "Aus Befund-Foto:\n\(recognisedText)"
-                        model.text = prefix.isEmpty ? block : prefix + "\n\n" + block
-                    }
+                    // OCR text is captured as separate context for the
+                    // extraction pass, NOT injected into the parent's
+                    // text field — the parent sees their own typing,
+                    // Gemma sees both.
                     model.pendingPhotoData.append(.init(data: fileData, ext: fileExtension))
+                    if !recognisedText.isEmpty {
+                        model.pendingOCRTexts.append(recognisedText)
+                    }
                 }
             }
         }

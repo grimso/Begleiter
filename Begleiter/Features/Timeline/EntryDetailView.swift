@@ -31,13 +31,27 @@ struct EntryDetailView: View {
                 }
             }
 
-            if let raw = entry.rawText, !raw.isEmpty {
+            if let raw = entry.rawText,
+               !raw.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                 Section {
                     Text(raw)
                         .font(.body)
                         .textSelection(.enabled)
                 } header: {
                     Text(L10n.key("entryDetail.rawText"))
+                }
+            }
+
+            if let ocr = entry.rawPhotoOCRText, !ocr.isEmpty {
+                Section {
+                    DisclosureGroup(L10n.t("entryDetail.ocrToggle")) {
+                        Text(ocr)
+                            .font(.system(.caption, design: .monospaced))
+                            .textSelection(.enabled)
+                            .padding(.vertical, 4)
+                    }
+                } footer: {
+                    Text(L10n.key("entryDetail.ocrFooter"))
                 }
             }
 

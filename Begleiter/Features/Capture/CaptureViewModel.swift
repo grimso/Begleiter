@@ -32,12 +32,27 @@ final class CaptureViewModel {
     /// parent. Persisted to `Documents/photos/<entryId>/<n>.<ext>` at
     /// submit time and referenced from `JournalEntry.rawPhotoFilenames`.
     var pendingPhotoData: [PendingAttachment] = []
+    /// OCR text from each picked photo / PDF, in pick order. Combined at
+    /// submit time and passed to ExtractionService as separate Befund
+    /// context — never merged into the parent-facing text field so the
+    /// UI stays clean and the persisted `rawText` only contains what the
+    /// parent actually typed.
+    var pendingOCRTexts: [String] = []
 
     struct PendingAttachment: Sendable, Hashable {
         let data: Data
         /// Original file extension (jpg, png, pdf, …) so the file
         /// survives in its native format on disk.
         let ext: String
+    }
+
+    /// Combined OCR text from all picked Befund attachments. `nil` if no
+    /// photo/PDF was picked (or all OCR passes were empty).
+    var combinedOCRText: String? {
+        let parts = pendingOCRTexts
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+        return parts.isEmpty ? nil : parts.joined(separator: "\n\n---\n\n")
     }
     /// Most recent successful extraction. UI may show a preview before saving.
     private(set) var lastExtraction: ExtractedFields?
@@ -78,7 +93,8 @@ final class CaptureViewModel {
                     text: snapshotText,
                     phase: childPhase,
                     dayInPhase: dayInPhase,
-                    visitDate: snapshotDate
+                    visitDate: snapshotDate,
+                    ocrText: combinedOCRText
                 )
                 lastExtraction = result.fields
                 phase = .saving
@@ -123,6 +139,7 @@ final class CaptureViewModel {
                     rawExtractionResponse: result.rawResponse
                 )
                 entry.rawVoiceAudioFilename = voiceAudioFilename
+                entry.rawPhotoOCRText = combinedOCRText
                 context.insert(entry)
                 try context.save()
                 phase = .done

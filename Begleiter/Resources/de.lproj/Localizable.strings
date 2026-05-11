@@ -148,6 +148,8 @@
 "entryDetail.photos" = "Fotos";
 "entryDetail.trends" = "Verlauf";
 "entryDetail.trendsFooter" = "Werte aus allen bisherigen Einträgen. Der hervorgehobene Punkt entspricht diesem Eintrag.";
+"entryDetail.ocrToggle" = "Erkannter Befund-Text anzeigen";
+"entryDetail.ocrFooter" = "Originaltext aus den hochgeladenen Befunden. Wird nicht für die Anzeige verwendet — die strukturierten Werte stehen oben.";
 
 // MARK: - Capture (journal entry composer)
 "capture.title" = "Neuer Eintrag";
@@ -160,7 +162,8 @@
 "capture.busy.extracting" = "Gemma analysiert …";
 "capture.busy.saving" = "Speichere …";
 "capture.voice.button" = "Sprachaufnahme";
-"capture.photo.button" = "Befund-Foto";
+"capture.photo.button" = "Befund hinzufügen";
+"capture.photo.attached" = "%d Befund(e) angehängt";
 
 // MARK: - Photo capture sheet
 "photo.title" = "Befund-Foto";
@@ -169,11 +172,12 @@
 "photo.pickFile" = "Aus Dateien auswählen (PDF, Bild)";
 "photo.pickFooter" = "Wählen Sie ein Foto oder eine PDF-Datei (z.B. Befund per E-Mail). Bei PDFs wird vorhandener Text direkt übernommen — sonst läuft die Texterkennung on-device.";
 "photo.previewHeader" = "Vorschau";
-"photo.ocrHeader" = "Erkannter Text";
+"photo.ocrHeader" = "Status";
+"photo.ocrFooter" = "Der erkannte Text fließt direkt in die Analyse ein und ist später unter \"Erkannter Befund-Text\" im Eintrag-Detail einsehbar.";
 "photo.adopt" = "Übernehmen";
 "photo.state.idle" = "Bereit";
 "photo.state.processing" = "Text wird erkannt …";
-"photo.state.done" = "Text erkannt (%d %% Konfidenz)";
+"photo.state.done" = "Text erkannt (%d %% Konfidenz) — bereit zum Übernehmen";
 
 // MARK: - Voice recorder sheet
 "voice.title" = "Sprachaufnahme";

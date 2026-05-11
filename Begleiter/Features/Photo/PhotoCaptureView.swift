@@ -62,12 +62,6 @@ struct PhotoCaptureView: View {
 
                 Section {
                     statusRow
-                    if case .done(let text, _) = model.phase {
-                        Text(text)
-                            .font(.system(.callout, design: .monospaced))
-                            .textSelection(.enabled)
-                            .padding(.vertical, 4)
-                    }
                     if case .failed(let message) = model.phase {
                         Label {
                             Text(message)
@@ -78,6 +72,8 @@ struct PhotoCaptureView: View {
                     }
                 } header: {
                     Text(L10n.key("photo.ocrHeader"))
+                } footer: {
+                    Text(L10n.key("photo.ocrFooter"))
                 }
             }
             .navigationTitle(L10n.key("photo.title"))
