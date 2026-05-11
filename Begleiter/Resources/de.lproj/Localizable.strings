@@ -80,6 +80,20 @@
 "home.placeholder.dayLabel" = "Tag in dieser Phase";
 "home.placeholder.diagnosisDays" = "Tage seit Diagnose";
 
+// MARK: - Briefing (pre-visit preparation)
+"briefing.title" = "Vorbereitung";
+"briefing.targetSection" = "Nächster Termin";
+"briefing.visitDate" = "Datum";
+"briefing.generate" = "Vorbereitung erstellen";
+"briefing.generating" = "Gemma erstellt Vorbereitung …";
+"briefing.noEntriesFooter" = "Noch keine Einträge — bitte zuerst Termine dokumentieren.";
+"briefing.uses8EntriesFooter" = "Nutzt die letzten 8 Einträge plus die Phase-Informationen.";
+"briefing.section.stand" = "Aktueller Stand";
+"briefing.section.seitDemLetztenTermin" = "Seit dem letzten Termin";
+"briefing.section.offenePunkte" = "Offene Punkte";
+"briefing.section.fragen" = "Vorschläge für Fragen";
+"briefing.section.mitzunehmen" = "Was mitnehmen";
+
 // MARK: - Timeline
 "timeline.title" = "Tagebuch";
 "timeline.add" = "Neuer Eintrag";

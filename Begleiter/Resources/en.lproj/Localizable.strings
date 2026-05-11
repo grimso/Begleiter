@@ -80,6 +80,20 @@
 "home.placeholder.dayLabel" = "Day in this phase";
 "home.placeholder.diagnosisDays" = "Days since diagnosis";
 
+// MARK: - Briefing (pre-visit preparation)
+"briefing.title" = "Briefing";
+"briefing.targetSection" = "Next appointment";
+"briefing.visitDate" = "Date";
+"briefing.generate" = "Create briefing";
+"briefing.generating" = "Gemma is preparing the briefing…";
+"briefing.noEntriesFooter" = "No entries yet — please document appointments first.";
+"briefing.uses8EntriesFooter" = "Uses the last 8 entries plus current-phase context.";
+"briefing.section.stand" = "Current status";
+"briefing.section.seitDemLetztenTermin" = "Since the last appointment";
+"briefing.section.offenePunkte" = "Open points";
+"briefing.section.fragen" = "Suggested questions";
+"briefing.section.mitzunehmen" = "What to bring";
+
 // MARK: - Timeline
 "timeline.title" = "Journal";
 "timeline.add" = "New entry";
