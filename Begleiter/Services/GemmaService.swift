@@ -5,16 +5,23 @@ import MLXLLM
 import MLXLMCommon
 import Tokenizers
 
-/// Loads Gemma 4 E4B (4-bit) via mlx-swift-lm and runs prompts against it.
+/// Loads Gemma 4 (4-bit) via mlx-swift-lm and runs prompts against it.
 ///
 /// `GemmaService` is an `actor` so concurrent calls from UI/services serialize
 /// against the underlying model container.
 ///
-/// **Model selection.** Uses `LLMRegistry.gemma4_e4b_it_4bit` — the canonical
-/// registry entry for `mlx-community/gemma-4-e4b-it-4bit` with the correct
-/// `<turn|>` EOS token configuration. Swap to a sibling entry within the
-/// gemma-4-e4b family (e.g. `gemma4_e2b_it_4bit` for a smaller variant) only
-/// if iteration 2 reveals iPhone 14 Pro can't comfortably hold E4B.
+/// **Model selection.** Defaults to `LLMRegistry.gemma4_e2b_it_4bit` — the
+/// Gemma 4 E2B variant (3.3 GB on disk, ~2 GB resident). E4B 4-bit is
+/// 4.86 GB on disk and exceeds the default per-app memory limit on
+/// iPhone 14 Pro (~3 GB). To use E4B instead:
+///   1. Swap the default below to `LLMRegistry.gemma4_e4b_it_4bit`.
+///   2. Enable the **Increased Memory Limit** capability on the Begleiter
+///      target (Signing & Capabilities → + → "Increased Memory Limit"),
+///      which sets `com.apple.developer.kernel.increased-memory-limit`.
+///      The entitlements file `Begleiter/Begleiter.entitlements` is
+///      already scaffolded.
+/// Both E2B and E4B are Gemma 4 — both satisfy the hackathon's model
+/// requirement.
 ///
 /// **First-launch behavior.** `loadModel()` downloads the weights (~2.5 GB
 /// for E4B 4-bit) into the Hugging Face Hub cache directory on the device.
@@ -42,7 +49,7 @@ actor GemmaService {
     private(set) var state: LoadState = .idle
 
     init(
-        configuration: ModelConfiguration = LLMRegistry.gemma4_e4b_it_4bit,
+        configuration: ModelConfiguration = LLMRegistry.gemma4_e2b_it_4bit,
         maxTokens: Int = 256,
         temperature: Float = 0.6
     ) {
