@@ -55,11 +55,12 @@ Iteration 2 scaffolds `Services/GemmaService.swift` + `Features/Debug/SmokeTestV
 
 | Repository URL | Required products (check boxes) | Add to target |
 |---|---|---|
-| `https://github.com/ml-explore/mlx-swift` | `MLX`, `MLXNN`, `MLXRandom` | Begleiter |
 | `https://github.com/ml-explore/mlx-swift-examples` | `MLXLLM`, `MLXLMCommon` | Begleiter |
 | `https://github.com/argmaxinc/WhisperKit` | `WhisperKit` | Begleiter (not yet imported — iteration 4) |
 
 After each "Add Package", wait for SPM resolution, then tick only the listed products and confirm the target is `Begleiter` (NOT the test targets).
+
+> Do **not** add `https://github.com/ml-explore/mlx-swift` as a separate top-level package. `mlx-swift-examples` already depends on it transitively at a pinned version; adding it directly causes an SPM version conflict (`mlx-swift-examples 2.29.x` requires `mlx-swift 0.29.x`, but Xcode auto-resolves the standalone entry to a newer minor).
 
 ### Running the smoke test
 
