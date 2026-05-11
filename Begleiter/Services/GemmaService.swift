@@ -109,4 +109,14 @@ actor GemmaService {
         return try await session.respond(to: prompt)
     }
 
+    /// Drop the in-memory model so its ~3.3 GB of weights can be paged out.
+    /// The next call to `loadModel()` reads from the local HF cache
+    /// (no network), typically completing in a few seconds.
+    ///
+    /// Call this when the parent navigates away from a screen that uses
+    /// Gemma so we don't keep ~3 GB resident while browsing the timeline.
+    func unload() {
+        container = nil
+        state = .idle
+    }
 }

@@ -2,13 +2,9 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-    <!--
-        Raises the per-process memory limit so the app can hold larger models
-        in resident memory. Required if `GemmaService` is configured for
-        `LLMRegistry.gemma4_e4b_it_4bit` (4.86 GB on disk) on iPhone 14 Pro.
-        Not strictly needed for the default E2B variant (3.3 GB on disk).
-    -->
-    <key>com.apple.developer.kernel.increased-memory-limit</key>
-    <true/>
+	<key>com.apple.developer.kernel.increased-memory-limit</key>
+	<true/>
+	<key>com.apple.developer.kernel.increased-debugging-memory-limit</key>
+	<true/>
 </dict>
 </plist>
