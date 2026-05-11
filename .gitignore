@@ -1,0 +1,63 @@
+# macOS
+.DS_Store
+
+# Xcode
+build/
+DerivedData/
+*.xcodeproj/xcuserdata/
+*.xcworkspace/xcuserdata/
+*.xcodeproj/project.xcworkspace/xcuserdata/
+*.xcodeproj/project.xcworkspace/xcshareddata/IDEWorkspaceChecks.plist
+*.xcuserstate
+*.xcuserdatad/
+xcuserdata/
+
+# Swift Package Manager
+.build/
+.swiftpm/
+Packages/
+Package.resolved
+
+# CocoaPods (not used, but standard)
+Pods/
+
+# fastlane (not used, but standard)
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots/**/*.png
+fastlane/test_output
+
+# Python (for training/ pipeline)
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+env/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Editor
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# ML model artifacts (too large for git; downloaded at runtime)
+ModelArtifacts/
+*.mlx
+*.safetensors
+*.mlmodel
+*.gguf
+
+# Audio / image fixtures from manual testing
+*.wav
+*.m4a
+TestFixtures/private/
+
+# Local secrets
+.env
+.env.local
+secrets/
