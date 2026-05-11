@@ -38,7 +38,11 @@ actor ExtractionService {
 
     private let gemma: GemmaService
 
-    init(gemma: GemmaService = GemmaService()) {
+    /// Default to a smaller max-token cap than GemmaService's default (256).
+    /// Extraction outputs are JSON — typically <120 tokens for a normal entry.
+    /// A smaller cap reduces peak KV-cache memory during generation, which
+    /// gives us headroom on iPhone 14 Pro with the increased-memory entitlement.
+    init(gemma: GemmaService = GemmaService(maxTokens: 192, temperature: 0.3)) {
         self.gemma = gemma
     }
 
