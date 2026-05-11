@@ -26,7 +26,7 @@ final class CaptureViewModel {
 
     private let extraction: ExtractionService
 
-    init(extraction: ExtractionService = ExtractionService()) {
+    init(extraction: ExtractionService = .shared) {
         self.extraction = extraction
     }
 

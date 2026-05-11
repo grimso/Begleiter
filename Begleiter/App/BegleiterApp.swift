@@ -1,5 +1,6 @@
-import SwiftUI
 import SwiftData
+import SwiftUI
+import UIKit
 
 /// Entry point for the Begleiter iOS app.
 ///
@@ -23,6 +24,14 @@ struct BegleiterApp: App {
         }
     }()
 
+    // Cap MLX's recyclable buffer pool — important for iPhone 14 Pro memory
+    // budget — is applied lazily inside `GemmaService.init` via a static-let
+    // initializer. We do NOT touch MLX from `BegleiterApp.init` because the
+    // iOS Simulator (used by the test bundle) can't initialize MLX's Metal
+    // backend, and any MLX symbol referenced at app launch crashes the test
+    // runner before it bootstraps. The lazy path means tests can run on
+    // simulator without ever loading MLX.
+
     var body: some Scene {
         WindowGroup {
             RootView()
@@ -35,12 +44,56 @@ struct BegleiterApp: App {
 /// (onboarding complete). Single-child only in iteration 1.
 struct RootView: View {
     @Query private var children: [ChildState]
+    @State private var memoryWarningObserver = MemoryWarningObserver()
 
     var body: some View {
-        if let child = children.first {
-            TimelineView(child: child)
-        } else {
-            OnboardingView()
+        Group {
+            if let child = children.first {
+                TimelineView(child: child)
+            } else {
+                OnboardingView()
+            }
+        }
+        .task {
+            await memoryWarningObserver.observe()
+        }
+    }
+}
+
+/// Listens for `UIApplication.didReceiveMemoryWarningNotification` and
+/// proactively drops cached Gemma weights so iOS doesn't jetsam the app
+/// outright.
+///
+/// In iteration 3 the only `GemmaService` instance we need to teardown is
+/// the one inside `ExtractionService.shared` (and the equivalents for
+/// briefing/handoff added in iter 6). On a memory warning we ask each to
+/// `unloadModel()`; the next inference call re-loads from the on-device
+/// HF cache (~3–5 s, no network).
+@MainActor
+@Observable
+final class MemoryWarningObserver {
+    private var observerTask: Task<Void, Never>?
+
+    /// Starts observing memory warnings. Idempotent — calling `observe()`
+    /// again while a task is already running is a no-op.
+    ///
+    /// We don't cancel the task in `deinit` because the observer lives for
+    /// the lifetime of `RootView` (effectively the app process). Process
+    /// teardown reclaims the task implicitly.
+    func observe() async {
+        guard observerTask == nil else { return }
+        observerTask = Task { @MainActor in
+            let notifications = NotificationCenter.default.notifications(
+                named: UIApplication.didReceiveMemoryWarningNotification
+            )
+            for await _ in notifications {
+                MemoryDiagnostics.snapshot(label: "memory-warning")
+                // Iteration 3 surface: the extraction service. Briefing /
+                // handoff services in iter 6 each own their own
+                // GemmaService; their view models can subscribe similarly
+                // when memory pressure becomes a recurring issue there.
+                await ExtractionService.shared.unloadModel()
+            }
         }
     }
 }

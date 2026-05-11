@@ -6,6 +6,15 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		F40B9F582FB1C94B00FA6B3A /* WhisperKit in Frameworks */ = {isa = PBXBuildFile; productRef = F40B9F572FB1C94B00FA6B3A /* WhisperKit */; };
+		F40B9F5B2FB1DC4E00FA6B3A /* MLXLLM in Frameworks */ = {isa = PBXBuildFile; productRef = F40B9F5A2FB1DC4E00FA6B3A /* MLXLLM */; };
+		F40B9F5D2FB1DC4E00FA6B3A /* MLXLMCommon in Frameworks */ = {isa = PBXBuildFile; productRef = F40B9F5C2FB1DC4E00FA6B3A /* MLXLMCommon */; };
+		F40B9F602FB1DE2100FA6B3A /* MLXHuggingFace in Frameworks */ = {isa = PBXBuildFile; productRef = F40B9F5F2FB1DE2100FA6B3A /* MLXHuggingFace */; };
+		F40B9F632FB1DE5500FA6B3A /* HuggingFace in Frameworks */ = {isa = PBXBuildFile; productRef = F40B9F622FB1DE5500FA6B3A /* HuggingFace */; };
+		F40B9F662FB1DE8A00FA6B3A /* Tokenizers in Frameworks */ = {isa = PBXBuildFile; productRef = F40B9F652FB1DE8A00FA6B3A /* Tokenizers */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		F40B9EDF2FB1BCB600FA6B3A /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -52,6 +61,12 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				F40B9F5B2FB1DC4E00FA6B3A /* MLXLLM in Frameworks */,
+				F40B9F5D2FB1DC4E00FA6B3A /* MLXLMCommon in Frameworks */,
+				F40B9F662FB1DE8A00FA6B3A /* Tokenizers in Frameworks */,
+				F40B9F632FB1DE5500FA6B3A /* HuggingFace in Frameworks */,
+				F40B9F582FB1C94B00FA6B3A /* WhisperKit in Frameworks */,
+				F40B9F602FB1DE2100FA6B3A /* MLXHuggingFace in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -78,6 +93,7 @@
 				F40B9ED12FB1BCB500FA6B3A /* Begleiter */,
 				F40B9EE12FB1BCB600FA6B3A /* BegleiterTests */,
 				F40B9EEB2FB1BCB600FA6B3A /* BegleiterUITests */,
+				F40B9F5E2FB1DE2100FA6B3A /* Frameworks */,
 				F40B9ED02FB1BCB500FA6B3A /* Products */,
 			);
 			sourceTree = "<group>";
@@ -90,6 +106,13 @@
 				F40B9EE82FB1BCB600FA6B3A /* BegleiterUITests.xctest */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		F40B9F5E2FB1DE2100FA6B3A /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Frameworks;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -112,6 +135,12 @@
 			);
 			name = Begleiter;
 			packageProductDependencies = (
+				F40B9F572FB1C94B00FA6B3A /* WhisperKit */,
+				F40B9F5A2FB1DC4E00FA6B3A /* MLXLLM */,
+				F40B9F5C2FB1DC4E00FA6B3A /* MLXLMCommon */,
+				F40B9F5F2FB1DE2100FA6B3A /* MLXHuggingFace */,
+				F40B9F622FB1DE5500FA6B3A /* HuggingFace */,
+				F40B9F652FB1DE8A00FA6B3A /* Tokenizers */,
 			);
 			productName = Begleiter;
 			productReference = F40B9ECF2FB1BCB500FA6B3A /* Begleiter.app */;
@@ -196,6 +225,12 @@
 			);
 			mainGroup = F40B9EC62FB1BCB500FA6B3A;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				F40B9F562FB1C94B00FA6B3A /* XCRemoteSwiftPackageReference "WhisperKit" */,
+				F40B9F592FB1DC4E00FA6B3A /* XCRemoteSwiftPackageReference "mlx-swift-lm" */,
+				F40B9F612FB1DE5500FA6B3A /* XCRemoteSwiftPackageReference "swift-huggingface" */,
+				F40B9F642FB1DE8A00FA6B3A /* XCRemoteSwiftPackageReference "swift-transformers" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = F40B9ED02FB1BCB500FA6B3A /* Products */;
 			projectDirPath = "";
@@ -394,8 +429,10 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = Begleiter/Begleiter.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = SC5HX97BTL;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -425,8 +462,10 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = Begleiter/Begleiter.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = SC5HX97BTL;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -457,6 +496,7 @@
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = SC5HX97BTL;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.4;
 				MARKETING_VERSION = 1.0;
@@ -478,6 +518,7 @@
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = SC5HX97BTL;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.4;
 				MARKETING_VERSION = 1.0;
@@ -498,6 +539,7 @@
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = SC5HX97BTL;
 				GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = io.grimso.BegleiterUITests;
@@ -517,6 +559,7 @@
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = SC5HX97BTL;
 				GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = io.grimso.BegleiterUITests;
@@ -571,6 +614,74 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		F40B9F562FB1C94B00FA6B3A /* XCRemoteSwiftPackageReference "WhisperKit" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/argmaxinc/WhisperKit";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.0.0;
+			};
+		};
+		F40B9F592FB1DC4E00FA6B3A /* XCRemoteSwiftPackageReference "mlx-swift-lm" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/ml-explore/mlx-swift-lm";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 3.31.3;
+			};
+		};
+		F40B9F612FB1DE5500FA6B3A /* XCRemoteSwiftPackageReference "swift-huggingface" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/huggingface/swift-huggingface";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 0.9.0;
+			};
+		};
+		F40B9F642FB1DE8A00FA6B3A /* XCRemoteSwiftPackageReference "swift-transformers" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/huggingface/swift-transformers";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.3.2;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		F40B9F572FB1C94B00FA6B3A /* WhisperKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = F40B9F562FB1C94B00FA6B3A /* XCRemoteSwiftPackageReference "WhisperKit" */;
+			productName = WhisperKit;
+		};
+		F40B9F5A2FB1DC4E00FA6B3A /* MLXLLM */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = F40B9F592FB1DC4E00FA6B3A /* XCRemoteSwiftPackageReference "mlx-swift-lm" */;
+			productName = MLXLLM;
+		};
+		F40B9F5C2FB1DC4E00FA6B3A /* MLXLMCommon */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = F40B9F592FB1DC4E00FA6B3A /* XCRemoteSwiftPackageReference "mlx-swift-lm" */;
+			productName = MLXLMCommon;
+		};
+		F40B9F5F2FB1DE2100FA6B3A /* MLXHuggingFace */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = F40B9F592FB1DC4E00FA6B3A /* XCRemoteSwiftPackageReference "mlx-swift-lm" */;
+			productName = MLXHuggingFace;
+		};
+		F40B9F622FB1DE5500FA6B3A /* HuggingFace */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = F40B9F612FB1DE5500FA6B3A /* XCRemoteSwiftPackageReference "swift-huggingface" */;
+			productName = HuggingFace;
+		};
+		F40B9F652FB1DE8A00FA6B3A /* Tokenizers */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = F40B9F642FB1DE8A00FA6B3A /* XCRemoteSwiftPackageReference "swift-transformers" */;
+			productName = Tokenizers;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = F40B9EC72FB1BCB500FA6B3A /* Project object */;
 }

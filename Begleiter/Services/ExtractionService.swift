@@ -36,14 +36,27 @@ enum ExtractionError: Error, LocalizedError {
 /// asking the model to decide "should I call a tool?".
 actor ExtractionService {
 
+    /// App-wide shared instance. Memory-pressure handler in `BegleiterApp`
+    /// targets this so the cached Gemma weights can be released on iOS
+    /// memory warnings without the handler needing a reference to each
+    /// CaptureViewModel.
+    static let shared = ExtractionService()
+
     private let gemma: GemmaService
 
     /// Default to a smaller max-token cap than GemmaService's default (256).
-    /// Extraction outputs are JSON — typically <120 tokens for a normal entry.
-    /// A smaller cap reduces peak KV-cache memory during generation, which
-    /// gives us headroom on iPhone 14 Pro with the increased-memory entitlement.
-    init(gemma: GemmaService = GemmaService(maxTokens: 192, temperature: 0.3)) {
+    /// Extraction outputs are JSON — typically <120 tokens for a normal
+    /// entry. The tighter cap trims KV-cache headroom, giving us more
+    /// margin under iPhone 14 Pro's per-app limit. Temperature is also
+    /// reduced because structured extraction wants deterministic output.
+    init(gemma: GemmaService = GemmaService(maxTokens: 128, temperature: 0.3)) {
         self.gemma = gemma
+    }
+
+    /// Pass-through to the underlying GemmaService so the memory-warning
+    /// handler can drop the model.
+    func unloadModel() async {
+        await gemma.unload()
     }
 
     /// Extract structured fields from a German text journal entry.

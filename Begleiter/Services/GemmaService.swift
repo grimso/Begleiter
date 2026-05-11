@@ -1,5 +1,6 @@
 import Foundation
 import HuggingFace
+import MLX
 import MLXHuggingFace
 import MLXLLM
 import MLXLMCommon
@@ -48,6 +49,39 @@ actor GemmaService {
     private var container: ModelContainer?
     private(set) var state: LoadState = .idle
 
+    /// One-shot MLX configuration applied just before the first model load.
+    ///
+    /// Lowering `Memory.cacheLimit` is the single most impactful lever for
+    /// the iOS-jetsam case per the framework's own docs. **The setter itself
+    /// initialises MLX's Metal allocator**, which aborts on the iOS Simulator
+    /// (no Metal device available in the simulator's Metal shim — same
+    /// reason inference can't run on simulator). Therefore:
+    ///
+    /// 1. We do not touch `MLX.Memory.cacheLimit` from `init` (which would
+    ///    fire during unit tests on the simulator host, crashing the test
+    ///    runner before bootstrap).
+    /// 2. We only apply the cap from `loadModel()`, where we are about to
+    ///    talk to MLX anyway. On simulator, `loadModel()` never runs in
+    ///    tests, so the setter is never reached.
+    /// 3. Within `loadModel()` we further guard with
+    ///    `#if !targetEnvironment(simulator)`. Belt and braces — if someone
+    ///    in the future taps "Modell laden" inside the simulator UI, this
+    ///    line stays skipped and MLX's own subsequent crash on inference
+    ///    surfaces a clearer failure than ours.
+    private nonisolated(unsafe) static var _cacheLimitConfigured = false
+    private static func applyCacheLimitIfNeeded() {
+        guard !_cacheLimitConfigured else { return }
+        _cacheLimitConfigured = true
+        #if !targetEnvironment(simulator)
+        // 50 MB cap on the recyclable buffer pool. Default scales with
+        // recommendedMaxWorkingSetSize and can grow to multiple GB on long
+        // inference runs — that's exactly the headroom we're losing on
+        // iPhone 14 Pro running Gemma 4 E2B (~3.3 GB resident + uncapped
+        // scratch ≈ jetsam).
+        MLX.Memory.cacheLimit = 50 * 1024 * 1024
+        #endif
+    }
+
     init(
         configuration: ModelConfiguration = LLMRegistry.gemma4_e2b_it_4bit,
         maxTokens: Int = 256,
@@ -69,7 +103,9 @@ actor GemmaService {
     func loadModel() async throws -> ModelContainer {
         if let container { return container }
 
+        Self.applyCacheLimitIfNeeded()
         state = .loading(progress: 0)
+        MemoryDiagnostics.snapshot(label: "before-load")
         do {
             let loaded = try await loadModelContainer(
                 from: #hubDownloader(),
@@ -83,6 +119,7 @@ actor GemmaService {
             }
             self.container = loaded
             state = .loaded
+            MemoryDiagnostics.snapshot(label: "after-load")
             return loaded
         } catch {
             state = .failed(message: error.localizedDescription)
@@ -100,12 +137,21 @@ actor GemmaService {
 
     /// Run a single-turn prompt against the loaded model and return the full
     /// decoded string. ChatSession applies Gemma 4's chat template internally.
+    ///
+    /// Memory-hygiene wrapper: snapshots before + after the generation and
+    /// drops MLX's freed-buffer cache after it returns (or throws), which
+    /// otherwise accumulates several GB across repeated calls.
     func generate(prompt: String) async throws -> String {
         let container = try await loadModel()
         let session = ChatSession(
             container,
             generateParameters: generateParameters
         )
+        MemoryDiagnostics.snapshot(label: "before-generate")
+        defer {
+            MLX.Memory.clearCache()
+            MemoryDiagnostics.snapshot(label: "after-generate")
+        }
         return try await session.respond(to: prompt)
     }
 

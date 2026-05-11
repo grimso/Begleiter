@@ -63,3 +63,4 @@ TestFixtures/private/
 secrets/
 .cache/
 tools/.cache/
+.claude/
