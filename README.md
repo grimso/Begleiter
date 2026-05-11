@@ -55,12 +55,16 @@ Iteration 2 scaffolds `Services/GemmaService.swift` + `Features/Debug/SmokeTestV
 
 | Repository URL | Required products (check boxes) | Add to target |
 |---|---|---|
-| `https://github.com/ml-explore/mlx-swift-lm` | `MLXLLM`, `MLXLMCommon` | Begleiter |
+| `https://github.com/ml-explore/mlx-swift-lm` | `MLXLLM`, `MLXLMCommon`, `MLXHuggingFace` | Begleiter |
+| `https://github.com/huggingface/swift-huggingface` | `HuggingFace` | Begleiter |
+| `https://github.com/huggingface/swift-transformers` | `Tokenizers` | Begleiter |
 | `https://github.com/argmaxinc/WhisperKit` | `WhisperKit` | Begleiter (not yet imported — iteration 4) |
 
 After each "Add Package", wait for SPM resolution, then tick only the listed products and confirm the target is `Begleiter` (NOT the test targets).
 
 > **Don't add `mlx-swift-examples` or standalone `mlx-swift`.** Up to October 2025 `MLXLLM` lived inside `ml-explore/mlx-swift-examples`, and many tutorials still reference that path. The `MLXLLM` library has since moved to its own repo at `https://github.com/ml-explore/mlx-swift-lm`, and `mlx-swift-examples` no longer ships it. The new repo is the only one with Gemma 4 support; the older `mlx-swift-examples` releases (≤ 2.29.x) crash at runtime with `Unsupported model type: gemma 4`. Standalone `mlx-swift` is also unnecessary — it's pulled in transitively by `mlx-swift-lm`.
+
+> **Why three HuggingFace packages?** `mlx-swift-lm` 3.x is intentionally downloader-agnostic — it doesn't ship a Hugging Face client by default. `MLXHuggingFace` provides macros (`#hubDownloader`, `#huggingFaceTokenizerLoader`) that wire up the HF Hub client and tokenizer; the macros require the `HuggingFace` and `Tokenizers` modules to be available in the target. `swift-huggingface` provides the former, `swift-transformers` provides the latter.
 
 ### Running the smoke test
 

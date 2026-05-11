@@ -1,54 +1,31 @@
 import Foundation
+import HuggingFace
+import MLXHuggingFace
 import MLXLLM
 import MLXLMCommon
 import Tokenizers
 
-/// Loads Gemma 4 (E4B, 4-bit) via MLX-Swift and runs prompts against it.
+/// Loads Gemma 4 E4B (4-bit) via mlx-swift-lm and runs prompts against it.
 ///
-/// `GemmaService` is an `actor` so that concurrent calls from UI/services
-/// serialize against the underlying model container, which is not safe to
-/// invoke from multiple threads simultaneously.
+/// `GemmaService` is an `actor` so concurrent calls from UI/services serialize
+/// against the underlying model container.
 ///
-/// **First-launch behavior.** `loadModel()` downloads the weights from
-/// Hugging Face (~2 GB on disk after 4-bit quantization) into the OS-managed
-/// cache directory the MLX-Swift Hub client uses. Subsequent launches load
-/// from cache. The demo must therefore be performed on a device that has
-/// completed at least one cold load while online.
+/// **Model selection.** Uses `LLMRegistry.gemma4_e4b_it_4bit` — the canonical
+/// registry entry for `mlx-community/gemma-4-e4b-it-4bit` with the correct
+/// `<turn|>` EOS token configuration. Swap to a sibling entry within the
+/// gemma-4-e4b family (e.g. `gemma4_e2b_it_4bit` for a smaller variant) only
+/// if iteration 2 reveals iPhone 14 Pro can't comfortably hold E4B.
 ///
-/// **Model selection.** `Configuration.modelId` is the only place to change
-/// which Gemma variant is loaded. Iteration 2 pins a Hugging Face repo path
-/// rather than relying on `LLMRegistry` so we can swap models without a
-/// library upgrade.
+/// **First-launch behavior.** `loadModel()` downloads the weights (~2.5 GB
+/// for E4B 4-bit) into the Hugging Face Hub cache directory on the device.
+/// Subsequent launches load from cache. The download path is provided by
+/// the `#hubDownloader()` macro from MLXHuggingFace (wraps `HubClient`).
 ///
 /// **Smoke test only.** This iteration has no function-calling, no system
-/// prompt, no context management. It exists to prove the model loads and
+/// prompt, no journal context. It exists to prove the model loads and
 /// generates on the device. Function-calling, structured extraction, and
-/// the tool-surface arrive in iteration 3.
+/// the tool surface arrive in iteration 3.
 actor GemmaService {
-
-    // MARK: - Configuration
-
-    struct Configuration: Sendable {
-        /// Hugging Face repository path for the quantized Gemma 4 E4B weights.
-        ///
-        /// This is the spec's target model (Gemma 4 E4B, instruction-tuned,
-        /// 4-bit quantized) hosted on the `mlx-community` mirror. Gemma 3 4B-it
-        /// 4-bit was tried first but ships the multimodal tokenizer (262208
-        /// vocab) and the text-only Gemma 3 loader in MLXLLM 2.29.1 expects
-        /// 262144 — fails at first forward pass. The Gemma 4 E4B-it 4-bit
-        /// repo below has a loader path validated for MLXLLM 2.29.x.
-        let modelId: String
-
-        /// Sampling and length controls for the smoke-test prompt.
-        let maxTokens: Int
-        let temperature: Float
-
-        static let `default` = Configuration(
-            modelId: "mlx-community/gemma-4-e4b-it-4bit",
-            maxTokens: 256,
-            temperature: 0.6
-        )
-    }
 
     // MARK: - State
 
@@ -59,16 +36,25 @@ actor GemmaService {
         case failed(message: String)
     }
 
-    private let configuration: Configuration
+    private let configuration: ModelConfiguration
+    private let generateParameters: GenerateParameters
     private var container: ModelContainer?
     private(set) var state: LoadState = .idle
 
     /// Callback fired on the actor whenever `state` changes. UI views set
     /// this to mirror state into an `@Observable` view model.
-    var onStateChange: (@Sendable (LoadState) -> Void)?
+    private var onStateChange: (@Sendable (LoadState) -> Void)?
 
-    init(configuration: Configuration = .default) {
+    init(
+        configuration: ModelConfiguration = LLMRegistry.gemma4_e4b_it_4bit,
+        maxTokens: Int = 256,
+        temperature: Float = 0.6
+    ) {
         self.configuration = configuration
+        self.generateParameters = GenerateParameters(
+            maxTokens: maxTokens,
+            temperature: temperature
+        )
     }
 
     func setOnStateChange(_ handler: @escaping @Sendable (LoadState) -> Void) {
@@ -85,11 +71,11 @@ actor GemmaService {
         if let container { return container }
 
         update(state: .loading(progress: 0))
-        let modelConfiguration = ModelConfiguration(id: configuration.modelId)
-
         do {
-            let loaded = try await LLMModelFactory.shared.loadContainer(
-                configuration: modelConfiguration
+            let loaded = try await loadModelContainer(
+                from: #hubDownloader(),
+                using: #huggingFaceTokenizerLoader(),
+                configuration: configuration
             ) { progress in
                 Task { [weak self] in
                     await self?.update(state: .loading(progress: progress.fractionCompleted))
@@ -107,35 +93,14 @@ actor GemmaService {
     // MARK: - Generate
 
     /// Run a single-turn prompt against the loaded model and return the full
-    /// decoded string. Streams are not exposed in iteration 2 — UI shows the
-    /// final response only.
+    /// decoded string. ChatSession applies Gemma 4's chat template internally.
     func generate(prompt: String) async throws -> String {
         let container = try await loadModel()
-
-        return try await container.perform { [configuration] context in
-            let input = try await context.processor.prepare(
-                input: .init(messages: [
-                    ["role": "user", "content": prompt]
-                ])
-            )
-
-            let parameters = GenerateParameters(
-                maxTokens: configuration.maxTokens,
-                temperature: configuration.temperature
-            )
-
-            var accumulated = ""
-            _ = try MLXLMCommon.generate(
-                input: input,
-                parameters: parameters,
-                context: context
-            ) { tokens in
-                let decoded = context.tokenizer.decode(tokens: tokens)
-                accumulated = decoded
-                return .more
-            }
-            return accumulated
-        }
+        let session = ChatSession(
+            container,
+            generateParameters: generateParameters
+        )
+        return try await session.respond(to: prompt)
     }
 
     // MARK: - Internal
