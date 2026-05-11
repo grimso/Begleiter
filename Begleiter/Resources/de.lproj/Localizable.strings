@@ -125,6 +125,11 @@
 "timeline.empty.description" = "Erfassen Sie Termine, Werte und Beobachtungen — alles bleibt auf Ihrem Gerät.";
 "timeline.empty.action" = "Ersten Eintrag erstellen";
 
+"timeline.search.prompt" = "Suchen (z.B. Vincristin, Fieber, Asparaginase)";
+"timeline.search.resultsHeader" = "%d Treffer";
+"timeline.search.empty.title" = "Keine Treffer";
+"timeline.search.empty.description" = "Keine Einträge zu \"%@\". Versuchen Sie ein anderes Stichwort.";
+
 // MARK: - Entry detail
 "entryDetail.context" = "Kontext";
 "entryDetail.phase" = "Phase";

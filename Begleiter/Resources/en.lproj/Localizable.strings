@@ -125,6 +125,11 @@
 "timeline.empty.description" = "Capture appointments, lab values, and observations — everything stays on your device.";
 "timeline.empty.action" = "Create first entry";
 
+"timeline.search.prompt" = "Search (e.g. Vincristin, fever, Asparaginase)";
+"timeline.search.resultsHeader" = "%d matches";
+"timeline.search.empty.title" = "No matches";
+"timeline.search.empty.description" = "No entries match \"%@\". Try a different keyword.";
+
 // MARK: - Entry detail
 "entryDetail.context" = "Context";
 "entryDetail.phase" = "Phase";

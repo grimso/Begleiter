@@ -1,14 +1,13 @@
 import SwiftData
 import SwiftUI
 
-/// Timeline of journal entries, grouped by phase.
+/// Timeline of journal entries.
 ///
-/// Iteration 3: chronological list grouped by `phase`, sorted newest first
-/// within each section. Tapping a row opens `EntryDetailView`. The "+"
-/// toolbar button presents `CaptureView` as a sheet.
-///
-/// Search, facet filters, lab-value sparklines, and knowledge-graph
-/// suggested questions arrive in iteration 6 along with retrieval.
+/// Default rendering is grouped by treatment phase, newest first within
+/// each phase. When the parent types in the search bar, the view switches
+/// to a flat results list ranked by `RetrievalService` BM25 score —
+/// the recall demo beat ("Wann gab es das erste Mal eine
+/// Asparaginase-Reaktion?" / "Wann hat Luca Vincristin bekommen?").
 struct TimelineView: View {
     let child: ChildState
 
@@ -16,31 +15,27 @@ struct TimelineView: View {
     @State private var presentingCapture = false
     @State private var presentingBriefing = false
     @State private var presentingHandoff = false
+    @State private var searchText: String = ""
+
+    private let retrieval = RetrievalService()
 
     var body: some View {
         NavigationStack {
             Group {
                 if entries.isEmpty {
                     emptyState
+                } else if !searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    searchResultsList
                 } else {
-                    List {
-                        ForEach(groupedByPhase, id: \.phase) { group in
-                            Section {
-                                ForEach(group.entries) { entry in
-                                    NavigationLink {
-                                        EntryDetailView(entry: entry)
-                                    } label: {
-                                        TimelineRow(entry: entry)
-                                    }
-                                }
-                            } header: {
-                                Text(group.phaseLabel)
-                            }
-                        }
-                    }
+                    groupedList
                 }
             }
             .navigationTitle(L10n.key("timeline.title"))
+            .searchable(
+                text: $searchText,
+                placement: .navigationBarDrawer(displayMode: .automatic),
+                prompt: L10n.t("timeline.search.prompt")
+            )
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
                     Button {
@@ -86,6 +81,59 @@ struct TimelineView: View {
         }
     }
 
+    // MARK: - Rendering paths
+
+    private var groupedList: some View {
+        List {
+            ForEach(groupedByPhase, id: \.phase) { group in
+                Section {
+                    ForEach(group.entries) { entry in
+                        NavigationLink {
+                            EntryDetailView(entry: entry)
+                        } label: {
+                            TimelineRow(entry: entry)
+                        }
+                    }
+                } header: {
+                    Text(group.phaseLabel)
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var searchResultsList: some View {
+        let trimmed = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        let hits = retrieval.search(query: trimmed, in: entries, limit: 50)
+        let resolved: [JournalEntry] = hits.compactMap { hit in
+            entries.first { $0.entryId == hit.entryId }
+        }
+
+        if resolved.isEmpty {
+            ContentUnavailableView(
+                L10n.t("timeline.search.empty.title"),
+                systemImage: "magnifyingglass",
+                description: Text(
+                    String(format: L10n.t("timeline.search.empty.description"), trimmed)
+                )
+            )
+        } else {
+            List {
+                Section {
+                    ForEach(resolved) { entry in
+                        NavigationLink {
+                            EntryDetailView(entry: entry)
+                        } label: {
+                            TimelineRow(entry: entry, highlightingTerm: trimmed)
+                        }
+                    }
+                } header: {
+                    Text(String(format: L10n.t("timeline.search.resultsHeader"), resolved.count))
+                }
+            }
+        }
+    }
+
     private var emptyState: some View {
         ContentUnavailableView {
             Label(L10n.t("timeline.empty.title"), systemImage: "book.closed")
@@ -122,6 +170,9 @@ struct TimelineView: View {
 
 private struct TimelineRow: View {
     let entry: JournalEntry
+    /// When provided (search mode), the row shows a snippet around the
+    /// matched term so the parent can see what hit. nil in default mode.
+    var highlightingTerm: String? = nil
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -142,7 +193,36 @@ private struct TimelineRow: View {
             Text(entry.displayTitle)
                 .font(.body)
                 .lineLimit(2)
+            if let term = highlightingTerm, let snippet = snippet(for: term) {
+                Text(snippet)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+            }
         }
         .padding(.vertical, 2)
+    }
+
+    /// Find a ~80-char window around the first case-insensitive match of
+    /// `term` in the entry's searchable text. Falls back to nil if no
+    /// match (which shouldn't happen because the entry IS a search hit,
+    /// but defends against the rare case where the BM25 score came from
+    /// a metadata field).
+    private func snippet(for term: String) -> String? {
+        let body = RetrievalService.searchableText(of: entry)
+        guard let range = body.range(of: term, options: .caseInsensitive) else { return nil }
+        let pad = 40
+        let lower = body.index(range.lowerBound,
+                               offsetBy: -pad,
+                               limitedBy: body.startIndex) ?? body.startIndex
+        let upper = body.index(range.upperBound,
+                               offsetBy: pad,
+                               limitedBy: body.endIndex) ?? body.endIndex
+        var snippet = String(body[lower..<upper])
+            .replacingOccurrences(of: "\n", with: " ")
+            .trimmingCharacters(in: .whitespaces)
+        if lower != body.startIndex { snippet = "… " + snippet }
+        if upper != body.endIndex   { snippet = snippet + " …" }
+        return snippet
     }
 }
