@@ -30,7 +30,7 @@
 
 "onboarding.arm.title" = "Studienarm";
 "onboarding.arm.subtitle" = "In welchen Behandlungsarm ist Ihr Kind randomisiert?";
-"onboarding.arm.caption" = "Im AIEOP-BFM ALL 2017 Protokoll gibt es verschiedene Randomisierungen. Falls Ihr Kind nicht randomisiert ist, wählen Sie „Standardbehandlung".";
+"onboarding.arm.caption" = "Im AIEOP-BFM ALL 2017 Protokoll gibt es verschiedene Randomisierungen. Falls Ihr Kind nicht randomisiert ist, wählen Sie \"Standardbehandlung\".";
 
 "onboarding.phase.title" = "Aktuelle Phase";
 "onboarding.phase.subtitle" = "In welcher Phase befindet sich Ihr Kind aktuell?";
