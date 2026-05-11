@@ -162,9 +162,10 @@
 
 // MARK: - Photo capture sheet
 "photo.title" = "Lab printout";
-"photo.pick" = "Pick photo";
+"photo.pick" = "Pick from Photos";
 "photo.pickAnother" = "Pick another photo";
-"photo.pickFooter" = "Pick a photo of a clinical printout or lab values. Text recognition runs on-device.";
+"photo.pickFile" = "Pick from Files (PDF, image)";
+"photo.pickFooter" = "Pick a photo or PDF (e.g. lab printout emailed to you). For PDFs we use embedded text directly when present — otherwise OCR runs on-device.";
 "photo.previewHeader" = "Preview";
 "photo.ocrHeader" = "Recognised text";
 "photo.adopt" = "Adopt";

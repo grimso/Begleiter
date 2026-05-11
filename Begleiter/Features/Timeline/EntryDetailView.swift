@@ -1,4 +1,5 @@
 import AVFoundation
+import PDFKit
 import SwiftUI
 
 /// Detail view for a single `JournalEntry`. Shows raw text, all extracted
@@ -221,8 +222,8 @@ private struct LabValueRow: View {
     }
 }
 
-/// Horizontal carousel of saved photos. Tapping a thumbnail opens it
-/// fullscreen via a NavigationLink for a closer look.
+/// Horizontal carousel of saved photos / PDFs. Tapping a thumbnail opens
+/// it fullscreen via a NavigationLink for a closer look.
 private struct PhotoCarouselRow: View {
     let filenames: [String]
 
@@ -230,22 +231,67 @@ private struct PhotoCarouselRow: View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 12) {
                 ForEach(filenames, id: \.self) { filename in
-                    if let url = PhotoStorage.storedURL(for: filename),
-                       let ui = UIImage(contentsOfFile: url.path) {
-                        NavigationLink {
-                            FullscreenPhotoView(image: ui)
-                        } label: {
-                            Image(uiImage: ui)
-                                .resizable()
-                                .scaledToFill()
-                                .frame(width: 120, height: 120)
-                                .clipShape(RoundedRectangle(cornerRadius: 10))
-                        }
-                        .buttonStyle(.plain)
+                    if let url = PhotoStorage.storedURL(for: filename) {
+                        ThumbnailLink(filename: filename, url: url)
                     }
                 }
             }
             .padding(.vertical, 4)
+        }
+    }
+}
+
+private struct ThumbnailLink: View {
+    let filename: String
+    let url: URL
+
+    var body: some View {
+        let ext = (filename as NSString).pathExtension.lowercased()
+        if ext == "pdf" {
+            if let thumb = Self.renderPDFThumbnail(at: url) {
+                NavigationLink {
+                    FullscreenPDFView(url: url)
+                } label: {
+                    ZStack(alignment: .bottomTrailing) {
+                        Image(uiImage: thumb)
+                            .resizable()
+                            .scaledToFill()
+                            .frame(width: 120, height: 120)
+                            .clipShape(RoundedRectangle(cornerRadius: 10))
+                        Image(systemName: "doc.richtext")
+                            .padding(6)
+                            .background(.ultraThinMaterial)
+                            .clipShape(Circle())
+                            .padding(6)
+                    }
+                }
+                .buttonStyle(.plain)
+            }
+        } else if let ui = UIImage(contentsOfFile: url.path) {
+            NavigationLink {
+                FullscreenPhotoView(image: ui)
+            } label: {
+                Image(uiImage: ui)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: 120, height: 120)
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    /// Render the first page of a PDF to a UIImage for the thumbnail.
+    static func renderPDFThumbnail(at url: URL) -> UIImage? {
+        guard let doc = PDFDocument(url: url), let page = doc.page(at: 0) else { return nil }
+        let bounds = page.bounds(for: .cropBox)
+        let renderer = UIGraphicsImageRenderer(size: bounds.size)
+        return renderer.image { ctx in
+            UIColor.white.setFill()
+            ctx.cgContext.fill(CGRect(origin: .zero, size: bounds.size))
+            ctx.cgContext.translateBy(x: 0, y: bounds.size.height)
+            ctx.cgContext.scaleBy(x: 1, y: -1)
+            page.draw(with: .cropBox, to: ctx.cgContext)
         }
     }
 }
@@ -258,6 +304,19 @@ private struct FullscreenPhotoView: View {
             .scaledToFit()
             .navigationBarTitleDisplayMode(.inline)
     }
+}
+
+private struct FullscreenPDFView: UIViewRepresentable {
+    let url: URL
+
+    func makeUIView(context: Context) -> PDFView {
+        let view = PDFView()
+        view.autoScales = true
+        view.document = PDFDocument(url: url)
+        return view
+    }
+
+    func updateUIView(_ uiView: PDFView, context: Context) {}
 }
 
 /// Bridge helper — calling the static method on `AudioRecorder` from a

@@ -39,11 +39,22 @@ enum PhotoStorage {
         let jpeg = imageData
         #endif
 
+        return try writeFile(data: jpeg, entryId: entryId, index: index, ext: "jpg")
+    }
+
+    /// Persist a raw file (PDF, image, etc.) exactly as-is. Used by the
+    /// file-picker path so original PDFs survive in their native format.
+    /// Returns the relative path (`<uuid>/<index>.<ext>`).
+    static func saveRawFile(_ data: Data, entryId: UUID, index: Int, ext: String) throws -> String {
+        try writeFile(data: data, entryId: entryId, index: index, ext: ext)
+    }
+
+    private static func writeFile(data: Data, entryId: UUID, index: Int, ext: String) throws -> String {
         let dir = try entryDirectory(for: entryId, create: true)
-        let filename = "\(index).jpg"
+        let filename = "\(index).\(ext)"
         let url = dir.appendingPathComponent(filename)
         do {
-            try jpeg.write(to: url, options: .atomic)
+            try data.write(to: url, options: .atomic)
         } catch {
             throw StorageError.writeFailed(error.localizedDescription)
         }

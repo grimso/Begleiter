@@ -114,16 +114,16 @@ struct CaptureView: View {
                 }
             }
             .sheet(isPresented: $presentingPhotoCapture) {
-                PhotoCaptureView { imageData, recognisedText in
-                    // Append the OCR'd text in a clearly-marked block so
-                    // Gemma can tell what came from a Befund vs typed
+                PhotoCaptureView { fileData, recognisedText, fileExtension in
+                    // Append the extracted text in a clearly-marked block
+                    // so Gemma can tell what came from a Befund vs typed
                     // observation.
                     if !recognisedText.isEmpty {
                         let prefix = model.text.trimmingCharacters(in: .whitespacesAndNewlines)
                         let block = "Aus Befund-Foto:\n\(recognisedText)"
                         model.text = prefix.isEmpty ? block : prefix + "\n\n" + block
                     }
-                    model.pendingPhotoData.append(imageData)
+                    model.pendingPhotoData.append(.init(data: fileData, ext: fileExtension))
                 }
             }
         }

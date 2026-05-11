@@ -28,10 +28,17 @@ final class CaptureViewModel {
     /// Basename of the .m4a recording in Documents/voice/. Set when the
     /// parent uses voice input and the recording was successfully written.
     var voiceAudioFilename: String?
-    /// Raw JPEG bytes of Befund photos picked by the parent. Persisted
-    /// to `Documents/photos/<entryId>/<n>.jpg` at submit time and
-    /// referenced from `JournalEntry.rawPhotoFilenames`.
-    var pendingPhotoData: [Data] = []
+    /// Raw bytes (image or PDF) of Befund attachments picked by the
+    /// parent. Persisted to `Documents/photos/<entryId>/<n>.<ext>` at
+    /// submit time and referenced from `JournalEntry.rawPhotoFilenames`.
+    var pendingPhotoData: [PendingAttachment] = []
+
+    struct PendingAttachment: Sendable, Hashable {
+        let data: Data
+        /// Original file extension (jpg, png, pdf, …) so the file
+        /// survives in its native format on disk.
+        let ext: String
+    }
     /// Most recent successful extraction. UI may show a preview before saving.
     private(set) var lastExtraction: ExtractedFields?
 
@@ -86,11 +93,18 @@ final class CaptureViewModel {
                     modalities.append("text")
                 }
                 let entryId = UUID()
-                // Persist any picked photos to Documents/photos/.
+                // Persist any picked attachments to Documents/photos/.
+                // Save in original format (jpg / pdf / …) so PDFs survive.
                 var photoFilenames: [String] = []
-                for (index, data) in pendingPhotoData.enumerated() {
-                    if let name = try? PhotoStorage.saveJPEG(data, entryId: entryId, index: index) {
-                        photoFilenames.append(name)
+                for (index, attachment) in pendingPhotoData.enumerated() {
+                    if attachment.ext.lowercased() == "jpg" || attachment.ext.lowercased() == "jpeg" {
+                        if let name = try? PhotoStorage.saveJPEG(attachment.data, entryId: entryId, index: index) {
+                            photoFilenames.append(name)
+                        }
+                    } else {
+                        if let name = try? PhotoStorage.saveRawFile(attachment.data, entryId: entryId, index: index, ext: attachment.ext) {
+                            photoFilenames.append(name)
+                        }
                     }
                 }
                 let entry = JournalEntry(

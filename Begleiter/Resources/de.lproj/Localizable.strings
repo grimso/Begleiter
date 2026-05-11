@@ -162,9 +162,10 @@
 
 // MARK: - Photo capture sheet
 "photo.title" = "Befund-Foto";
-"photo.pick" = "Foto auswählen";
+"photo.pick" = "Aus Fotos auswählen";
 "photo.pickAnother" = "Anderes Foto auswählen";
-"photo.pickFooter" = "Wählen Sie ein Foto eines Befunds oder einer Laborwertübersicht. Die Texterkennung läuft on-device.";
+"photo.pickFile" = "Aus Dateien auswählen (PDF, Bild)";
+"photo.pickFooter" = "Wählen Sie ein Foto oder eine PDF-Datei (z.B. Befund per E-Mail). Bei PDFs wird vorhandener Text direkt übernommen — sonst läuft die Texterkennung on-device.";
 "photo.previewHeader" = "Vorschau";
 "photo.ocrHeader" = "Erkannter Text";
 "photo.adopt" = "Übernehmen";
