@@ -121,9 +121,13 @@ actor ExtractionService {
             strictMode: false
         )
 
+        extractionLog.info("extract: text=\(trimmedText.count, privacy: .public) chars, ocrText=\(trimmedOCR?.count ?? 0, privacy: .public) chars")
+
         let raw1 = try await gemma.generate(prompt: prompt, parameters: extractionParameters)
         extractionLog.debug("attempt=1 raw=\(raw1, privacy: .public)")
         if let fields = try? Self.parseExtractedFields(from: raw1) {
+            let labCount = fields.labValues?.value.count ?? 0
+            extractionLog.info("attempt=1 parsed OK, labs=\(labCount, privacy: .public)")
             return ExtractionResult(fields: fields, rawResponse: raw1, attempt: 1)
         }
 
@@ -139,6 +143,8 @@ actor ExtractionService {
         let raw2 = try await gemma.generate(prompt: retryPrompt, parameters: extractionParameters)
         extractionLog.debug("attempt=2 raw=\(raw2, privacy: .public)")
         let fields = try Self.parseExtractedFields(from: raw2)
+        let labCount = fields.labValues?.value.count ?? 0
+        extractionLog.info("attempt=2 parsed OK, labs=\(labCount, privacy: .public)")
         return ExtractionResult(fields: fields, rawResponse: raw2, attempt: 2)
     }
 
@@ -203,7 +209,7 @@ actor ExtractionService {
           "visitType": { "value": "ambulant" | "stationaer" | "notfall" | "telefonisch" | "zuhause", "confidence": 0.0-1.0 },
           "doctorName": { "value": "<Name>", "confidence": 0.0-1.0 },
           "drugsMentioned": { "value": [{ "name": "<INN>", "germanLabel": "<wie genannt>", "doseDescription": "<frei>", "administeredAt": null }], "confidence": 0.0-1.0 },
-          "labValues": { "value": [{ "parameter": "<WBC|ANC|Hb|PLT|...>", "germanLabel": "<dt. Bezeichnung oder gleich wie parameter>", "value": <Zahl>, "unit": "<Einheit>", "measuredAt": "\(dateString)", "source": "text" }], "confidence": 0.0-1.0 },
+          "labValues": { "value": [{ "parameter": "<beliebiger Laborparameter, z.B. WBC, RBC, ANC, Hb, HGB, HCT, PLT, MCV, MCH, MCHC, CRP, ALT, AST, Quick, INR, Na, K, Ca, Glucose, ...>", "germanLabel": "<dt. Bezeichnung oder gleich wie parameter>", "value": <Zahl>, "unit": "<Einheit>", "measuredAt": "\(dateString)", "source": "text" }], "confidence": 0.0-1.0 },
           "proceduresMentioned": { "value": ["<Prozedur 1>", "..."], "confidence": 0.0-1.0 },
           "decisions": { "value": ["<Entscheidung des Teams 1>", "..."], "confidence": 0.0-1.0 },
           "parentObservations": { "value": ["<Beobachtung der Eltern 1>", "..."], "confidence": 0.0-1.0 },
