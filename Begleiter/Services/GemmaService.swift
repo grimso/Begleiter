@@ -1,6 +1,7 @@
 import Foundation
 import MLXLLM
 import MLXLMCommon
+import Tokenizers
 
 /// Loads Gemma 4 (E4B, 4-bit) via MLX-Swift and runs prompts against it.
 ///
