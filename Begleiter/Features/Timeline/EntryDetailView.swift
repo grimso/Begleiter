@@ -76,6 +76,14 @@ struct EntryDetailView: View {
                 } header: {
                     Text(L10n.key("entryDetail.labs"))
                 }
+
+                Section {
+                    LabTrendSection(currentEntry: entry)
+                } header: {
+                    Text(L10n.key("entryDetail.trends"))
+                } footer: {
+                    Text(L10n.key("entryDetail.trendsFooter"))
+                }
             }
 
             if let procs = fields.proceduresMentioned, !procs.value.isEmpty {

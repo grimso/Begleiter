@@ -146,6 +146,8 @@
 "entryDetail.recordingPlay" = "Play recording";
 "entryDetail.recordingPause" = "Pause";
 "entryDetail.photos" = "Photos";
+"entryDetail.trends" = "Trend";
+"entryDetail.trendsFooter" = "Values from all previous entries. The highlighted point is this entry.";
 
 // MARK: - Capture (journal entry composer)
 "capture.title" = "New entry";
