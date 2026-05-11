@@ -81,33 +81,34 @@ actor TranscriptionService {
     func prepare() async throws {
         if case .ready = prepareState { return }
 
-        let locale = Locale(identifier: "de-DE")
+        // Resolve the canonical Locale form Apple uses internally — turns
+        // "de-DE" / "de_DE" into whatever LocaleDependentSpeechModule's
+        // catalogue expects. Returns `nil` if German is not supportable at
+        // all on this device (very unlikely on iOS 26).
+        let requested = Locale(identifier: "de-DE")
+        guard let canonical = await SpeechTranscriber.supportedLocale(equivalentTo: requested) else {
+            prepareState = .failed("German not supported on this device")
+            throw TranscriptionError.germanModelUnavailable
+        }
+        transcriptionLog.info("canonical German locale: \(canonical.identifier(.bcp47), privacy: .public)")
+
         let candidate = SpeechTranscriber(
-            locale: locale,
+            locale: canonical,
             transcriptionOptions: [],
             reportingOptions: [.volatileResults],
             attributeOptions: []
         )
 
-        let supported = await SpeechTranscriber.supportedLocales
-        guard supported.contains(where: { $0.identifier(.bcp47) == locale.identifier(.bcp47) }) else {
-            prepareState = .failed("German not in supportedLocales")
-            throw TranscriptionError.germanModelUnavailable
-        }
-
-        let installed = await SpeechTranscriber.installedLocales
-        let isInstalled = installed.contains(where: { $0.identifier(.bcp47) == locale.identifier(.bcp47) })
-        if !isInstalled {
-            transcriptionLog.info("downloading German speech model")
-            prepareState = .downloadingModel(progress: 0)
-            do {
-                if let request = try await AssetInventory.assetInstallationRequest(supporting: [candidate]) {
-                    try await request.downloadAndInstall()
-                }
-            } catch {
-                prepareState = .failed(error.localizedDescription)
-                throw TranscriptionError.analyzerFailed(error.localizedDescription)
+        // Ensure the model is downloaded.
+        do {
+            if let request = try await AssetInventory.assetInstallationRequest(supporting: [candidate]) {
+                transcriptionLog.info("downloading German speech model")
+                prepareState = .downloadingModel(progress: 0)
+                try await request.downloadAndInstall()
             }
+        } catch {
+            prepareState = .failed(error.localizedDescription)
+            throw TranscriptionError.analyzerFailed(error.localizedDescription)
         }
 
         self.transcriber = candidate
