@@ -1,0 +1,81 @@
+// Begleiter — German strings (primary language)
+//
+// Keys are dot-namespaced by feature. Keep this file alphabetically grouped by
+// namespace for diffability. Translator notes: "Befund" = lab/clinical report,
+// "Erhaltungstherapie" = maintenance therapy.
+
+// MARK: - App-wide
+"app.name" = "Begleiter";
+"app.continue" = "Weiter";
+"app.back" = "Zurück";
+"app.cancel" = "Abbrechen";
+"app.done" = "Fertig";
+"app.confirm" = "Bestätigen";
+"app.edit" = "Bearbeiten";
+
+// MARK: - Onboarding
+"onboarding.welcome.title" = "Willkommen bei Begleiter";
+"onboarding.welcome.subtitle" = "Ein Tagebuch für die Behandlung Ihres Kindes";
+"onboarding.welcome.body" = "Begleiter hilft Ihnen, die Behandlung zu dokumentieren, sich auf Termine vorzubereiten und Übergaben für neue Ärztinnen und Ärzte zu erstellen. Alle Daten bleiben auf Ihrem Gerät.";
+"onboarding.welcome.start" = "Loslegen";
+
+"onboarding.diagnosisDate.title" = "Diagnosedatum";
+"onboarding.diagnosisDate.subtitle" = "Wann wurde die Diagnose gestellt?";
+"onboarding.diagnosisDate.caption" = "Wir nutzen das Datum, um die Behandlungszeit zu zählen. Sie können es später ändern.";
+"onboarding.diagnosisDate.label" = "Datum der Diagnose";
+
+"onboarding.riskGroup.title" = "Risikogruppe";
+"onboarding.riskGroup.subtitle" = "Welche Risikogruppe hat das Behandlungsteam mitgeteilt?";
+"onboarding.riskGroup.caption" = "Wenn Sie unsicher sind, fragen Sie beim nächsten Termin nach. Sie können die Auswahl später ändern.";
+
+"onboarding.arm.title" = "Studienarm";
+"onboarding.arm.subtitle" = "In welchen Behandlungsarm ist Ihr Kind randomisiert?";
+"onboarding.arm.caption" = "Im AIEOP-BFM ALL 2017 Protokoll gibt es verschiedene Randomisierungen. Falls Ihr Kind nicht randomisiert ist, wählen Sie „Standardbehandlung".";
+
+"onboarding.phase.title" = "Aktuelle Phase";
+"onboarding.phase.subtitle" = "In welcher Phase befindet sich Ihr Kind aktuell?";
+"onboarding.phase.caption" = "Wählen Sie die Phase, die jetzt läuft. Sie können später jederzeit weiter wechseln, wenn die nächste Phase beginnt.";
+"onboarding.phase.startDateLabel" = "Startdatum dieser Phase";
+"onboarding.phase.unreachableWarning" = "Diese Phase ist für die gewählte Risikogruppe und den Studienarm normalerweise nicht vorgesehen. Bitte prüfen Sie die Auswahl — Sie können trotzdem fortfahren.";
+
+"onboarding.confirm.title" = "Bitte bestätigen";
+"onboarding.confirm.subtitle" = "Ist alles korrekt?";
+"onboarding.confirm.diagnosisDate" = "Diagnose am";
+"onboarding.confirm.riskGroup" = "Risikogruppe";
+"onboarding.confirm.arm" = "Studienarm";
+"onboarding.confirm.phase" = "Aktuelle Phase";
+"onboarding.confirm.phaseStart" = "Beginn dieser Phase";
+"onboarding.confirm.finish" = "Tagebuch starten";
+
+// MARK: - Risk groups
+"risk.SR.label" = "Standardrisiko (SR)";
+"risk.MR.label" = "Mittleres Risiko (MR)";
+"risk.HR.label" = "Hochrisiko (HR)";
+"risk.SR.description" = "Gutes Ansprechen auf die ersten Behandlungsschritte; günstige Laborwerte.";
+"risk.MR.description" = "Mittleres Ansprechen oder einzelne Risikofaktoren.";
+"risk.HR.description" = "Höheres Risiko; intensivere Behandlung mit zusätzlichen Blöcken.";
+
+// MARK: - Randomization arms
+"arm.R-T.label" = "R-T (Thiopurin in Protokoll IB)";
+"arm.R-MR.label" = "R-MR (Blinatumomab, mittleres Risiko)";
+"arm.R-HR.label" = "R-HR (Blinatumomab, Hochrisiko)";
+"arm.R-eHR.label" = "R-eHR (Bortezomib, extremes Hochrisiko)";
+"arm.STANDARD.label" = "Standardbehandlung (ohne Randomisierung)";
+"arm.UNKNOWN.label" = "Unbekannt / noch nicht mitgeteilt";
+
+// MARK: - Phases
+"phase.inductionIA.label" = "Induktion (Protokoll IA)";
+"phase.inductionIB.label" = "Induktion (Protokoll IB)";
+"phase.consolidationM.label" = "Konsolidierung (Protokoll M)";
+"phase.consolidationHR1.label" = "Hochrisiko-Block HR-1'";
+"phase.consolidationHR2.label" = "Hochrisiko-Block HR-2'";
+"phase.consolidationHR3.label" = "Hochrisiko-Block HR-3'";
+"phase.reinductionII.label" = "Reinduktion (Protokoll II)";
+"phase.maintenance.label" = "Erhaltungstherapie";
+
+// MARK: - Home placeholder (real home view comes in next iteration)
+"home.placeholder.title" = "Onboarding abgeschlossen";
+"home.placeholder.subtitle" = "Tagebuch-Funktionen folgen in der nächsten Version.";
+"home.placeholder.phaseLabel" = "Aktuelle Phase";
+"home.placeholder.dayLabel" = "Tag in dieser Phase";
+"home.placeholder.diagnosisDays" = "Tage seit Diagnose";

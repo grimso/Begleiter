@@ -1,0 +1,81 @@
+// Begleiter — English strings (secondary language)
+//
+// English is supported for the secondary use case: toggling a journal entry
+// into English to share with an English-speaking grandparent or specialist.
+// German remains the primary language of the app.
+
+// MARK: - App-wide
+"app.name" = "Begleiter";
+"app.continue" = "Continue";
+"app.back" = "Back";
+"app.cancel" = "Cancel";
+"app.done" = "Done";
+"app.confirm" = "Confirm";
+"app.edit" = "Edit";
+
+// MARK: - Onboarding
+"onboarding.welcome.title" = "Welcome to Begleiter";
+"onboarding.welcome.subtitle" = "A journal for your child's treatment";
+"onboarding.welcome.body" = "Begleiter helps you document the treatment, prepare for appointments, and create handovers for new doctors. All data stays on your device.";
+"onboarding.welcome.start" = "Get started";
+
+"onboarding.diagnosisDate.title" = "Diagnosis date";
+"onboarding.diagnosisDate.subtitle" = "When was the diagnosis made?";
+"onboarding.diagnosisDate.caption" = "We use the date to count days into treatment. You can change it later.";
+"onboarding.diagnosisDate.label" = "Date of diagnosis";
+
+"onboarding.riskGroup.title" = "Risk group";
+"onboarding.riskGroup.subtitle" = "Which risk group has the treatment team communicated?";
+"onboarding.riskGroup.caption" = "If you are unsure, ask at the next appointment. You can change the selection later.";
+
+"onboarding.arm.title" = "Study arm";
+"onboarding.arm.subtitle" = "Which treatment arm is your child randomized into?";
+"onboarding.arm.caption" = "The AIEOP-BFM ALL 2017 protocol has multiple randomizations. If your child is not randomized, choose \"Standard treatment\".";
+
+"onboarding.phase.title" = "Current phase";
+"onboarding.phase.subtitle" = "Which phase is your child currently in?";
+"onboarding.phase.caption" = "Pick the phase that is running now. You can advance to the next phase anytime once it starts.";
+"onboarding.phase.startDateLabel" = "Start date of this phase";
+"onboarding.phase.unreachableWarning" = "This phase is not normally expected for the chosen risk group and study arm. Please check your selection — you can still proceed.";
+
+"onboarding.confirm.title" = "Please confirm";
+"onboarding.confirm.subtitle" = "Is everything correct?";
+"onboarding.confirm.diagnosisDate" = "Diagnosis on";
+"onboarding.confirm.riskGroup" = "Risk group";
+"onboarding.confirm.arm" = "Study arm";
+"onboarding.confirm.phase" = "Current phase";
+"onboarding.confirm.phaseStart" = "Start of this phase";
+"onboarding.confirm.finish" = "Start journal";
+
+// MARK: - Risk groups
+"risk.SR.label" = "Standard risk (SR)";
+"risk.MR.label" = "Medium risk (MR)";
+"risk.HR.label" = "High risk (HR)";
+"risk.SR.description" = "Good response to the first treatment steps; favorable lab values.";
+"risk.MR.description" = "Intermediate response or individual risk factors.";
+"risk.HR.description" = "Higher risk; more intensive treatment with additional blocks.";
+
+// MARK: - Randomization arms
+"arm.R-T.label" = "R-T (thiopurine in Protocol IB)";
+"arm.R-MR.label" = "R-MR (blinatumomab, medium risk)";
+"arm.R-HR.label" = "R-HR (blinatumomab, high risk)";
+"arm.R-eHR.label" = "R-eHR (bortezomib, extreme high risk)";
+"arm.STANDARD.label" = "Standard treatment (no randomization)";
+"arm.UNKNOWN.label" = "Unknown / not yet communicated";
+
+// MARK: - Phases
+"phase.inductionIA.label" = "Induction (Protocol IA)";
+"phase.inductionIB.label" = "Induction (Protocol IB)";
+"phase.consolidationM.label" = "Consolidation (Protocol M)";
+"phase.consolidationHR1.label" = "High-risk block HR-1'";
+"phase.consolidationHR2.label" = "High-risk block HR-2'";
+"phase.consolidationHR3.label" = "High-risk block HR-3'";
+"phase.reinductionII.label" = "Reinduction (Protocol II)";
+"phase.maintenance.label" = "Maintenance";
+
+// MARK: - Home placeholder
+"home.placeholder.title" = "Onboarding complete";
+"home.placeholder.subtitle" = "Journal features arrive in the next iteration.";
+"home.placeholder.phaseLabel" = "Current phase";
+"home.placeholder.dayLabel" = "Day in this phase";
+"home.placeholder.diagnosisDays" = "Days since diagnosis";
