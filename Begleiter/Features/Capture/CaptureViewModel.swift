@@ -28,6 +28,10 @@ final class CaptureViewModel {
     /// Basename of the .m4a recording in Documents/voice/. Set when the
     /// parent uses voice input and the recording was successfully written.
     var voiceAudioFilename: String?
+    /// Raw JPEG bytes of Befund photos picked by the parent. Persisted
+    /// to `Documents/photos/<entryId>/<n>.jpg` at submit time and
+    /// referenced from `JournalEntry.rawPhotoFilenames`.
+    var pendingPhotoData: [Data] = []
     /// Most recent successful extraction. UI may show a preview before saving.
     private(set) var lastExtraction: ExtractedFields?
 
@@ -73,14 +77,24 @@ final class CaptureViewModel {
                 phase = .saving
                 var modalities: [String] = []
                 if voiceTranscript != nil { modalities.append("voice") }
+                if !pendingPhotoData.isEmpty { modalities.append("photo") }
                 let userEditedText = snapshotText.trimmingCharacters(in: .whitespacesAndNewlines)
                 let voiceText = (voiceTranscript ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
                 if !userEditedText.isEmpty, userEditedText != voiceText {
                     modalities.append("text")
-                } else if voiceTranscript == nil {
+                } else if voiceTranscript == nil, pendingPhotoData.isEmpty {
                     modalities.append("text")
                 }
+                let entryId = UUID()
+                // Persist any picked photos to Documents/photos/.
+                var photoFilenames: [String] = []
+                for (index, data) in pendingPhotoData.enumerated() {
+                    if let name = try? PhotoStorage.saveJPEG(data, entryId: entryId, index: index) {
+                        photoFilenames.append(name)
+                    }
+                }
                 let entry = JournalEntry(
+                    entryId: entryId,
                     childId: childId,
                     visitDate: snapshotDate,
                     phase: childPhase,
@@ -90,6 +104,7 @@ final class CaptureViewModel {
                     inputModalities: modalities,
                     rawText: snapshotText,
                     rawVoiceTranscript: voiceTranscript,
+                    rawPhotoFilenames: photoFilenames,
                     extractedFields: result.fields,
                     rawExtractionResponse: result.rawResponse
                 )

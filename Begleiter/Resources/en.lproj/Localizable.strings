@@ -145,6 +145,7 @@
 "entryDetail.recording" = "Recording";
 "entryDetail.recordingPlay" = "Play recording";
 "entryDetail.recordingPause" = "Pause";
+"entryDetail.photos" = "Photos";
 
 // MARK: - Capture (journal entry composer)
 "capture.title" = "New entry";
@@ -157,6 +158,19 @@
 "capture.busy.extracting" = "Gemma is analyzing…";
 "capture.busy.saving" = "Saving…";
 "capture.voice.button" = "Voice recording";
+"capture.photo.button" = "Lab printout";
+
+// MARK: - Photo capture sheet
+"photo.title" = "Lab printout";
+"photo.pick" = "Pick photo";
+"photo.pickAnother" = "Pick another photo";
+"photo.pickFooter" = "Pick a photo of a clinical printout or lab values. Text recognition runs on-device.";
+"photo.previewHeader" = "Preview";
+"photo.ocrHeader" = "Recognised text";
+"photo.adopt" = "Adopt";
+"photo.state.idle" = "Ready";
+"photo.state.processing" = "Recognising text…";
+"photo.state.done" = "Text recognised (%d %% confidence)";
 
 // MARK: - Voice recorder sheet
 "voice.title" = "Voice recording";

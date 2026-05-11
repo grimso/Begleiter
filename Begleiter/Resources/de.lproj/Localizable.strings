@@ -145,6 +145,7 @@
 "entryDetail.recording" = "Aufnahme";
 "entryDetail.recordingPlay" = "Aufnahme abspielen";
 "entryDetail.recordingPause" = "Pause";
+"entryDetail.photos" = "Fotos";
 
 // MARK: - Capture (journal entry composer)
 "capture.title" = "Neuer Eintrag";
@@ -157,6 +158,19 @@
 "capture.busy.extracting" = "Gemma analysiert …";
 "capture.busy.saving" = "Speichere …";
 "capture.voice.button" = "Sprachaufnahme";
+"capture.photo.button" = "Befund-Foto";
+
+// MARK: - Photo capture sheet
+"photo.title" = "Befund-Foto";
+"photo.pick" = "Foto auswählen";
+"photo.pickAnother" = "Anderes Foto auswählen";
+"photo.pickFooter" = "Wählen Sie ein Foto eines Befunds oder einer Laborwertübersicht. Die Texterkennung läuft on-device.";
+"photo.previewHeader" = "Vorschau";
+"photo.ocrHeader" = "Erkannter Text";
+"photo.adopt" = "Übernehmen";
+"photo.state.idle" = "Bereit";
+"photo.state.processing" = "Text wird erkannt …";
+"photo.state.done" = "Text erkannt (%d %% Konfidenz)";
 
 // MARK: - Voice recorder sheet
 "voice.title" = "Sprachaufnahme";

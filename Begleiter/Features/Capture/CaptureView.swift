@@ -16,6 +16,7 @@ struct CaptureView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var model = CaptureViewModel()
     @State private var presentingVoiceRecorder = false
+    @State private var presentingPhotoCapture = false
     @FocusState private var textFocused: Bool
 
     var body: some View {
@@ -44,6 +45,13 @@ struct CaptureView: View {
                         presentingVoiceRecorder = true
                     } label: {
                         Label(L10n.t("capture.voice.button"), systemImage: "mic.fill")
+                    }
+                    .disabled(model.isBusy)
+                    Button {
+                        textFocused = false
+                        presentingPhotoCapture = true
+                    } label: {
+                        Label(L10n.t("capture.photo.button"), systemImage: "camera.fill")
                     }
                     .disabled(model.isBusy)
                 } header: {
@@ -103,6 +111,19 @@ struct CaptureView: View {
                     model.text = prefix.isEmpty ? transcript : prefix + "\n" + transcript
                     model.voiceTranscript = transcript
                     model.voiceAudioFilename = audioFilename
+                }
+            }
+            .sheet(isPresented: $presentingPhotoCapture) {
+                PhotoCaptureView { imageData, recognisedText in
+                    // Append the OCR'd text in a clearly-marked block so
+                    // Gemma can tell what came from a Befund vs typed
+                    // observation.
+                    if !recognisedText.isEmpty {
+                        let prefix = model.text.trimmingCharacters(in: .whitespacesAndNewlines)
+                        let block = "Aus Befund-Foto:\n\(recognisedText)"
+                        model.text = prefix.isEmpty ? block : prefix + "\n\n" + block
+                    }
+                    model.pendingPhotoData.append(imageData)
                 }
             }
         }

@@ -22,6 +22,14 @@ struct EntryDetailView: View {
                 }
             }
 
+            if !entry.rawPhotoFilenames.isEmpty {
+                Section {
+                    PhotoCarouselRow(filenames: entry.rawPhotoFilenames)
+                } header: {
+                    Text(L10n.key("entryDetail.photos"))
+                }
+            }
+
             if let raw = entry.rawText, !raw.isEmpty {
                 Section {
                     Text(raw)
@@ -210,6 +218,45 @@ private struct LabValueRow: View {
 
     private func formatted(_ value: Double) -> String {
         String(format: "%g", value)
+    }
+}
+
+/// Horizontal carousel of saved photos. Tapping a thumbnail opens it
+/// fullscreen via a NavigationLink for a closer look.
+private struct PhotoCarouselRow: View {
+    let filenames: [String]
+
+    var body: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 12) {
+                ForEach(filenames, id: \.self) { filename in
+                    if let url = PhotoStorage.storedURL(for: filename),
+                       let ui = UIImage(contentsOfFile: url.path) {
+                        NavigationLink {
+                            FullscreenPhotoView(image: ui)
+                        } label: {
+                            Image(uiImage: ui)
+                                .resizable()
+                                .scaledToFill()
+                                .frame(width: 120, height: 120)
+                                .clipShape(RoundedRectangle(cornerRadius: 10))
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+            .padding(.vertical, 4)
+        }
+    }
+}
+
+private struct FullscreenPhotoView: View {
+    let image: UIImage
+    var body: some View {
+        Image(uiImage: image)
+            .resizable()
+            .scaledToFit()
+            .navigationBarTitleDisplayMode(.inline)
     }
 }
 
