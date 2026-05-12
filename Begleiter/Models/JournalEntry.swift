@@ -66,6 +66,26 @@ final class JournalEntry {
     /// Knowledge-graph node refs produced at ingestion. Empty in iteration 3.
     var graphNodeIds: [String]
 
+    // MARK: - Async extraction pipeline state
+
+    /// Where the entry sits in the extraction pipeline. Persisted as a
+    /// raw string for SwiftData stability across iOS minor versions.
+    /// Defaults to `"extracted"` so rows created before async extraction
+    /// existed render unchanged on first launch after upgrade.
+    var processingStatusRaw: String = "extracted"
+
+    /// Error message attached to the last `.failed` extraction attempt.
+    /// `nil` on success.
+    var processingFailureMessage: String?
+
+    /// When the processing status was last updated. Drives sort order
+    /// for the pending queue and lets the UI show "wird seit X analysiert".
+    var processingUpdatedAt: Date = Date.distantPast
+
+    /// How many times extraction has been attempted (success or failure).
+    /// Used to decide whether to back off automatic retries.
+    var extractionAttempts: Int = 0
+
     init(
         entryId: UUID = UUID(),
         childId: UUID,
@@ -82,7 +102,8 @@ final class JournalEntry {
         extractedFields: ExtractedFields = .empty,
         rawExtractionResponse: String? = nil,
         embedding: [Float] = [],
-        graphNodeIds: [String] = []
+        graphNodeIds: [String] = [],
+        processingStatus: ProcessingStatus = .extracted
     ) {
         self.entryId = entryId
         self.childId = childId
@@ -100,6 +121,51 @@ final class JournalEntry {
         self.rawExtractionResponse = rawExtractionResponse
         self.embedding = embedding
         self.graphNodeIds = graphNodeIds
+        self.processingStatusRaw = processingStatus.rawValue
+        self.processingFailureMessage = processingStatus.failureMessage
+        self.processingUpdatedAt = .now
+        self.extractionAttempts = 0
+    }
+}
+
+/// Lifecycle position of an entry in the background extraction pipeline.
+///
+/// Encoded on disk as a raw string (`processingStatusRaw`) for SwiftData
+/// migration stability. The failure message on `.failed` is stored in
+/// `processingFailureMessage` rather than as an associated value, again
+/// for migration safety.
+enum ProcessingStatus: Sendable, Hashable {
+    /// Raw entry persisted, waiting for the queue to pick it up.
+    case pending
+    /// The worker has claimed this entry and is running Gemma now.
+    case extracting
+    /// Extraction completed successfully; structured fields populated.
+    case extracted
+    /// Extraction failed. `processingFailureMessage` carries the detail.
+    case failed(message: String?)
+
+    var rawValue: String {
+        switch self {
+        case .pending:    return "pending"
+        case .extracting: return "extracting"
+        case .extracted:  return "extracted"
+        case .failed:     return "failed"
+        }
+    }
+
+    var failureMessage: String? {
+        if case .failed(let m) = self { return m }
+        return nil
+    }
+
+    /// Reconstruct from the raw column + optional failure message.
+    static func from(raw: String, failureMessage: String?) -> ProcessingStatus {
+        switch raw {
+        case "pending":    return .pending
+        case "extracting": return .extracting
+        case "failed":     return .failed(message: failureMessage)
+        default:           return .extracted
+        }
     }
 }
 
@@ -124,6 +190,17 @@ extension JournalEntry {
     var extractedFields: ExtractedFields {
         get { ExtractedFields.decoded(from: extractedJSON) }
         set { extractedJSON = newValue.encoded() }
+    }
+
+    /// Typed lifecycle accessor. Setter writes both the raw column and
+    /// the failure message, and bumps `processingUpdatedAt`.
+    var processingStatus: ProcessingStatus {
+        get { ProcessingStatus.from(raw: processingStatusRaw, failureMessage: processingFailureMessage) }
+        set {
+            processingStatusRaw = newValue.rawValue
+            processingFailureMessage = newValue.failureMessage
+            processingUpdatedAt = .now
+        }
     }
 
     /// One-line title for the timeline row. Prefers the summary from

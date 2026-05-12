@@ -43,6 +43,7 @@ struct BegleiterApp: App {
 /// Branches between onboarding (no child yet) and the home placeholder
 /// (onboarding complete). Single-child only in iteration 1.
 struct RootView: View {
+    @Environment(\.modelContext) private var modelContext
     @Query private var children: [ChildState]
     @State private var memoryWarningObserver = MemoryWarningObserver()
 
@@ -56,6 +57,10 @@ struct RootView: View {
         }
         .task {
             await memoryWarningObserver.observe()
+            // Bootstrap the async extraction queue. Recovers orphans
+            // (entries left in .extracting by a previous run) and
+            // picks up any .pending entries before the worker starts.
+            await ExtractionQueue.shared.bootstrap(container: modelContext.container)
         }
     }
 }
