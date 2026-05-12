@@ -42,6 +42,7 @@ env/
 # Research notebooks — per-run telemetry, not source
 research/_inference_log.jsonl
 research/results/*.jsonl
+research/notebooks/.ipynb_checkpoints/
 
 # Editor
 .idea/
