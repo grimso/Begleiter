@@ -156,6 +156,31 @@
 "entryDetail.ocrToggle" = "Erkannter Befund-Text anzeigen";
 "entryDetail.ocrFooter" = "Originaltext aus den hochgeladenen Befunden. Wird nicht für die Anzeige verwendet — die strukturierten Werte stehen oben.";
 
+// MARK: - Lab values (Blutwerte top-level screen + status pill)
+"labs.title" = "Blutwerte";
+"labs.toolbar" = "Blutwerte";
+"labs.empty.title" = "Noch keine Laborwerte";
+"labs.empty.body" = "Sobald Sie einen Befund hinzufügen, erscheinen die Werte hier.";
+"labs.empty.action" = "Eintrag anlegen";
+"labs.header.lastMeasured" = "Stand: %@";
+"labs.header.summary" = "%1$d Messungen aus %2$d Einträgen";
+"labs.pill.title" = "Letzte Blutwerte";
+"labs.pill.daysAgo.today" = "heute";
+"labs.pill.daysAgo.one" = "vor 1 Tag";
+"labs.pill.daysAgo.other" = "vor %d Tagen";
+"labs.trend.up" = "steigend";
+"labs.trend.down" = "fallend";
+"labs.trend.stable" = "stabil";
+"labs.referenceRange" = "Referenz: %1$@–%2$@ %3$@";
+"labs.outOfRange" = "Außerhalb des Referenzbereichs";
+"labs.detail.history" = "Verlauf";
+"labs.detail.measurements" = "Alle Messungen";
+"labs.detail.measurements.footer" = "Tippen Sie auf eine Messung, um zum Eintrag zu springen.";
+"labs.source.befund" = "Befund";
+"labs.source.voice" = "Diktat";
+"labs.source.text" = "Text";
+"labs.source.manual" = "Manuell";
+
 // MARK: - Async extraction pipeline
 "entry.status.pending" = "wartet";
 "entry.status.extracting" = "wird analysiert";

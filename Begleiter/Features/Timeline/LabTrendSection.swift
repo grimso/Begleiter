@@ -1,4 +1,3 @@
-import Charts
 import SwiftData
 import SwiftUI
 
@@ -25,7 +24,7 @@ struct LabTrendSection: View {
         )
         if !groups.isEmpty {
             ForEach(groups) { track in
-                LabTrendChart(track: track)
+                TrackFacet(track: track)
             }
         }
     }
@@ -117,9 +116,9 @@ struct LabTrendSection: View {
     }
 }
 
-// MARK: - One chart
+// MARK: - One facet (header + shared chart)
 
-private struct LabTrendChart: View {
+private struct TrackFacet: View {
     let track: LabTrendSection.Track
 
     var body: some View {
@@ -134,31 +133,17 @@ private struct LabTrendChart: View {
                         .foregroundStyle(.primary)
                 }
             }
-
-            Chart(track.points) { point in
-                LineMark(
-                    x: .value("Datum", point.date),
-                    y: .value(track.parameter, point.value)
-                )
-                .foregroundStyle(.secondary)
-                .interpolationMethod(.monotone)
-                PointMark(
-                    x: .value("Datum", point.date),
-                    y: .value(track.parameter, point.value)
-                )
-                .foregroundStyle(point.isCurrent ? Color.accentColor : Color.secondary)
-                .symbolSize(point.isCurrent ? 80 : 40)
-            }
-            .frame(height: 100)
-            .chartXAxis {
-                AxisMarks(values: .stride(by: .day, count: 7)) { _ in
-                    AxisGridLine()
-                    AxisValueLabel(format: .dateTime.day().month(.twoDigits))
+            LabValueChart(
+                parameter: track.parameter,
+                points: track.points.map {
+                    LabValueChart.Point(
+                        id: $0.id,
+                        date: $0.date,
+                        value: $0.value,
+                        isHighlighted: $0.isCurrent
+                    )
                 }
-            }
-            .chartYAxis {
-                AxisMarks(position: .leading)
-            }
+            )
         }
         .padding(.vertical, 4)
     }

@@ -156,6 +156,31 @@
 "entryDetail.ocrToggle" = "Show recognised Befund text";
 "entryDetail.ocrFooter" = "Original text from uploaded Befunde. Not used for display — structured values are shown above.";
 
+// MARK: - Lab values (Blutwerte top-level screen + status pill)
+"labs.title" = "Lab values";
+"labs.toolbar" = "Lab values";
+"labs.empty.title" = "No lab values yet";
+"labs.empty.body" = "Once you add a Befund, values appear here.";
+"labs.empty.action" = "Add entry";
+"labs.header.lastMeasured" = "Last measurement: %@";
+"labs.header.summary" = "%1$d measurements from %2$d entries";
+"labs.pill.title" = "Latest counts";
+"labs.pill.daysAgo.today" = "today";
+"labs.pill.daysAgo.one" = "1 day ago";
+"labs.pill.daysAgo.other" = "%d days ago";
+"labs.trend.up" = "up";
+"labs.trend.down" = "down";
+"labs.trend.stable" = "stable";
+"labs.referenceRange" = "Reference: %1$@–%2$@ %3$@";
+"labs.outOfRange" = "Outside reference range";
+"labs.detail.history" = "Trend";
+"labs.detail.measurements" = "All measurements";
+"labs.detail.measurements.footer" = "Tap a measurement to open the source entry.";
+"labs.source.befund" = "Befund";
+"labs.source.voice" = "Voice";
+"labs.source.text" = "Text";
+"labs.source.manual" = "Manual";
+
 // MARK: - Async extraction pipeline
 "entry.status.pending" = "queued";
 "entry.status.extracting" = "analysing";

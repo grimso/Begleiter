@@ -15,6 +15,7 @@ struct TimelineView: View {
     @State private var presentingCapture = false
     @State private var presentingBriefing = false
     @State private var presentingHandoff = false
+    @State private var presentingLabs = false
     @State private var searchText: String = ""
 
     private let retrieval = RetrievalService()
@@ -61,6 +62,13 @@ struct TimelineView: View {
                     .disabled(entries.isEmpty)
                 }
                 ToolbarItem(placement: .topBarLeading) {
+                    Button {
+                        presentingLabs = true
+                    } label: {
+                        Label(L10n.t("labs.toolbar"), systemImage: "testtube.2")
+                    }
+                }
+                ToolbarItem(placement: .topBarLeading) {
                     NavigationLink {
                         SmokeTestView()
                     } label: {
@@ -78,13 +86,20 @@ struct TimelineView: View {
             .sheet(isPresented: $presentingHandoff) {
                 HandoffDocumentView(child: child)
             }
+            .sheet(isPresented: $presentingLabs) {
+                LabValuesView(child: child)
+            }
         }
     }
 
     // MARK: - Rendering paths
 
     private var groupedList: some View {
-        List {
+        let aggregatedSeries = LabSeries.aggregate(entries: entries)
+        return List {
+            LabStatusPill(series: aggregatedSeries) {
+                presentingLabs = true
+            }
             ForEach(groupedByPhase, id: \.phase) { group in
                 Section {
                     ForEach(group.entries) { entry in
