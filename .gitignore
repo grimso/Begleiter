@@ -39,6 +39,10 @@ env/
 .mypy_cache/
 .ruff_cache/
 
+# Research notebooks — per-run telemetry, not source
+research/_inference_log.jsonl
+research/results/*.jsonl
+
 # Editor
 .idea/
 .vscode/
