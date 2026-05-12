@@ -42,7 +42,11 @@ env/
 # Research notebooks — per-run telemetry, not source
 research/_inference_log.jsonl
 research/results/*.jsonl
-research/notebooks/.ipynb_checkpoints/
+research/**/.ipynb_checkpoints/
+
+# Real Befund photos for the multimodal eval — kept local, never committed.
+# Notebook 05 creates the directory on first run and picks up anything in it.
+research/data/befund_images_real/
 
 # Editor
 .idea/
