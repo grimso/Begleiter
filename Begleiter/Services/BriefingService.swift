@@ -12,6 +12,7 @@ private let briefingParameters = GenerateParameters(maxTokens: 640, temperature:
 /// Errors surfaced by `BriefingService`.
 enum BriefingError: Error, LocalizedError {
     case noEntries
+    case noExtractedEntries
     case modelReturnedNoJSON
     case modelReturnedInvalidJSON(String)
 
@@ -19,6 +20,8 @@ enum BriefingError: Error, LocalizedError {
         switch self {
         case .noEntries:
             return "Es gibt noch keine Einträge für eine Vorbereitung."
+        case .noExtractedEntries:
+            return "Bitte warten Sie, bis Einträge fertig analysiert sind, bevor Sie eine Vorbereitung erstellen."
         case .modelReturnedNoJSON:
             return "Gemma hat keinen JSON-Block geliefert."
         case .modelReturnedInvalidJSON(let detail):
@@ -56,10 +59,19 @@ actor BriefingService {
     ) async throws -> Briefing {
         guard !entries.isEmpty else { throw BriefingError.noEntries }
 
+        // Skip entries that haven't been processed yet. Pending /
+        // extracting / failed entries have no structured fields to feed
+        // into the briefing prompt and would dilute the result.
+        let extractedEntries = entries.filter {
+            if case .extracted = $0.processingStatus { return true }
+            return false
+        }
+        guard !extractedEntries.isEmpty else { throw BriefingError.noExtractedEntries }
+
         let prompt = Self.buildPrompt(
             visitDate: visitDate,
             child: child,
-            entries: entries
+            entries: extractedEntries
         )
         let raw = try await gemma.generate(prompt: prompt, parameters: briefingParameters)
         briefingLog.debug("raw=\(raw, privacy: .public)")
@@ -80,7 +92,7 @@ actor BriefingService {
 
         // Verifiable-generation guard: drop claims whose entryId isn't in
         // the input set. Gemma sometimes makes up plausible-looking UUIDs.
-        let validIds = Set(entries.map(\.entryId))
+        let validIds = Set(extractedEntries.map(\.entryId))
         return Self.filterUngroundedClaims(briefing, validEntryIds: validIds)
     }
 

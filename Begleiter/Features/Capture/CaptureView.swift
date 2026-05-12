@@ -153,9 +153,8 @@ struct CaptureView: View {
 
     private var busyLabel: String {
         switch model.phase {
-        case .extracting: return L10n.t("capture.busy.extracting")
-        case .saving:     return L10n.t("capture.busy.saving")
-        default:          return ""
+        case .saving: return L10n.t("capture.busy.saving")
+        default:      return ""
         }
     }
 }

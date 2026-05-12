@@ -156,6 +156,16 @@
 "entryDetail.ocrToggle" = "Erkannter Befund-Text anzeigen";
 "entryDetail.ocrFooter" = "Originaltext aus den hochgeladenen Befunden. Wird nicht für die Anzeige verwendet — die strukturierten Werte stehen oben.";
 
+// MARK: - Async extraction pipeline
+"entry.status.pending" = "wartet";
+"entry.status.extracting" = "wird analysiert";
+"entry.status.failed" = "Analyse fehlgeschlagen";
+"entry.action.reanalyze" = "Neuanalyse";
+"entry.banner.pending.title" = "Analyse läuft im Hintergrund";
+"entry.banner.pending.body" = "Sie können den Eintrag schon jetzt lesen und weitere Einträge anlegen. Die strukturierten Felder erscheinen, sobald die Analyse fertig ist.";
+"entry.banner.failed.title" = "Analyse fehlgeschlagen";
+"entry.banner.failed.body" = "Bei der Strukturierung ist etwas schiefgegangen. Tippen Sie auf Neuanalyse, um es erneut zu versuchen.";
+
 // MARK: - Capture (journal entry composer)
 "capture.title" = "Neuer Eintrag";
 "capture.visitDate" = "Datum des Termins";

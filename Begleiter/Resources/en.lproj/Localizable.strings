@@ -156,6 +156,16 @@
 "entryDetail.ocrToggle" = "Show recognised Befund text";
 "entryDetail.ocrFooter" = "Original text from uploaded Befunde. Not used for display — structured values are shown above.";
 
+// MARK: - Async extraction pipeline
+"entry.status.pending" = "queued";
+"entry.status.extracting" = "analysing";
+"entry.status.failed" = "Analysis failed";
+"entry.action.reanalyze" = "Re-analyze";
+"entry.banner.pending.title" = "Analysis running in the background";
+"entry.banner.pending.body" = "You can read the entry now and add more entries. Structured fields appear here once analysis completes.";
+"entry.banner.failed.title" = "Analysis failed";
+"entry.banner.failed.body" = "Something went wrong while structuring this entry. Tap Re-analyze to try again.";
+
 // MARK: - Capture (journal entry composer)
 "capture.title" = "New entry";
 "capture.visitDate" = "Visit date";

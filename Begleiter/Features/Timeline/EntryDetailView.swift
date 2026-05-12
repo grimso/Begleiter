@@ -11,8 +11,14 @@ struct EntryDetailView: View {
 
     var body: some View {
         let fields = entry.extractedFields
+        let status = entry.processingStatus
+        let showExtracted: Bool = {
+            if case .extracted = status { return true }
+            return false
+        }()
 
         return Form {
+            ProcessingStatusBanner(entry: entry)
             metadataSection
             if let filename = entry.rawVoiceAudioFilename,
                let audioURL = audioRecorderStoredURL(filename: filename) {
@@ -55,7 +61,7 @@ struct EntryDetailView: View {
                 }
             }
 
-            if let summary = fields.summary {
+            if showExtracted, let summary = fields.summary {
                 Section {
                     confidenceRow(label: summary.value, confidence: summary.confidence)
                 } header: {
@@ -63,7 +69,7 @@ struct EntryDetailView: View {
                 }
             }
 
-            if let drugs = fields.drugsMentioned, !drugs.value.isEmpty {
+            if showExtracted, let drugs = fields.drugsMentioned, !drugs.value.isEmpty {
                 Section {
                     ForEach(drugs.value, id: \.self) { drug in
                         VStack(alignment: .leading, spacing: 2) {
@@ -81,7 +87,7 @@ struct EntryDetailView: View {
                 }
             }
 
-            if let labs = fields.labValues, !labs.value.isEmpty {
+            if showExtracted, let labs = fields.labValues, !labs.value.isEmpty {
                 Section {
                     ForEach(labs.value, id: \.self) { lab in
                         LabValueRow(lab: lab)
@@ -100,7 +106,7 @@ struct EntryDetailView: View {
                 }
             }
 
-            if let procs = fields.proceduresMentioned, !procs.value.isEmpty {
+            if showExtracted, let procs = fields.proceduresMentioned, !procs.value.isEmpty {
                 Section {
                     ForEach(procs.value, id: \.self) { Text($0) }
                     confidenceFooter(procs.confidence)
@@ -109,7 +115,7 @@ struct EntryDetailView: View {
                 }
             }
 
-            if let decisions = fields.decisions, !decisions.value.isEmpty {
+            if showExtracted, let decisions = fields.decisions, !decisions.value.isEmpty {
                 Section {
                     ForEach(decisions.value, id: \.self) { Text($0) }
                     confidenceFooter(decisions.confidence)
@@ -118,7 +124,7 @@ struct EntryDetailView: View {
                 }
             }
 
-            if let obs = fields.parentObservations, !obs.value.isEmpty {
+            if showExtracted, let obs = fields.parentObservations, !obs.value.isEmpty {
                 Section {
                     ForEach(obs.value, id: \.self) { Text($0) }
                     confidenceFooter(obs.confidence)
@@ -127,7 +133,7 @@ struct EntryDetailView: View {
                 }
             }
 
-            if let reactions = fields.reactions, !reactions.value.isEmpty {
+            if showExtracted, let reactions = fields.reactions, !reactions.value.isEmpty {
                 Section {
                     ForEach(reactions.value, id: \.self) { r in
                         VStack(alignment: .leading, spacing: 2) {
@@ -155,7 +161,7 @@ struct EntryDetailView: View {
                 }
             }
 
-            if let qs = fields.openQuestions, !qs.value.isEmpty {
+            if showExtracted, let qs = fields.openQuestions, !qs.value.isEmpty {
                 Section {
                     ForEach(qs.value, id: \.self) { Text($0) }
                     confidenceFooter(qs.confidence)
@@ -164,7 +170,7 @@ struct EntryDetailView: View {
                 }
             }
 
-            if let raw = entry.rawExtractionResponse, !raw.isEmpty {
+            if showExtracted, let raw = entry.rawExtractionResponse, !raw.isEmpty {
                 Section {
                     DisclosureGroup(L10n.t("entryDetail.rawResponseToggle")) {
                         Text(raw)
@@ -174,6 +180,18 @@ struct EntryDetailView: View {
                     }
                 } footer: {
                     Text(L10n.key("entryDetail.rawResponseFooter"))
+                }
+            }
+
+            // Always-available re-extraction trigger. Even on .extracted
+            // entries this is useful — after a prompt change the parent
+            // (or developer mode) can refresh stale results.
+            Section {
+                Button {
+                    let entryId = entry.entryId
+                    Task { await ExtractionQueue.shared.requeue(entryId: entryId) }
+                } label: {
+                    Label(L10n.t("entry.action.reanalyze"), systemImage: "arrow.clockwise")
                 }
             }
         }
@@ -241,6 +259,63 @@ private struct LabValueRow: View {
 
     private func formatted(_ value: Double) -> String {
         String(format: "%g", value)
+    }
+}
+
+/// Banner at the top of `EntryDetailView` showing the entry's pipeline
+/// state. Invisible when `.extracted` so completed entries render
+/// without visual noise.
+private struct ProcessingStatusBanner: View {
+    let entry: JournalEntry
+
+    var body: some View {
+        switch entry.processingStatus {
+        case .pending, .extracting:
+            Section {
+                HStack(spacing: 12) {
+                    ProgressView()
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(L10n.key("entry.banner.pending.title"))
+                            .font(.subheadline.bold())
+                        Text(L10n.key("entry.banner.pending.body"))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .padding(.vertical, 4)
+            }
+        case .failed(let message):
+            Section {
+                VStack(alignment: .leading, spacing: 8) {
+                    Label {
+                        Text(L10n.key("entry.banner.failed.title"))
+                            .font(.subheadline.bold())
+                    } icon: {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundStyle(.orange)
+                    }
+                    if let message {
+                        Text(message)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    Text(L10n.key("entry.banner.failed.body"))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Button {
+                        let entryId = entry.entryId
+                        Task { await ExtractionQueue.shared.requeue(entryId: entryId) }
+                    } label: {
+                        Label(L10n.t("entry.action.reanalyze"), systemImage: "arrow.clockwise")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.borderedProminent)
+                }
+                .padding(.vertical, 4)
+            }
+        case .extracted:
+            EmptyView()
+        }
     }
 }
 

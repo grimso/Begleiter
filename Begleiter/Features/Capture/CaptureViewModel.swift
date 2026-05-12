@@ -2,17 +2,19 @@ import Foundation
 import SwiftData
 import SwiftUI
 
-/// View model for the text-only journal capture screen.
+/// View model for the journal capture screen.
 ///
-/// Drives a single flow: parent types German text → tap "Eintrag analysieren"
-/// → ExtractionService runs Gemma → on success we persist a JournalEntry
-/// in SwiftData and signal the view to dismiss.
+/// Behaviour after the async-extraction refactor: `submit(...)` persists
+/// the raw entry to SwiftData with `processingStatus = .pending`, kicks
+/// the `ExtractionQueue`, and immediately sets `phase = .done` so the
+/// modal dismisses. Gemma runs in the background; the timeline shows the
+/// entry with a "wird analysiert" badge until the worker fills in
+/// structured fields.
 @MainActor
 @Observable
 final class CaptureViewModel {
     enum Phase: Equatable {
         case idle
-        case extracting
         case saving
         case done
         case failed(message: String)
@@ -21,9 +23,8 @@ final class CaptureViewModel {
     var text: String = ""
     var visitDate: Date = .now
     var phase: Phase = .idle
-    /// Verbatim transcript from the SpeechAnalyzer pass, set when the
-    /// parent uses voice input. Persisted on JournalEntry.rawVoiceTranscript
-    /// alongside the (possibly edited) `text` that gets sent to extraction.
+    /// Verbatim transcript from the SpeechRecognizer pass, set when the
+    /// parent uses voice input. Persisted on JournalEntry.rawVoiceTranscript.
     var voiceTranscript: String?
     /// Basename of the .m4a recording in Documents/voice/. Set when the
     /// parent uses voice input and the recording was successfully written.
@@ -32,11 +33,9 @@ final class CaptureViewModel {
     /// parent. Persisted to `Documents/photos/<entryId>/<n>.<ext>` at
     /// submit time and referenced from `JournalEntry.rawPhotoFilenames`.
     var pendingPhotoData: [PendingAttachment] = []
-    /// OCR text from each picked photo / PDF, in pick order. Combined at
-    /// submit time and passed to ExtractionService as separate Befund
-    /// context — never merged into the parent-facing text field so the
-    /// UI stays clean and the persisted `rawText` only contains what the
-    /// parent actually typed.
+    /// OCR text from each picked photo / PDF, in pick order. Concatenated
+    /// at submit time and stored on `JournalEntry.rawPhotoOCRText` so the
+    /// ExtractionQueue can re-run extraction against it any number of times.
     var pendingOCRTexts: [String] = []
 
     struct PendingAttachment: Sendable, Hashable {
@@ -54,28 +53,28 @@ final class CaptureViewModel {
             .filter { !$0.isEmpty }
         return parts.isEmpty ? nil : parts.joined(separator: "\n\n---\n\n")
     }
-    /// Most recent successful extraction. UI may show a preview before saving.
-    private(set) var lastExtraction: ExtractedFields?
 
-    private let extraction: ExtractionService
-
-    init(extraction: ExtractionService = .shared) {
-        self.extraction = extraction
-    }
+    init() {}
 
     var canSubmit: Bool {
-        !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-            && !isBusy
+        // The entry is creatable if the parent typed something OR picked
+        // an attachment OR recorded voice. The previous all-text-only
+        // gate was overly strict for the attachment-only flow.
+        let hasText = !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        let hasVoice = voiceTranscript != nil
+        let hasPhoto = !pendingPhotoData.isEmpty
+        return (hasText || hasVoice || hasPhoto) && !isBusy
     }
 
     var isBusy: Bool {
-        if case .extracting = phase { return true }
         if case .saving = phase { return true }
         return false
     }
 
-    /// Extract + save in one shot. Iteration 7 will split this so the
-    /// parent can confirm low-confidence fields before persistence.
+    /// Persist the raw entry and hand off extraction to the background
+    /// `ExtractionQueue`. The sheet dismisses as soon as the SwiftData
+    /// save completes (~milliseconds) — Gemma never runs synchronously
+    /// from here.
     func submit(child: ChildState, context: ModelContext) {
         guard canSubmit else { return }
         let snapshotText = text
@@ -86,18 +85,9 @@ final class CaptureViewModel {
         let arm = child.randomizationArm
         let childId = child.childId
 
-        phase = .extracting
+        phase = .saving
         Task {
             do {
-                let result = try await extraction.extract(
-                    text: snapshotText,
-                    phase: childPhase,
-                    dayInPhase: dayInPhase,
-                    visitDate: snapshotDate,
-                    ocrText: combinedOCRText
-                )
-                lastExtraction = result.fields
-                phase = .saving
                 var modalities: [String] = []
                 if voiceTranscript != nil { modalities.append("voice") }
                 if !pendingPhotoData.isEmpty { modalities.append("photo") }
@@ -109,8 +99,8 @@ final class CaptureViewModel {
                     modalities.append("text")
                 }
                 let entryId = UUID()
-                // Persist any picked attachments to Documents/photos/.
-                // Save in original format (jpg / pdf / …) so PDFs survive.
+
+                // Persist attachments to Documents/photos/.
                 var photoFilenames: [String] = []
                 for (index, attachment) in pendingPhotoData.enumerated() {
                     if attachment.ext.lowercased() == "jpg" || attachment.ext.lowercased() == "jpeg" {
@@ -123,6 +113,7 @@ final class CaptureViewModel {
                         }
                     }
                 }
+
                 let entry = JournalEntry(
                     entryId: entryId,
                     childId: childId,
@@ -132,16 +123,23 @@ final class CaptureViewModel {
                     riskGroup: riskGroup,
                     arm: arm,
                     inputModalities: modalities,
-                    rawText: snapshotText,
+                    rawText: snapshotText.isEmpty ? nil : snapshotText,
                     rawVoiceTranscript: voiceTranscript,
                     rawPhotoFilenames: photoFilenames,
-                    extractedFields: result.fields,
-                    rawExtractionResponse: result.rawResponse
+                    extractedFields: .empty,
+                    rawExtractionResponse: nil,
+                    processingStatus: .pending
                 )
                 entry.rawVoiceAudioFilename = voiceAudioFilename
                 entry.rawPhotoOCRText = combinedOCRText
                 context.insert(entry)
                 try context.save()
+
+                // Hand off to the background queue. Fire-and-forget;
+                // the queue's worker will pick the entry up on its next
+                // signal-driven cycle.
+                await ExtractionQueue.shared.enqueue(entryId: entryId)
+
                 phase = .done
             } catch {
                 phase = .failed(message: error.localizedDescription)
@@ -153,6 +151,9 @@ final class CaptureViewModel {
         text = ""
         visitDate = .now
         phase = .idle
-        lastExtraction = nil
+        voiceTranscript = nil
+        voiceAudioFilename = nil
+        pendingPhotoData = []
+        pendingOCRTexts = []
     }
 }

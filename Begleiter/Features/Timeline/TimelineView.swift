@@ -181,6 +181,7 @@ private struct TimelineRow: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 Spacer()
+                ProcessingBadge(status: entry.processingStatus)
                 if let visitType = entry.extractedFields.visitType?.value {
                     Text(visitType.germanLabel)
                         .font(.caption2)
@@ -203,6 +204,8 @@ private struct TimelineRow: View {
         .padding(.vertical, 2)
     }
 
+    // MARK: - snippet helpers
+
     /// Find a ~80-char window around the first case-insensitive match of
     /// `term` in the entry's searchable text. Falls back to nil if no
     /// match (which shouldn't happen because the entry IS a search hit,
@@ -224,5 +227,38 @@ private struct TimelineRow: View {
         if lower != body.startIndex { snippet = "… " + snippet }
         if upper != body.endIndex   { snippet = snippet + " …" }
         return snippet
+    }
+}
+
+/// Small pill rendered on `TimelineRow` whenever the entry is not in
+/// the terminal `.extracted` state. Invisible for normal extracted
+/// entries to keep the timeline visually quiet.
+private struct ProcessingBadge: View {
+    let status: ProcessingStatus
+
+    var body: some View {
+        switch status {
+        case .pending:
+            label(L10n.t("entry.status.pending"), background: .secondary)
+        case .extracting:
+            HStack(spacing: 4) {
+                ProgressView().controlSize(.mini)
+                label(L10n.t("entry.status.extracting"), background: .blue)
+            }
+        case .failed:
+            label(L10n.t("entry.status.failed"), background: .orange)
+        case .extracted:
+            EmptyView()
+        }
+    }
+
+    private func label(_ text: String, background: Color) -> some View {
+        Text(text)
+            .font(.caption2)
+            .padding(.horizontal, 6)
+            .padding(.vertical, 2)
+            .background(background.opacity(0.18))
+            .foregroundStyle(background)
+            .clipShape(Capsule())
     }
 }

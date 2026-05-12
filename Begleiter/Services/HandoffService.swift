@@ -52,7 +52,17 @@ actor HandoffService {
         now: Date = .now
     ) async throws -> HandoffDocument {
         let snapshot = child.snapshot(now: now)
-        let recent = entries
+        // Skip pending / failed / extracting entries — only fully
+        // processed entries contribute meaningful structured fields
+        // (lab values, reactions, current medication) to the handoff.
+        // The deterministic part of the document (patient ID, phase,
+        // treatment history from ChildState.completedPhases) is
+        // unaffected.
+        let extractedEntries = entries.filter {
+            if case .extracted = $0.processingStatus { return true }
+            return false
+        }
+        let recent = extractedEntries
             .sorted { $0.visitDate > $1.visitDate }
             .prefix(20)
             .map { $0 }
