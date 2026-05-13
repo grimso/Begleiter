@@ -285,7 +285,7 @@
 "settings.developer.askDiagnostics" = "Show Ask diagnostics";
 "settings.developer.askThinking" = "Enable Gemma reasoning";
 "settings.developer.askThinking.budgetHint" = "Reasoning uses more tokens. Recommended: set Ask token budget to 1024 or higher.";
-"settings.developer.footer" = "Internal diagnostics screen. Loads the model and runs a test prompt. With Ask diagnostics enabled, every answer card shows an info button with retrieval stats, raw model output, and filter status. With reasoning enabled, Gemma thinks step-by-step before the answer (slower, more tokens, often better structure).";
+"settings.developer.footer" = "Internal diagnostics screen. Loads the model and runs a test prompt. With Ask diagnostics enabled, every answer card shows an info button with retrieval stats, raw model output, and filter status. With reasoning enabled, Gemma thinks step-by-step before the answer (slower, more tokens, often better structure). The journal guard deterministically intercepts questions like \"Which … occurred?\" when no journal entry matches — the corpus is not used as a substitute.";
 
 // MARK: - Ask
 "ask.toolbar" = "Ask";
@@ -368,3 +368,6 @@
 "ask.debug.refusalReason.modelError" = "Gemma raised an error.";
 "ask.debug.refusalReason.parseFailure" = "Gemma's response did not contain valid JSON.";
 "ask.debug.refusalReason.emptyClaims" = "Gemma returned JSON with zero claims.";
+"ask.debug.refusalReason.noJournalForEventQuestion" = "Question targets journal events but no matching entry — Swift guard answered without calling Gemma.";
+
+"settings.developer.askEventGuard" = "Journal guard for event questions";

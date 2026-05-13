@@ -120,6 +120,11 @@ nonisolated enum RefusalReason: String, Sendable, Hashable {
     case modelError         // gemma.generate threw
     case parseFailure       // model returned no parseable JSON
     case emptyClaims        // model returned JSON with zero claims
+    /// `EventQuestionDetector` matched a past-tense phrase AND journal
+    /// retrieval was empty AND `askEventGuardEnabled` was on, so we
+    /// emitted the canonical "Im Journal finde ich dazu keinen
+    /// Eintrag." answer without calling Gemma.
+    case noJournalForEventQuestion
 }
 
 /// Developer-facing diagnostic snapshot of one answer round-trip.
@@ -171,6 +176,18 @@ nonisolated struct AskDebugInfo: Sendable, Hashable {
     /// `"embedder load failed: <message>"`.
     let rerankSkippedReason: String?
 
+    // MARK: - Event-question guard diagnostics
+    /// True if `EventQuestionDetector.looksLikeEventQuestion(...)`
+    /// matched the question text — regardless of whether the guard
+    /// fired. Lets the Diagnose sheet distinguish "no match" from
+    /// "matched but guard was off / journal had hits".
+    let eventQuestionDetected: Bool
+    /// True if `AppSettings.askEventGuardEnabled` was on AND the
+    /// detector matched AND the journal retrieval was empty — i.e.,
+    /// the answer was synthesised as `noJournalForEventQuestion`
+    /// without a Gemma call.
+    let eventGuardFired: Bool
+
     /// Empty placeholder used when an answer is constructed outside the
     /// real pipeline (e.g., tests, the static `AskAnswer.refusal` helper).
     static let empty = AskDebugInfo(
@@ -197,7 +214,9 @@ nonisolated struct AskDebugInfo: Sendable, Hashable {
         queryEmbedMs: nil,
         entryEmbedCount: 0,
         corpusEmbedCount: 0,
-        rerankSkippedReason: nil
+        rerankSkippedReason: nil,
+        eventQuestionDetected: false,
+        eventGuardFired: false
     )
 }
 
@@ -258,7 +277,63 @@ nonisolated struct AskAnswer: Sendable, Hashable, Identifiable {
                 queryEmbedMs: debug.queryEmbedMs,
                 entryEmbedCount: debug.entryEmbedCount,
                 corpusEmbedCount: debug.corpusEmbedCount,
-                rerankSkippedReason: debug.rerankSkippedReason
+                rerankSkippedReason: debug.rerankSkippedReason,
+                eventQuestionDetected: debug.eventQuestionDetected,
+                eventGuardFired: debug.eventGuardFired
+            ),
+            renderedAt: .now
+        )
+    }
+
+    /// Synthesised answer for the case where the Swift-side event-
+    /// question guard fired. Same shape as `.refusal` (no Gemma call,
+    /// empty citations, no follow-ups) but the claim text is the
+    /// specific "Im Journal finde ich dazu keinen Eintrag." phrase
+    /// rather than the canonical `RefusalService.redirectMessage` —
+    /// the parent gets a precise answer, not a generic redirect.
+    static func noJournalForEvent(
+        question: String,
+        debug: AskDebugInfo
+    ) -> AskAnswer {
+        AskAnswer(
+            id: UUID(),
+            question: question,
+            claims: [
+                AnswerClaim(
+                    text: "Im Journal finde ich dazu keinen Eintrag.",
+                    citations: []
+                )
+            ],
+            followUps: [],
+            basis: .refusal,
+            warnings: [],
+            debug: AskDebugInfo(
+                scope: debug.scope,
+                journalHits: debug.journalHits,
+                corpusHits: debug.corpusHits,
+                promptedEntryIds: debug.promptedEntryIds,
+                promptedChunkIds: debug.promptedChunkIds,
+                promptCharCount: debug.promptCharCount,
+                promptText: debug.promptText,
+                thinkingEnabled: debug.thinkingEnabled,
+                rawModelOutput: debug.rawModelOutput,
+                parseError: debug.parseError,
+                modelError: debug.modelError,
+                claimsBeforeFilter: debug.claimsBeforeFilter,
+                claimsAfterFilter: debug.claimsAfterFilter,
+                droppedCitationCount: debug.droppedCitationCount,
+                refusalReason: .noJournalForEventQuestion,
+                denseRerankerEnabled: debug.denseRerankerEnabled,
+                candidatesBeforeRerankJournal: debug.candidatesBeforeRerankJournal,
+                candidatesBeforeRerankCorpus: debug.candidatesBeforeRerankCorpus,
+                rerankReorderCount: debug.rerankReorderCount,
+                embedderLoadMs: debug.embedderLoadMs,
+                queryEmbedMs: debug.queryEmbedMs,
+                entryEmbedCount: debug.entryEmbedCount,
+                corpusEmbedCount: debug.corpusEmbedCount,
+                rerankSkippedReason: debug.rerankSkippedReason,
+                eventQuestionDetected: true,
+                eventGuardFired: true
             ),
             renderedAt: .now
         )
@@ -354,7 +429,9 @@ actor AskService {
             queryEmbedMs: nil,
             entryEmbedCount: 0,
             corpusEmbedCount: 0,
-            rerankSkippedReason: rerankEnabled ? nil : "toggle off"
+            rerankSkippedReason: rerankEnabled ? nil : "toggle off",
+            eventQuestionDetected: false,
+            eventGuardFired: false
         )
 
         // 1. Retrieval. With rerank on, pull a wider candidate set
@@ -385,6 +462,29 @@ actor AskService {
             return AskAnswer.refusal(
                 question: question.text,
                 reason: .emptyRetrieval,
+                debug: debug
+            )
+        }
+
+        // 1b. Event-question guard. If the question looks like a
+        // past-tense event question ("Welche … gab es?", "Wann hatte
+        // …?") AND the journal retrieval found nothing AND the toggle
+        // is on: short-circuit to "Im Journal finde ich dazu keinen
+        // Eintrag." without calling Gemma. Prevents the model from
+        // paraphrasing a topically-relevant corpus chunk into an
+        // answer that reads like a journal claim.
+        let eventDetected = EventQuestionDetector.looksLikeEventQuestion(question.text)
+        debug = debug.with(eventQuestionDetected: eventDetected)
+        if AppSettings.askEventGuardEnabled,
+           journalHits.isEmpty,
+           eventDetected
+        {
+            askLog.info("event-question guard fired (journal empty, question is event-shaped)")
+            if rerankEnabled {
+                debug = debug.with(rerankSkippedReason: "event-question guard fired")
+            }
+            return AskAnswer.noJournalForEvent(
+                question: question.text,
                 debug: debug
             )
         }
@@ -956,7 +1056,9 @@ extension AskDebugInfo {
         queryEmbedMs: Int?? = nil,
         entryEmbedCount: Int? = nil,
         corpusEmbedCount: Int? = nil,
-        rerankSkippedReason: String?? = nil
+        rerankSkippedReason: String?? = nil,
+        eventQuestionDetected: Bool? = nil,
+        eventGuardFired: Bool? = nil
     ) -> AskDebugInfo {
         AskDebugInfo(
             scope: self.scope,
@@ -982,7 +1084,9 @@ extension AskDebugInfo {
             queryEmbedMs: queryEmbedMs ?? self.queryEmbedMs,
             entryEmbedCount: entryEmbedCount ?? self.entryEmbedCount,
             corpusEmbedCount: corpusEmbedCount ?? self.corpusEmbedCount,
-            rerankSkippedReason: rerankSkippedReason ?? self.rerankSkippedReason
+            rerankSkippedReason: rerankSkippedReason ?? self.rerankSkippedReason,
+            eventQuestionDetected: eventQuestionDetected ?? self.eventQuestionDetected,
+            eventGuardFired: eventGuardFired ?? self.eventGuardFired
         )
     }
 }

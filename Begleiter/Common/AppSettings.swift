@@ -65,6 +65,7 @@ enum AppSettings {
     nonisolated static let askDiagnosticsEnabledKey = "askDiagnosticsEnabled"
     nonisolated static let askThinkingEnabledKey   = "askThinkingEnabled"
     nonisolated static let askDenseRerankerEnabledKey = "askDenseRerankerEnabled"
+    nonisolated static let askEventGuardEnabledKey = "askEventGuardEnabled"
     nonisolated static let labPipelineModeKey      = "labPipelineMode"
 
     nonisolated static let defaultExtractionMaxTokens = 2500
@@ -74,6 +75,7 @@ enum AppSettings {
     nonisolated static let defaultAskDiagnosticsEnabled = false
     nonisolated static let defaultAskThinkingEnabled    = false
     nonisolated static let defaultAskDenseRerankerEnabled = false
+    nonisolated static let defaultAskEventGuardEnabled    = true
 
     /// Plain-Swift read path for non-SwiftUI callers (services / actors).
     /// `@AppStorage` is a SwiftUI property wrapper and can't be read from
@@ -132,6 +134,20 @@ enum AppSettings {
     /// the toggle lives in `SettingsView`→Entwicklung.
     nonisolated static var askDenseRerankerEnabled: Bool {
         UserDefaults.standard.bool(forKey: askDenseRerankerEnabledKey)
+    }
+
+    /// When `true` (the default), `AskService` short-circuits past-
+    /// tense event questions ("Welche … gab es?", "Wann hatte …?",
+    /// etc.) with a deterministic "Im Journal finde ich dazu keinen
+    /// Eintrag." answer when the journal retrieval finds nothing —
+    /// instead of letting Gemma paraphrase a topically-relevant corpus
+    /// chunk into an answer that reads like a journal claim. Toggle off
+    /// in Settings → Entwicklung for comparison.
+    nonisolated static var askEventGuardEnabled: Bool {
+        // Default true: reads false from UserDefaults if the key was
+        // never set, so we mirror via a sentinel.
+        UserDefaults.standard.object(forKey: askEventGuardEnabledKey) as? Bool
+            ?? defaultAskEventGuardEnabled
     }
 
     nonisolated static var labPipelineMode: LabPipelineMode {

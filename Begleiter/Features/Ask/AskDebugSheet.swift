@@ -249,10 +249,11 @@ struct AskDebugSheet: View {
 
     private func label(for reason: RefusalReason) -> String {
         switch reason {
-        case .emptyRetrieval:  return L10n.t("ask.debug.refusalReason.emptyRetrieval")
-        case .modelError:      return L10n.t("ask.debug.refusalReason.modelError")
-        case .parseFailure:    return L10n.t("ask.debug.refusalReason.parseFailure")
-        case .emptyClaims:     return L10n.t("ask.debug.refusalReason.emptyClaims")
+        case .emptyRetrieval:            return L10n.t("ask.debug.refusalReason.emptyRetrieval")
+        case .modelError:                return L10n.t("ask.debug.refusalReason.modelError")
+        case .parseFailure:              return L10n.t("ask.debug.refusalReason.parseFailure")
+        case .emptyClaims:               return L10n.t("ask.debug.refusalReason.emptyClaims")
+        case .noJournalForEventQuestion: return L10n.t("ask.debug.refusalReason.noJournalForEventQuestion")
         }
     }
 }

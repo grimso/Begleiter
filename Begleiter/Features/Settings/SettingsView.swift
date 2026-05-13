@@ -45,6 +45,9 @@ struct SettingsView: View {
     @AppStorage(AppSettings.askDenseRerankerEnabledKey)
     private var askDenseRerankerEnabled: Bool = AppSettings.defaultAskDenseRerankerEnabled
 
+    @AppStorage(AppSettings.askEventGuardEnabledKey)
+    private var askEventGuardEnabled: Bool = AppSettings.defaultAskEventGuardEnabled
+
     @AppStorage(AppSettings.labPipelineModeKey)
     private var labPipelineModeRaw: String = LabPipelineMode.ocrThenGemma.rawValue
 
@@ -324,6 +327,10 @@ struct SettingsView: View {
                       systemImage: "trash")
             }
             .disabled(!askDenseRerankerEnabled)
+            Toggle(isOn: $askEventGuardEnabled) {
+                Label(L10n.key("settings.developer.askEventGuard"),
+                      systemImage: "calendar.badge.exclamationmark")
+            }
         } header: {
             Text(L10n.key("settings.developer.section"))
         } footer: {
