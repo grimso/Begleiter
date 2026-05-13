@@ -138,7 +138,20 @@ actor GemmaService {
         state = .loading(progress: 0)
         MemoryDiagnostics.snapshot(label: "before-load")
         do {
-            let loaded = try await loadModelContainer(
+            // Explicit factory call. The polymorphic
+            // ``loadModelContainer(...)`` iterates every registered
+            // ``ModelFactory`` and uses the first one that handles the
+            // configuration — and **both** ``LLMModelFactory`` and
+            // ``VLMModelFactory`` register the `"gemma4"` model type.
+            // After MLXVLM was added to the project (P0 #1), the
+            // polymorphic resolution became ambiguous and could pick the
+            // VLM factory, instantiating the multimodal Gemma4 class with
+            // its ~200–300 MB vision tower even for text-only extraction
+            // / briefing / handoff. Calling ``LLMModelFactory.shared.loadContainer``
+            // directly removes that ambiguity — symmetric to the explicit
+            // ``VLMModelFactory.shared.loadContainer`` in
+            // ``GemmaVisionService.loadModel``.
+            let loaded = try await LLMModelFactory.shared.loadContainer(
                 from: #hubDownloader(),
                 using: #huggingFaceTokenizerLoader(),
                 configuration: configuration
