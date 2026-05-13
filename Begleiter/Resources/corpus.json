@@ -1,0 +1,117 @@
+[
+  {
+    "id": "glossary_labs/anc",
+    "source": "glossary_labs",
+    "topicTags": [
+      "lab",
+      "anc",
+      "neutros",
+      "neutrophile",
+      "absolute-neutrophile",
+      "granulozyten-absolut"
+    ],
+    "title": "ANC (Neutrophile (absolut))",
+    "text": "Die absolute Neutrophilenzahl (ANC) zeigt, wie viele der wichtigsten Bakterien-Abwehrzellen das Kind im Blut hat. Während der Chemotherapie sinkt sie regelmäßig — der tiefste Punkt heißt Nadir und liegt meist 7–14 Tage nach intensiven Blöcken. Ein Wert unter 0,5 G/l (500 /µl) heißt schwere Neutropenie: das Infektionsrisiko ist deutlich erhöht. Fieber in dieser Phase ist ein Notfall (febrile Neutropenie) und gehört umgehend in die Klinik.\n\nReferenzbereich: Normal bei Kindern: etwa 1,5–8,0 G/l. Unter Therapie variiert das stark; das Behandlungsteam interpretiert die Werte im Zusammenhang mit dem Therapieplan.\n\nHäufige Ursachen für Abweichungen:\n- Chemotherapie-bedingter Nadir\n- Erholung nach Block (steigender Trend)\n- Akute virale/bakterielle Infektion\n- G-CSF-Gabe (deutlicher Anstieg innerhalb von Tagen)",
+    "referenceURL": null,
+    "updatedAt": "2026-05-13"
+  },
+  {
+    "id": "glossary_labs/wbc",
+    "source": "glossary_labs",
+    "topicTags": [
+      "lab",
+      "wbc",
+      "leukos",
+      "leukozyten",
+      "wei-e-blutk-rperchen"
+    ],
+    "title": "WBC (Leukozyten)",
+    "text": "Die Leukozyten-Gesamtzahl ist die Summe aller weißen Blutkörperchen: Neutrophile, Lymphozyten, Monozyten, Eosinophile, Basophile. Bei der ALL-Erstdiagnose ist die WBC oft sehr hoch, weil Leukämiezellen mitgezählt werden. Unter Therapie fällt sie schnell ab. Sehr niedrige WBC (< 1 G/l) bedeutet meist auch wenige Neutrophile — die ANC ist hierfür der entscheidende Wert.\n\nReferenzbereich: Normal bei Kindern: etwa 4–13 G/l (variiert mit dem Alter). Während Therapie bewusst niedriger.\n\nHäufige Ursachen für Abweichungen:\n- Chemotherapie-Nadir\n- Steroide (vorübergehender Anstieg, oft mit Verschiebung zu Neutrophilen)\n- Aktive Infektion\n- Knochenmarkserholung nach Block",
+    "referenceURL": null,
+    "updatedAt": "2026-05-13"
+  },
+  {
+    "id": "glossary_labs/crp",
+    "source": "glossary_labs",
+    "topicTags": [
+      "lab",
+      "crp"
+    ],
+    "title": "CRP (C-reaktives Protein)",
+    "text": "Das C-reaktive Protein ist ein unspezifischer Entzündungsmarker, der in der Leber gebildet wird. Er steigt schnell bei bakteriellen Infektionen und sinkt wieder, wenn die Entzündung abklingt. In der febrilen Neutropenie wird das CRP zusammen mit Klinik, Blutkultur und Procalcitonin genutzt, um die Antibiotika-Strategie zu steuern. Allein gibt es selten den Ausschlag — Trend und Gesamtbild sind wichtig.\n\nReferenzbereich: Normal: meist < 5 mg/l. Werte > 50–100 mg/l sprechen für eine ausgeprägte Entzündung; der Trend (steigend/fallend) ist oft aussagekräftiger als ein Einzelwert.\n\nHäufige Ursachen für Abweichungen:\n- Bakterielle Infektion\n- Virale Infektion (meist niedriger als bakteriell)\n- Postoperative oder post-procedurale Reaktion\n- Mucositis mit Begleitinfektion",
+    "referenceURL": null,
+    "updatedAt": "2026-05-13"
+  },
+  {
+    "id": "glossary_drugs/vincristine",
+    "source": "glossary_drugs",
+    "topicTags": [
+      "drug",
+      "vincristine",
+      "vincristin",
+      "vcr",
+      "oncovin"
+    ],
+    "title": "Vincristin",
+    "text": "Vincristin ist ein Standard-Zytostatikum im AIEOP-BFM ALL 2017 Protokoll. Es wird in nahezu allen Phasen als wöchentliche Kurzinfusion gegeben und greift die Leukämiezellen während der Zellteilung an. Typische Nebenwirkungen betreffen die Nerven: Kribbeln in Händen oder Füßen, Verstopfung, manchmal ein hängendes Augenlid oder eine veränderte Stimme. Diese Beschwerden verschwinden in der Regel nach Ende der Behandlung. Wichtig: Vincristin darf ausschließlich in die Vene gegeben werden, niemals in den Liquorraum.\n\nHäufige Nebenwirkungen:\n- Periphere Neuropathie (Kribbeln, Taubheit in Händen/Füßen)\n- Verstopfung (oft schon nach wenigen Gaben)\n- Kieferschmerzen kurz nach Infusion\n- Hängendes Augenlid (Ptosis), heisere Stimme\n- Haarverlust\n\nÜberwachung: Vor jeder Gabe werden Reflexe, Verstopfung und neurologische Beschwerden erfragt. Bei starker Neuropathie wird die Dosis angepasst oder pausiert.",
+    "referenceURL": "https://www.kinderkrebsinfo.de/erkrankungen/leukaemien/all/",
+    "updatedAt": "2026-05-13"
+  },
+  {
+    "id": "glossary_drugs/methotrexate",
+    "source": "glossary_drugs",
+    "topicTags": [
+      "drug",
+      "methotrexate",
+      "methotrexat",
+      "mtx",
+      "mexate"
+    ],
+    "title": "Methotrexat",
+    "text": "Methotrexat (MTX) ist ein zentraler Baustein der ALL-Behandlung. Es wird in unterschiedlichen Dosen eingesetzt: in der Erhaltung niedrig als Tablette einmal pro Woche, in der Konsolidierung M als Hochdosis-Infusion über 24 Stunden mit anschließender Folinsäure-Rettung. Außerdem wird MTX in den Liquorraum gegeben, um Leukämiezellen im Nervensystem zu erreichen. Häufige Nebenwirkungen sind Mundschleimhautentzündung (Mukositis), Übelkeit, Lebertransaminasen-Erhöhung. Während Hochdosis-MTX wird der Spiegel im Blut engmaschig kontrolliert.\n\nHäufige Nebenwirkungen:\n- Mukositis (entzündete, schmerzhafte Mundschleimhaut)\n- Übelkeit, Appetitlosigkeit\n- Lebertransaminasen-Erhöhung (AST/ALT)\n- Lichtempfindliche Haut\n- Verzögerte MTX-Ausscheidung mit Nierenbelastung\n\nÜberwachung: Hochdosis-MTX: stationär, mit Hydrierung, Urin-Alkalisierung (Bikarbonat), MTX-Spiegel nach 24/42/48 Stunden, Folinsäure-Rettung bis Spiegel < 0,2 µmol/l.",
+    "referenceURL": "https://www.kinderkrebsinfo.de/erkrankungen/leukaemien/all/",
+    "updatedAt": "2026-05-13"
+  },
+  {
+    "id": "glossary_drugs/pegaspargase",
+    "source": "glossary_drugs",
+    "topicTags": [
+      "drug",
+      "pegaspargase",
+      "peg-asparaginase",
+      "peg-asp",
+      "oncaspar"
+    ],
+    "title": "PEG-Asparaginase",
+    "text": "PEG-Asparaginase entzieht den Leukämiezellen die für sie lebensnotwendige Aminosäure Asparagin. Sie wird typischerweise als Infusion in Induktion IA und Reinduktion II gegeben. Mögliche Nebenwirkungen umfassen allergische Reaktionen (Ausschlag, Atemnot, Blutdruckabfall — meist innerhalb der ersten Stunde), Pankreatitis (Bauchschmerzen mit Erbrechen), Gerinnungsstörungen und Leberwerterhöhungen. Bei Reaktionen wird die Gabe sofort gestoppt und das Behandlungsteam entscheidet über eine alternative Asparaginase-Form (z.B. Erwinia).\n\nHäufige Nebenwirkungen:\n- Allergische Reaktion (Hautausschlag, Atemnot, Blutdruckabfall)\n- Pankreatitis (starke Bauchschmerzen, Erbrechen)\n- Erhöhte Leberwerte (AST/ALT, Bilirubin)\n- Gerinnungsstörungen (Antithrombin, Fibrinogen ↓)\n- Hyperglykämie (besonders mit Steroiden zusammen)\n\nÜberwachung: Während und 1 Stunde nach Gabe ärztliche Überwachung wegen Anaphylaxie-Risiko. Lipase/Amylase und Gerinnung werden routinemäßig kontrolliert.",
+    "referenceURL": "https://www.kinderkrebsinfo.de/erkrankungen/leukaemien/all/",
+    "updatedAt": "2026-05-13"
+  },
+  {
+    "id": "kki/fever-neutropenia",
+    "source": "kinderkrebsinfo",
+    "topicTags": [
+      "emergency",
+      "infection",
+      "fever",
+      "neutropenia"
+    ],
+    "title": "Fieber in der Neutropenie — was tun",
+    "text": "Während der Chemotherapie kann die Anzahl der weißen Blutkörperchen, vor allem der Neutrophilen, stark abfallen. In dieser Phase bedeutet Fieber, dass das Immunsystem nicht mehr in der Lage ist, eine Infektion sicher zu beherrschen — selbst kleinste Erreger können gefährlich werden. Die in Deutschland übliche Regel: ab einer Körpertemperatur von 38,5 °C einmalig oder 38,0 °C zweimal innerhalb einer Stunde bei einer ANC unter 0,5 G/l (oder bei erwartetem Abfall) sollten Eltern unverzüglich Kontakt zur behandelnden Klinik aufnehmen. In der Regel wird das Kind sofort stationär aufgenommen, Blutkulturen werden abgenommen und eine breite Antibiotikatherapie wird begonnen. Wichtig: Auch ohne Fieber bei deutlichem Krankheitsgefühl oder Schüttelfrost in der Neutropenie sollte das Team kontaktiert werden. Die genauen Schwellenwerte und Telefonnummern variieren je nach Klinik — die individuellen Anweisungen des Behandlungsteams haben Vorrang.",
+    "referenceURL": "https://www.kinderkrebsinfo.de/erkrankungen/leukaemien/all/",
+    "updatedAt": "2026-05-13"
+  },
+  {
+    "id": "kki/induction-ia-overview",
+    "source": "kinderkrebsinfo",
+    "topicTags": [
+      "phase",
+      "inductionIA",
+      "intro"
+    ],
+    "title": "Was passiert in Induktion IA",
+    "text": "Die Induktion IA ist der erste, intensive Behandlungsblock im AIEOP-BFM ALL 2017 Protokoll. Sie dauert etwa fünf Wochen und hat das Ziel, möglichst rasch eine Remission zu erreichen, also keine Leukämiezellen mehr im Knochenmark nachweisbar zu haben. Typischerweise erhalten Kinder in dieser Phase Prednison oder Dexamethason als Steroid, wöchentlich Vincristin, mehrere Gaben PEG-Asparaginase und in den meisten Studienarmen Daunorubicin als Anthrazyklin. Begleitend werden intrathekale Gaben (in den Liquor) von Methotrexat verabreicht. Die ersten Tage und Wochen sind oft die belastendsten: Stimmungsschwankungen und Hunger durch das Steroid, Übelkeit, mögliche Allergien auf PEG-Asparaginase, niedrige Blutwerte. Der Behandlungserfolg wird am Tag 33 mit einem Knochenmarkpunktat überprüft.",
+    "referenceURL": "https://www.kinderkrebsinfo.de/erkrankungen/leukaemien/all/",
+    "updatedAt": "2026-05-13"
+  }
+]

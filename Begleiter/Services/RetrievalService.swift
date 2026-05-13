@@ -33,6 +33,10 @@ struct RetrievalService: Sendable {
         /// Restrict to entries that mention any drug whose `name` matches one
         /// of these canonical INNs.
         var drugs: Set<String> = []
+        /// Restrict to entries that carry at least one lab value. Used by
+        /// the lab-scoped chat surface (`AskScope.labs`) so journal
+        /// retrieval skips entries with no labs to discuss.
+        var labsOnly: Bool = false
 
         static let none = Filters()
     }
@@ -138,6 +142,10 @@ struct RetrievalService: Sendable {
                 if names.isDisjoint(with: filters.drugs.map { $0.localizedLowercase }) {
                     return false
                 }
+            }
+            if filters.labsOnly {
+                let labs = entry.extractedFields.labValues?.value ?? []
+                if labs.isEmpty { return false }
             }
             return true
         }

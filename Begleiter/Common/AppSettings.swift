@@ -61,11 +61,13 @@ enum AppSettings {
     nonisolated static let extractionMaxTokensKey  = "extractionMaxTokens"
     nonisolated static let briefingMaxTokensKey    = "briefingMaxTokens"
     nonisolated static let handoffMaxTokensKey     = "handoffMaxTokens"
+    nonisolated static let askMaxTokensKey         = "askMaxTokens"
     nonisolated static let labPipelineModeKey      = "labPipelineMode"
 
     nonisolated static let defaultExtractionMaxTokens = 2500
     nonisolated static let defaultBriefingMaxTokens   = 640
     nonisolated static let defaultHandoffMaxTokens    = 512
+    nonisolated static let defaultAskMaxTokens        = 512
 
     /// Plain-Swift read path for non-SwiftUI callers (services / actors).
     /// `@AppStorage` is a SwiftUI property wrapper and can't be read from
@@ -88,6 +90,14 @@ enum AppSettings {
     nonisolated static var handoffMaxTokens: Int {
         let v = UserDefaults.standard.integer(forKey: handoffMaxTokensKey)
         return v > 0 ? v : defaultHandoffMaxTokens
+    }
+
+    /// Output budget for `AskService.answer(...)`. Default 512 covers
+    /// ~5 cited claims + 3 follow-ups; Settings slider lets advanced
+    /// users dial it between 256 (terse) and 1024 (more verbose).
+    nonisolated static var askMaxTokens: Int {
+        let v = UserDefaults.standard.integer(forKey: askMaxTokensKey)
+        return v > 0 ? v : defaultAskMaxTokens
     }
 
     nonisolated static var labPipelineMode: LabPipelineMode {
