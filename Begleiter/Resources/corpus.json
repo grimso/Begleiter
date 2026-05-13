@@ -31,6 +31,91 @@
     "updatedAt": "2026-05-13"
   },
   {
+    "id": "glossary_labs/hb",
+    "source": "glossary_labs",
+    "topicTags": [
+      "lab",
+      "hb",
+      "hgb",
+      "h-moglobin",
+      "hemoglobin"
+    ],
+    "title": "Hb (Hämoglobin)",
+    "text": "Hämoglobin (Hb) ist der rote Blutfarbstoff in den roten Blutkörperchen und transportiert Sauerstoff von der Lunge in alle Gewebe. Während der Chemotherapie sinkt Hb häufig — eine Anämie. Niedrige Werte (< 8 g/dl) machen sich oft durch Blässe, Müdigkeit und schnelle Erschöpfung bemerkbar. Bei deutlicher Anämie wird eine Transfusion von Erythrozytenkonzentrat erwogen.\n\nReferenzbereich: Normal bei Kindern: etwa 11–14 g/dl (variiert mit Alter und Geschlecht). Unter Therapie sind Werte zwischen 7 und 10 g/dl häufig.\n\nHäufige Ursachen für Abweichungen:\n- Chemotherapie-bedingte Knochenmarksuppression\n- Blutverlust (selten)\n- Hämolyse\n- Erholung nach Transfusion (kurzfristiger Anstieg)",
+    "referenceURL": null,
+    "updatedAt": "2026-05-13"
+  },
+  {
+    "id": "glossary_labs/plt",
+    "source": "glossary_labs",
+    "topicTags": [
+      "lab",
+      "plt",
+      "thrombozyten",
+      "thrombos",
+      "platelets"
+    ],
+    "title": "PLT (Thrombozyten)",
+    "text": "Thrombozyten (Blutplättchen) sind für die Blutgerinnung wichtig. Niedrige Werte (Thrombozytopenie) erhöhen das Blutungsrisiko: blaue Flecken, kleine punktförmige Hautblutungen (Petechien), Nasenbluten. Unter 20 G/l wird oft eine Thrombozytenkonzentrat-Transfusion gegeben. Bei aktiver Blutung kann die Schwelle höher liegen. Wichtig: Kein Sport mit Sturzrisiko, keine Aspirin-haltigen Medikamente.\n\nReferenzbereich: Normal: etwa 150–400 G/l. Unter Therapie häufig deutlich niedriger; das Behandlungsteam definiert individuelle Transfusionsschwellen.\n\nHäufige Ursachen für Abweichungen:\n- Chemotherapie-bedingter Nadir\n- Aktive Infektion (Verbrauch)\n- Heparin-induzierte Thrombozytopenie (selten)\n- Erholung nach Block oder Transfusion",
+    "referenceURL": null,
+    "updatedAt": "2026-05-13"
+  },
+  {
+    "id": "glossary_labs/rbc",
+    "source": "glossary_labs",
+    "topicTags": [
+      "lab",
+      "rbc",
+      "erythrozyten",
+      "erys",
+      "rote-blutk-rperchen"
+    ],
+    "title": "RBC (Erythrozyten)",
+    "text": "Die Erythrozytenzahl (RBC) gibt an, wie viele rote Blutkörperchen pro Volumen vorhanden sind. Sie hängt eng mit Hb und Hämatokrit zusammen — alle drei Werte spiegeln dasselbe Phänomen: die rote Blutmenge. Unter Chemotherapie sinken sie gemeinsam.\n\nReferenzbereich: Normal bei Kindern: etwa 4–5,5 T/l.\n\nHäufige Ursachen für Abweichungen:\n- Chemotherapie-bedingte Anämie\n- Blutverlust\n- Hämolyse\n- Knochenmarkserholung",
+    "referenceURL": null,
+    "updatedAt": "2026-05-13"
+  },
+  {
+    "id": "glossary_labs/hct",
+    "source": "glossary_labs",
+    "topicTags": [
+      "lab",
+      "hct",
+      "hk",
+      "h-matokrit",
+      "hematokrit"
+    ],
+    "title": "HCT (Hämatokrit)",
+    "text": "Hämatokrit (HCT) ist der Anteil roter Blutkörperchen am Gesamtvolumen des Blutes. Er bewegt sich gemeinsam mit Hb und Erys: niedrig bei Anämie, hoch bei Dehydration. Bei Krebsbehandlung gibt der Wert ergänzend zum Hb ein Bild der roten Blutmenge.\n\nReferenzbereich: Normal bei Kindern: etwa 35–45 %.\n\nHäufige Ursachen für Abweichungen:\n- Anämie\n- Dehydration (relativ erhöht)\n- Knochenmarkserholung",
+    "referenceURL": null,
+    "updatedAt": "2026-05-13"
+  },
+  {
+    "id": "glossary_labs/mcv",
+    "source": "glossary_labs",
+    "topicTags": [
+      "lab",
+      "mcv",
+      "mzv"
+    ],
+    "title": "MCV (MCV (Mittleres Erythrozytenvolumen))",
+    "text": "MCV gibt die durchschnittliche Größe eines roten Blutkörperchens an. Daraus lässt sich ableiten, ob eine Anämie eher durch Eisen-Mangel (kleine Zellen, MCV niedrig), Vitamin-B12/Folat-Mangel oder Knochenmark-Belastung (große Zellen, MCV hoch) verursacht ist. Unter Chemotherapie ist ein leicht erhöhter MCV häufig — vor allem unter 6-Mercaptopurin oder Methotrexat.\n\nReferenzbereich: Normal: etwa 80–95 fl.\n\nHäufige Ursachen für Abweichungen:\n- 6-MP / MTX-bedingt leicht erhöht\n- Eisen-Mangel (niedrig)\n- Folsäure-/Vitamin-B12-Mangel (hoch)",
+    "referenceURL": null,
+    "updatedAt": "2026-05-13"
+  },
+  {
+    "id": "glossary_labs/ldh",
+    "source": "glossary_labs",
+    "topicTags": [
+      "lab",
+      "ldh"
+    ],
+    "title": "LDH (Lactatdehydrogenase)",
+    "text": "LDH ist ein Enzym, das beim Zerfall von Zellen freigesetzt wird. Bei der ALL-Erstdiagnose ist es oft erhöht, weil viele Leukämiezellen zerfallen. Unter Therapie sinkt der Wert; ein erneuter Anstieg ohne klare Ursache (z.B. Hämolyse, Bewegung kurz vor Abnahme) wird vom Behandlungsteam ernst genommen und beobachtet.\n\nReferenzbereich: Normal bei Kindern: etwa 150–300 U/l (Labor-abhängig).\n\nHäufige Ursachen für Abweichungen:\n- Hohe Tumor-/Leukämiezelllast\n- Hämolyse\n- Lebererkrankung\n- Starke körperliche Aktivität (Muskelzerfall)",
+    "referenceURL": null,
+    "updatedAt": "2026-05-13"
+  },
+  {
     "id": "glossary_labs/crp",
     "source": "glossary_labs",
     "topicTags": [
@@ -39,6 +124,46 @@
     ],
     "title": "CRP (C-reaktives Protein)",
     "text": "Das C-reaktive Protein ist ein unspezifischer Entzündungsmarker, der in der Leber gebildet wird. Er steigt schnell bei bakteriellen Infektionen und sinkt wieder, wenn die Entzündung abklingt. In der febrilen Neutropenie wird das CRP zusammen mit Klinik, Blutkultur und Procalcitonin genutzt, um die Antibiotika-Strategie zu steuern. Allein gibt es selten den Ausschlag — Trend und Gesamtbild sind wichtig.\n\nReferenzbereich: Normal: meist < 5 mg/l. Werte > 50–100 mg/l sprechen für eine ausgeprägte Entzündung; der Trend (steigend/fallend) ist oft aussagekräftiger als ein Einzelwert.\n\nHäufige Ursachen für Abweichungen:\n- Bakterielle Infektion\n- Virale Infektion (meist niedriger als bakteriell)\n- Postoperative oder post-procedurale Reaktion\n- Mucositis mit Begleitinfektion",
+    "referenceURL": null,
+    "updatedAt": "2026-05-13"
+  },
+  {
+    "id": "glossary_labs/alt",
+    "source": "glossary_labs",
+    "topicTags": [
+      "lab",
+      "alt",
+      "gpt"
+    ],
+    "title": "ALT (Alanin-Aminotransferase)",
+    "text": "ALT (auch GPT) ist ein Leberenzym. Es steigt, wenn Leberzellen geschädigt sind. Unter Chemotherapie sind leichte Erhöhungen häufig — Methotrexat, 6-MP, PEG-Asparaginase können die Leberwerte vorübergehend anheben. Hohe Werte (mehrfach über dem Normwert) können eine Pause oder Dosisanpassung nach sich ziehen.\n\nReferenzbereich: Normal bei Kindern: etwa < 35 U/l (Labor-abhängig).\n\nHäufige Ursachen für Abweichungen:\n- MTX-/6-MP-/PEG-Asparaginase-bedingt\n- Virale Hepatitis\n- Medikamentöse Leberbelastung",
+    "referenceURL": null,
+    "updatedAt": "2026-05-13"
+  },
+  {
+    "id": "glossary_labs/ast",
+    "source": "glossary_labs",
+    "topicTags": [
+      "lab",
+      "ast",
+      "got"
+    ],
+    "title": "AST (Aspartat-Aminotransferase)",
+    "text": "AST (auch GOT) ist ein weiteres Leberenzym; es kommt zusätzlich in Muskel- und Herzgewebe vor. Zusammen mit ALT gibt es einen Eindruck der Leberbelastung. Ein paralleler Anstieg beider Werte spricht typischerweise für die Leber.\n\nReferenzbereich: Normal bei Kindern: etwa < 35 U/l (Labor-abhängig).\n\nHäufige Ursachen für Abweichungen:\n- Leberbelastung durch Zytostatika\n- Muskelschaden\n- Hämolyse",
+    "referenceURL": null,
+    "updatedAt": "2026-05-13"
+  },
+  {
+    "id": "glossary_labs/krea",
+    "source": "glossary_labs",
+    "topicTags": [
+      "lab",
+      "krea",
+      "kreatinin",
+      "creatinine"
+    ],
+    "title": "Krea (Kreatinin)",
+    "text": "Kreatinin ist ein Abfallprodukt des Muskelstoffwechsels, das die Niere ausscheidet. Steigt der Wert, ist meist die Nierenfunktion eingeschränkt. Während Hochdosis-Methotrexat oder unter Ifosfamid wird Kreatinin engmaschig kontrolliert, weil eine verzögerte Ausscheidung die Toxizität verstärkt.\n\nReferenzbereich: Normal bei Kindern stark altersabhängig — typisch 0,3–0,7 mg/dl. Wichtig ist die Veränderung über die Zeit, nicht der Einzelwert.\n\nHäufige Ursachen für Abweichungen:\n- Dehydration (vorübergehend erhöht)\n- Nierenbelastung durch Zytostatika (MTX, Ifosfamid)\n- Verzögerte MTX-Ausscheidung",
     "referenceURL": null,
     "updatedAt": "2026-05-13"
   },
@@ -88,6 +213,224 @@
     "updatedAt": "2026-05-13"
   },
   {
+    "id": "glossary_drugs/prednisone",
+    "source": "glossary_drugs",
+    "topicTags": [
+      "drug",
+      "prednisone",
+      "prednison",
+      "decortin"
+    ],
+    "title": "Prednison",
+    "text": "Prednison ist ein Kortisonpräparat, das in der Vorphase und Induktion IA gegeben wird, um Leukämiezellen schnell zurückzudrängen. Die Behandlung dauert typischerweise vier Wochen mit anschließendem Ausschleichen. Eltern erleben oft starke Veränderungen: enormer Hunger und Gewichtszunahme, Stimmungsschwankungen, Schlafstörungen, runde Wangen. Diese Effekte verschwinden wieder, wenn das Medikament reduziert wird. Wichtig ist, dass Prednison nicht abrupt abgesetzt werden darf — die Nebennieren brauchen Zeit, wieder eigenes Kortisol zu bilden.\n\nHäufige Nebenwirkungen:\n- Heißhunger und Gewichtszunahme\n- Stimmungsschwankungen, Schlafstörungen\n- Hyperglykämie (erhöhter Blutzucker)\n- Cushing-ähnliche Erscheinung (Vollmondgesicht)\n- Erhöhter Blutdruck, Magenbeschwerden\n\nÜberwachung: Blutzucker und Blutdruck werden überwacht. Das Ausschleichen erfolgt nach festem Schema; Eltern sollten Dosen nicht eigenmächtig ändern.",
+    "referenceURL": "https://www.kinderkrebsinfo.de/erkrankungen/leukaemien/all/",
+    "updatedAt": "2026-05-13"
+  },
+  {
+    "id": "glossary_drugs/dexamethasone",
+    "source": "glossary_drugs",
+    "topicTags": [
+      "drug",
+      "dexamethasone",
+      "dexamethason",
+      "dexa",
+      "fortecortin"
+    ],
+    "title": "Dexamethason",
+    "text": "Dexamethason ist ein stärker wirkendes Kortisonpräparat als Prednison und wird im AIEOP-BFM 2017 Protokoll typischerweise in der Reinduktion II eingesetzt. Wirkung und Nebenwirkungsprofil ähneln Prednison, sind aber meist ausgeprägter: Heißhunger, Stimmungsschwankungen, Schlafstörungen und Cushing-ähnliche Veränderungen kommen oft stärker zum Vorschein. Auch Dexamethason muss langsam ausgeschlichen werden, nicht abrupt abgesetzt.\n\nHäufige Nebenwirkungen:\n- Sehr starker Heißhunger und Gewichtszunahme\n- Stimmungsschwankungen, Reizbarkeit, Schlafstörungen\n- Erhöhter Blutzucker\n- Vollmondgesicht und Wassereinlagerungen\n- Höheres Infektionsrisiko\n\nÜberwachung: Engmaschige Blutzucker- und Blutdruckkontrolle. Pilzinfektionsprophylaxe (z.B. Nystatin) wird oft mitgegeben.",
+    "referenceURL": "https://www.kinderkrebsinfo.de/erkrankungen/leukaemien/all/",
+    "updatedAt": "2026-05-13"
+  },
+  {
+    "id": "glossary_drugs/daunorubicin",
+    "source": "glossary_drugs",
+    "topicTags": [
+      "drug",
+      "daunorubicin",
+      "daunoblastin",
+      "dnr"
+    ],
+    "title": "Daunorubicin",
+    "text": "Daunorubicin gehört zu den Anthrazyklinen. Es wird in der Induktion IA als Kurzinfusion gegeben, meist über einen zentralen Venenkatheter. Wegen einer möglichen Belastung des Herzmuskels achtet das Behandlungsteam streng auf die Gesamtdosis und kontrolliert die Herzfunktion mit Echokardiographie. Kurzfristige Nebenwirkungen sind Übelkeit, Haarverlust und niedrige Blutwerte. Der Urin kann nach der Gabe vorübergehend rötlich gefärbt sein — das ist normal.\n\nHäufige Nebenwirkungen:\n- Übelkeit, Erbrechen\n- Haarverlust\n- Knochenmarkdepression (niedrige Blutwerte)\n- Vorübergehend rötlicher Urin\n- Risiko für eine Herzfunktionsstörung (kumulativ)\n\nÜberwachung: Echokardiographie vor Beginn und im Verlauf. Die kumulative Anthrazyklin-Dosis wird sorgfältig protokolliert.",
+    "referenceURL": "https://www.kinderkrebsinfo.de/erkrankungen/leukaemien/all/",
+    "updatedAt": "2026-05-13"
+  },
+  {
+    "id": "glossary_drugs/doxorubicin",
+    "source": "glossary_drugs",
+    "topicTags": [
+      "drug",
+      "doxorubicin",
+      "adriblastin",
+      "dox"
+    ],
+    "title": "Doxorubicin",
+    "text": "Doxorubicin ist ein weiteres Anthrazyklin und wirkt ähnlich wie Daunorubicin. Im AIEOP-BFM 2017 Protokoll wird es typischerweise in der Reinduktion II eingesetzt. Auch hier wird die kumulative Dosis genau überwacht, um die Herzfunktion zu schonen. Der Urin kann nach der Gabe ebenfalls vorübergehend rötlich gefärbt sein.\n\nHäufige Nebenwirkungen:\n- Übelkeit, Erbrechen\n- Haarverlust\n- Knochenmarkdepression\n- Vorübergehend rötlicher Urin\n- Mukositis\n\nÜberwachung: Echokardiographie vor Beginn und im Verlauf. Kumulative Anthrazyklin-Dosis wird protokolliert.",
+    "referenceURL": "https://www.kinderkrebsinfo.de/erkrankungen/leukaemien/all/",
+    "updatedAt": "2026-05-13"
+  },
+  {
+    "id": "glossary_drugs/cyclophosphamide",
+    "source": "glossary_drugs",
+    "topicTags": [
+      "drug",
+      "cyclophosphamide",
+      "cyclophosphamid",
+      "endoxan",
+      "cpm",
+      "cyclo"
+    ],
+    "title": "Cyclophosphamid",
+    "text": "Cyclophosphamid wird in den Konsolidierungsphasen IB und in der Reinduktion II eingesetzt. Es wirkt auf Tumorzellen, kann aber auch die Blasenschleimhaut reizen. Deshalb wird es immer zusammen mit reichlich Flüssigkeit und dem Schutzstoff Mesna gegeben, der Blasenschäden vorbeugt. Typisch sind Übelkeit, Haarverlust und ein deutlicher Abfall der Blutwerte etwa 10–14 Tage nach der Gabe.\n\nHäufige Nebenwirkungen:\n- Übelkeit, Erbrechen\n- Haarverlust\n- Tiefer Nadir 10–14 Tage nach der Gabe\n- Hämorrhagische Zystitis (Blasenentzündung mit Blut) — durch Mesna vorgebeugt\n- Langfristig: geringe Fertilitätsbeeinträchtigung möglich\n\nÜberwachung: Hydrierung und Mesna sind Pflicht. Urinkontrolle auf Blut für 24 Stunden nach der Gabe.",
+    "referenceURL": "https://www.kinderkrebsinfo.de/erkrankungen/leukaemien/all/",
+    "updatedAt": "2026-05-13"
+  },
+  {
+    "id": "glossary_drugs/ifosfamide",
+    "source": "glossary_drugs",
+    "topicTags": [
+      "drug",
+      "ifosfamide",
+      "ifosfamid",
+      "holoxan",
+      "ifo"
+    ],
+    "title": "Ifosfamid",
+    "text": "Ifosfamid ist ein nahes Cousin-Medikament von Cyclophosphamid und kommt vor allem in den HR-Hochrisiko-Blöcken zum Einsatz. Wie bei Cyclophosphamid wird Ifosfamid immer zusammen mit Mesna gegeben, um die Blase zu schützen. Zusätzlich kann es zu einer vorübergehenden Benommenheit oder Verwirrtheit kommen (Ifosfamid-Enzephalopathie); diese verschwindet nach Ende der Infusion.\n\nHäufige Nebenwirkungen:\n- Übelkeit, Erbrechen\n- Knochenmarkdepression\n- Hämorrhagische Zystitis (durch Mesna vorgebeugt)\n- Vorübergehende Benommenheit/Verwirrtheit\n- Nierenbelastung (Tubulus-Schäden)\n\nÜberwachung: Mesna pflichtig, Hydrierung, Urinkontrolle. Nierenfunktion (Krea, Elektrolyte) im Verlauf überwacht.",
+    "referenceURL": "https://www.kinderkrebsinfo.de/erkrankungen/leukaemien/all/",
+    "updatedAt": "2026-05-13"
+  },
+  {
+    "id": "glossary_drugs/cytarabine",
+    "source": "glossary_drugs",
+    "topicTags": [
+      "drug",
+      "cytarabine",
+      "cytarabin",
+      "ara-c",
+      "cytosar",
+      "cyto"
+    ],
+    "title": "Cytarabin",
+    "text": "Cytarabin (Ara-C) wird in der Konsolidierung IB und in Hochrisiko-Blöcken eingesetzt, häufig in mehreren Tagen hintereinander als Kurzinfusion. Bei Hochdosis-Ara-C im HR-Protokoll kann es zu Schleimhautreizungen (Mund, Augen, Magen-Darm) und einem typischen grippeartigen Gefühl mit Fieber kommen. In den Liquor wird Cytarabin ebenfalls regelmäßig gegeben.\n\nHäufige Nebenwirkungen:\n- Übelkeit, Erbrechen\n- Mukositis\n- Konjunktivitis (gereizte Augen — Augentropfen prophylaktisch)\n- Grippeartige Symptome mit Fieber (Ara-C-Syndrom)\n- Knochenmarkdepression\n\nÜberwachung: Bei Hochdosis-Ara-C: Augentropfen, neurologische Beobachtung, regelmäßige Blutbildkontrollen.",
+    "referenceURL": "https://www.kinderkrebsinfo.de/erkrankungen/leukaemien/all/",
+    "updatedAt": "2026-05-13"
+  },
+  {
+    "id": "glossary_drugs/mercaptopurine",
+    "source": "glossary_drugs",
+    "topicTags": [
+      "drug",
+      "mercaptopurine",
+      "6-mercaptopurin",
+      "6-mp",
+      "puri-nethol",
+      "mercaptopurin"
+    ],
+    "title": "6-Mercaptopurin",
+    "text": "6-Mercaptopurin ist eine Tablette, die in der Konsolidierung IB und in der Erhaltungstherapie täglich eingenommen wird — über viele Monate. Die Dosis wird individuell anhand der Blutwerte angepasst, sodass Leukos und Neutros leicht reduziert, aber nicht zu tief sind. Wichtig: 6-MP wird abends nüchtern eingenommen (mindestens 1 Stunde nach dem Abendessen, ohne Milch), weil Nahrung die Aufnahme stark vermindert. Eine genetische Veranlagung (TPMT- oder NUDT15-Variante) kann die Wirkung verstärken; in diesem Fall passt das Team die Dosis frühzeitig an.\n\nHäufige Nebenwirkungen:\n- Knochenmarkdepression (niedrige Blutwerte)\n- Lebertransaminasen-Erhöhung\n- Übelkeit (selten)\n- Empfindlichere Haut gegenüber Sonne\n\nÜberwachung: Regelmäßige Blutbild- und Leberwertkontrollen. TPMT/NUDT15-Status oft schon vor Beginn bekannt.",
+    "referenceURL": "https://www.kinderkrebsinfo.de/erkrankungen/leukaemien/all/",
+    "updatedAt": "2026-05-13"
+  },
+  {
+    "id": "glossary_drugs/thioguanine",
+    "source": "glossary_drugs",
+    "topicTags": [
+      "drug",
+      "thioguanine",
+      "thioguanin",
+      "6-tg",
+      "lanvis"
+    ],
+    "title": "Thioguanin",
+    "text": "Thioguanin (6-TG) wird in der Reinduktion II eingesetzt und ist chemisch verwandt mit 6-Mercaptopurin. Wie 6-MP wird es als Tablette täglich abends nüchtern eingenommen. Es wirkt stärker auf die Blutbildung als 6-MP und kann die Leber stärker belasten; selten tritt eine spezielle Form der Lebervenenverschluss-Erkrankung (VOD) auf.\n\nHäufige Nebenwirkungen:\n- Knochenmarkdepression\n- Lebertransaminasen-Erhöhung\n- Übelkeit\n- Selten: Lebervenenverschluss (sinusoidales Obstruktionssyndrom)\n\nÜberwachung: Wöchentliches Blutbild und Leberwerte. Bei Bauchschmerzen oder Aszites umgehend das Team verständigen.",
+    "referenceURL": "https://www.kinderkrebsinfo.de/erkrankungen/leukaemien/all/",
+    "updatedAt": "2026-05-13"
+  },
+  {
+    "id": "glossary_drugs/etoposide",
+    "source": "glossary_drugs",
+    "topicTags": [
+      "drug",
+      "etoposide",
+      "etoposid",
+      "vp-16",
+      "vepesid",
+      "etopophos"
+    ],
+    "title": "Etoposid",
+    "text": "Etoposid wird in den HR-Hochrisiko-Blöcken und manchmal in Re-Induktionsphasen eingesetzt. Es wird als Infusion über 1–2 Stunden gegeben. Wichtig ist eine langsame Infusionsgeschwindigkeit, weil bei zu schneller Gabe ein Blutdruckabfall auftreten kann. Langfristig ist ein leicht erhöhtes Risiko für eine zweite Krebserkrankung (sekundäre AML) bekannt — daher wird Etoposid nur gezielt eingesetzt.\n\nHäufige Nebenwirkungen:\n- Übelkeit, Erbrechen\n- Haarverlust\n- Niedrige Blutwerte\n- Blutdruckabfall bei schneller Infusion\n- Mukositis\n\nÜberwachung: Blutdruck während der Infusion überwacht. Langsame Infusionsgeschwindigkeit ist Pflicht.",
+    "referenceURL": "https://www.kinderkrebsinfo.de/erkrankungen/leukaemien/all/",
+    "updatedAt": "2026-05-13"
+  },
+  {
+    "id": "glossary_drugs/blinatumomab",
+    "source": "glossary_drugs",
+    "topicTags": [
+      "drug",
+      "blinatumomab",
+      "blincyto",
+      "blina"
+    ],
+    "title": "Blinatumomab",
+    "text": "Blinatumomab ist eine bispezifische Antikörper-Therapie, die im AIEOP-BFM 2017 Protokoll in einem der MR-Randomisierungsarme eingesetzt wird. Es bringt die körpereigenen T-Zellen dazu, die CD19-positiven Leukämiezellen direkt anzugreifen. Die Infusion läuft kontinuierlich über 28 Tage über eine Pumpe. Mögliche Nebenwirkungen sind Fieber, Schüttelfrost (Zytokin-Release) und seltene neurologische Symptome (Tremor, Verwirrtheit), die sich nach Pause der Infusion zurückbilden.\n\nHäufige Nebenwirkungen:\n- Zytokin-Release-Syndrom (Fieber, Schüttelfrost)\n- Neurologische Symptome (Tremor, Verwirrtheit, Sprachstörung)\n- Niedrige Blutwerte\n- Erhöhte Leber- und Pankreaswerte\n\nÜberwachung: Erste 9 Tage stationäre Überwachung. Bei neurologischen Symptomen wird die Infusion pausiert.",
+    "referenceURL": "https://www.kinderkrebsinfo.de/erkrankungen/leukaemien/all/",
+    "updatedAt": "2026-05-13"
+  },
+  {
+    "id": "glossary_drugs/bortezomib",
+    "source": "glossary_drugs",
+    "topicTags": [
+      "drug",
+      "bortezomib",
+      "velcade",
+      "btz"
+    ],
+    "title": "Bortezomib",
+    "text": "Bortezomib ist ein Proteasom-Inhibitor, der im AIEOP-BFM 2017 Protokoll in einem MR-Randomisierungsarm zusätzlich gegeben werden kann. Es wird als subkutane Injektion oder kurze IV-Gabe verabreicht. Eine typische Nebenwirkung ist eine Nervenreizung (Polyneuropathie); auch Blutdruckabfälle und Magen-Darm-Beschwerden kommen vor.\n\nHäufige Nebenwirkungen:\n- Periphere Neuropathie\n- Blutdruckabfall\n- Durchfall, Übelkeit\n- Niedrige Thrombozyten\n\nÜberwachung: Vor jeder Gabe Blutbild, Reflexe und Blutdruck. Bei Neuropathie wird die Dosis reduziert.",
+    "referenceURL": "https://www.kinderkrebsinfo.de/erkrankungen/leukaemien/all/",
+    "updatedAt": "2026-05-13"
+  },
+  {
+    "id": "kkh/family-support",
+    "source": "kinderkrebshilfe",
+    "topicTags": [
+      "family_support",
+      "coping",
+      "intro"
+    ],
+    "title": "Unterstützung für die Familie während der ALL-Behandlung",
+    "text": "Die Behandlung einer Leukämie betrifft die gesamte Familie. Eltern berichten häufig von einer Mischung aus Erschöpfung, Sorge um das erkrankte Kind und der Frage, wie es den Geschwistern geht. Die Deutsche Kinderkrebshilfe und die regionalen Elternvereine bieten kostenlose Beratung, finanzielle Unterstützung bei Härtefällen sowie Vermittlung zu psychosozialen Diensten an. In den meisten Kliniken arbeiten Sozialarbeiter, Psychologen und Musik- oder Kunsttherapeuten, die schon während des stationären Aufenthalts erste Ansprechpartner sind. Wichtig: Auch Eltern und Geschwister haben Anspruch auf eigene psychologische Begleitung. Eine Rehabilitation nach Abschluss der intensiven Behandlung — meist als Familienrehabilitation — wird in Deutschland von der Krankenkasse oder Rentenversicherung getragen und sollte rechtzeitig beantragt werden.",
+    "referenceURL": "https://www.kinderkrebshilfe.de/",
+    "updatedAt": "2026-05-13"
+  },
+  {
+    "id": "kki/central-venous-catheter",
+    "source": "kinderkrebsinfo",
+    "topicTags": [
+      "procedure",
+      "catheter",
+      "infection_risk"
+    ],
+    "title": "Zentraler Venenkatheter (Broviac / Port) — was Eltern wissen sollten",
+    "text": "Damit Chemotherapie, Blutabnahmen und Transfusionen nicht jedes Mal eine neue Nadel verlangen, bekommt fast jedes Kind zu Beginn der Behandlung einen zentralen Venenzugang. Üblich sind zwei Varianten: der Broviac-Katheter (ein außen liegender Schlauch unter der Haut, mit sichtbarem Ende auf der Brust) oder der Port (eine kleine Kammer komplett unter der Haut, die durch eine spezielle Nadel angestochen wird). Beide Zugänge erfordern saubere Handhabung: ungewohnte Schmerzen, Rötung, Schwellung oder Fieber können auf eine Katheter-Infektion hinweisen und sollten umgehend dem Behandlungsteam gemeldet werden — typisches Anzeichen ist ein abrupter Anstieg der Körpertemperatur kurz nach Spülen oder Anstechen. Mit einem Port ist Schwimmen meist erlaubt, sobald die Wunde gut verheilt ist; mit einem Broviac ist Vorsicht geboten.",
+    "referenceURL": "https://www.kinderkrebsinfo.de/erkrankungen/leukaemien/all/",
+    "updatedAt": "2026-05-13"
+  },
+  {
+    "id": "kki/consolidation-m-overview",
+    "source": "kinderkrebsinfo",
+    "topicTags": [
+      "phase",
+      "consolidationM",
+      "intro"
+    ],
+    "title": "Was passiert in Konsolidierung M",
+    "text": "In der Konsolidierung M (Protokoll M) bekommt das Kind über etwa acht Wochen vier Zyklen Hochdosis-Methotrexat (HD-MTX). Jeder Zyklus läuft als 24-Stunden-Infusion stationär, danach wird die MTX-Konzentration im Blut nach 24, 42 und 48 Stunden gemessen. Solange der Spiegel noch hoch ist, schützt die Folinsäure-Rettung (Leucovorin) die gesunden Zellen. Zwischen den Zyklen wird täglich 6-Mercaptopurin als Tablette eingenommen. Häufige Begleiterscheinungen sind Mukositis, Übelkeit und vorübergehende Leberwerterhöhungen. Wenn die MTX-Ausscheidung verzögert ist, kann der stationäre Aufenthalt länger als geplant dauern. Diese Phase ist besonders wichtig, um Leukämiezellen im zentralen Nervensystem zu erreichen.",
+    "referenceURL": "https://www.kinderkrebsinfo.de/erkrankungen/leukaemien/all/",
+    "updatedAt": "2026-05-13"
+  },
+  {
     "id": "kki/fever-neutropenia",
     "source": "kinderkrebsinfo",
     "topicTags": [
@@ -111,6 +454,45 @@
     ],
     "title": "Was passiert in Induktion IA",
     "text": "Die Induktion IA ist der erste, intensive Behandlungsblock im AIEOP-BFM ALL 2017 Protokoll. Sie dauert etwa fünf Wochen und hat das Ziel, möglichst rasch eine Remission zu erreichen, also keine Leukämiezellen mehr im Knochenmark nachweisbar zu haben. Typischerweise erhalten Kinder in dieser Phase Prednison oder Dexamethason als Steroid, wöchentlich Vincristin, mehrere Gaben PEG-Asparaginase und in den meisten Studienarmen Daunorubicin als Anthrazyklin. Begleitend werden intrathekale Gaben (in den Liquor) von Methotrexat verabreicht. Die ersten Tage und Wochen sind oft die belastendsten: Stimmungsschwankungen und Hunger durch das Steroid, Übelkeit, mögliche Allergien auf PEG-Asparaginase, niedrige Blutwerte. Der Behandlungserfolg wird am Tag 33 mit einem Knochenmarkpunktat überprüft.",
+    "referenceURL": "https://www.kinderkrebsinfo.de/erkrankungen/leukaemien/all/",
+    "updatedAt": "2026-05-13"
+  },
+  {
+    "id": "kki/induction-ib-overview",
+    "source": "kinderkrebsinfo",
+    "topicTags": [
+      "phase",
+      "inductionIB",
+      "intro"
+    ],
+    "title": "Was passiert in Konsolidierung IB",
+    "text": "Die Phase IB schließt direkt an die Induktion IA an, sobald in der Knochenmark-Kontrolle am Tag 33 eine Remission bestätigt wurde. Sie dauert etwa vier Wochen. Die wichtigsten Medikamente sind Cyclophosphamid (mit dem Schutzstoff Mesna gegen Blasenschäden), Cytarabin in vier-Tages-Blöcken und 6-Mercaptopurin täglich als Tablette. Begleitend werden weitere intrathekale Methotrexat-Gaben verabreicht. In dieser Phase fallen die Blutwerte oft tief — der Nadir liegt typischerweise 10–14 Tage nach den Cyclophosphamid- und Cytarabin-Blöcken. Eltern sollten in dieser Zeit besonders auf Fieber, Schleimhautbeschwerden und Müdigkeit achten. Die Phase IB ist anstrengend, aber sie konsolidiert die in IA erreichte Remission und legt die Grundlage für die nächsten Behandlungsschritte.",
+    "referenceURL": "https://www.kinderkrebsinfo.de/erkrankungen/leukaemien/all/",
+    "updatedAt": "2026-05-13"
+  },
+  {
+    "id": "kki/maintenance-overview",
+    "source": "kinderkrebsinfo",
+    "topicTags": [
+      "phase",
+      "maintenance",
+      "intro"
+    ],
+    "title": "Was passiert in der Erhaltungstherapie",
+    "text": "Die Erhaltungstherapie ist die längste, aber zugleich am wenigsten belastende Phase der ALL-Behandlung. Sie dauert insgesamt etwa zwei Jahre. Das Kind nimmt täglich 6-Mercaptopurin als Tablette und einmal pro Woche Methotrexat als Tablette ein. Die Dosis wird individuell an die Blutwerte angepasst: ANC und Leukozyten sollen leicht reduziert, aber nicht zu tief sein. Alle 4–8 Wochen finden ambulante Kontrolltermine mit Blutbild und Untersuchung statt, dazu kommen in größeren Abständen intrathekale Methotrexat-Gaben. Schule, Kita und Freizeitaktivitäten sind in der Erhaltung meist wieder möglich. Wichtig bleibt die Wachsamkeit bei Infektionszeichen — auch in dieser Phase kann es bei Fieber zu Klinikaufnahmen kommen. Lebendimpfungen sind unter Erhaltung nicht erlaubt.",
+    "referenceURL": "https://www.kinderkrebsinfo.de/erkrankungen/leukaemien/all/",
+    "updatedAt": "2026-05-13"
+  },
+  {
+    "id": "kki/reinduction-ii-overview",
+    "source": "kinderkrebsinfo",
+    "topicTags": [
+      "phase",
+      "reinductionII",
+      "intro"
+    ],
+    "title": "Was passiert in Reinduktion II",
+    "text": "Die Reinduktion (Protokoll II) ist der zweite intensive Behandlungsblock und erinnert in Aufbau und Intensität an die Induktion IA. Sie dauert etwa sieben Wochen und besteht aus zwei Teilen: II A mit Dexamethason, Vincristin, PEG-Asparaginase und Doxorubicin sowie II B mit Cyclophosphamid, Cytarabin und 6-Thioguanin als Tablette. Begleitend gibt es intrathekale Methotrexat-Gaben. Wegen der starken Wirkung auf das Knochenmark erlebt das Kind in dieser Phase typischerweise zwei Nadir-Perioden mit erhöhter Infektionsanfälligkeit. Eltern sollten erneut sehr genau auf Fieber, Schleimhautbeschwerden und allgemeinen Zustand achten. Nach Abschluss der Reinduktion folgt die deutlich entspanntere Erhaltungstherapie.",
     "referenceURL": "https://www.kinderkrebsinfo.de/erkrankungen/leukaemien/all/",
     "updatedAt": "2026-05-13"
   }

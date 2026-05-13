@@ -30,6 +30,9 @@ struct SettingsView: View {
     @AppStorage(AppSettings.handoffMaxTokensKey)
     private var handoffMaxTokens: Int = AppSettings.defaultHandoffMaxTokens
 
+    @AppStorage(AppSettings.askMaxTokensKey)
+    private var askMaxTokens: Int = AppSettings.defaultAskMaxTokens
+
     @AppStorage(AppSettings.labPipelineModeKey)
     private var labPipelineModeRaw: String = LabPipelineMode.ocrThenGemma.rawValue
 
@@ -134,6 +137,12 @@ struct SettingsView: View {
                 title: L10n.t("settings.generation.handoff"),
                 value: $handoffMaxTokens,
                 range: 256...2048,
+                step: 128
+            )
+            tokenStepper(
+                title: L10n.t("settings.generation.ask"),
+                value: $askMaxTokens,
+                range: 256...1024,
                 step: 128
             )
         } header: {

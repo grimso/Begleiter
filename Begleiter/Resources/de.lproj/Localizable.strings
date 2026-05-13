@@ -262,6 +262,7 @@
 "settings.generation.extraction" = "Extraktion";
 "settings.generation.briefing" = "Vorbereitung";
 "settings.generation.handoff" = "Übergabe";
+"settings.generation.ask" = "Fragen";
 "settings.generation.footer" = "Höhere Werte erlauben ausführlichere Antworten, brauchen aber mehr Zeit und Speicher. Die Voreinstellungen passen zu typischen Befundlängen.";
 
 "settings.lab.section" = "Befund-Verarbeitung";

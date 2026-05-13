@@ -262,6 +262,7 @@
 "settings.generation.extraction" = "Extraction";
 "settings.generation.briefing" = "Briefing";
 "settings.generation.handoff" = "Handover";
+"settings.generation.ask" = "Ask";
 "settings.generation.footer" = "Higher values allow longer answers but cost time and memory. The defaults match typical Befund lengths.";
 
 "settings.lab.section" = "Lab-report processing";
