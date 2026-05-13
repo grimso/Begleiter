@@ -33,6 +33,9 @@ struct SettingsView: View {
     @AppStorage(AppSettings.askMaxTokensKey)
     private var askMaxTokens: Int = AppSettings.defaultAskMaxTokens
 
+    @AppStorage(AppSettings.askDiagnosticsEnabledKey)
+    private var askDiagnosticsEnabled: Bool = AppSettings.defaultAskDiagnosticsEnabled
+
     @AppStorage(AppSettings.labPipelineModeKey)
     private var labPipelineModeRaw: String = LabPipelineMode.ocrThenGemma.rawValue
 
@@ -280,6 +283,10 @@ struct SettingsView: View {
             } label: {
                 Label(L10n.key("settings.developer.smokeTest"),
                       systemImage: "brain.head.profile")
+            }
+            Toggle(isOn: $askDiagnosticsEnabled) {
+                Label(L10n.key("settings.developer.askDiagnostics"),
+                      systemImage: "stethoscope")
             }
         } header: {
             Text(L10n.key("settings.developer.section"))

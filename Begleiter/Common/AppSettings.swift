@@ -62,12 +62,14 @@ enum AppSettings {
     nonisolated static let briefingMaxTokensKey    = "briefingMaxTokens"
     nonisolated static let handoffMaxTokensKey     = "handoffMaxTokens"
     nonisolated static let askMaxTokensKey         = "askMaxTokens"
+    nonisolated static let askDiagnosticsEnabledKey = "askDiagnosticsEnabled"
     nonisolated static let labPipelineModeKey      = "labPipelineMode"
 
     nonisolated static let defaultExtractionMaxTokens = 2500
     nonisolated static let defaultBriefingMaxTokens   = 640
     nonisolated static let defaultHandoffMaxTokens    = 512
     nonisolated static let defaultAskMaxTokens        = 512
+    nonisolated static let defaultAskDiagnosticsEnabled = false
 
     /// Plain-Swift read path for non-SwiftUI callers (services / actors).
     /// `@AppStorage` is a SwiftUI property wrapper and can't be read from
@@ -98,6 +100,15 @@ enum AppSettings {
     nonisolated static var askMaxTokens: Int {
         let v = UserDefaults.standard.integer(forKey: askMaxTokensKey)
         return v > 0 ? v : defaultAskMaxTokens
+    }
+
+    /// When `true`, every Q&A card in `AskView` shows an "ⓘ" button that
+    /// opens `AskDebugSheet` with retrieval counts, prompted IDs, raw
+    /// model output, parse status, filter results, and any refusal
+    /// reason. Off by default; the toggle lives in
+    /// `SettingsView`→Entwicklung.
+    nonisolated static var askDiagnosticsEnabled: Bool {
+        UserDefaults.standard.bool(forKey: askDiagnosticsEnabledKey)
     }
 
     nonisolated static var labPipelineMode: LabPipelineMode {

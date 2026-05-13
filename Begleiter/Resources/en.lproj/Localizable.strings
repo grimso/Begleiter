@@ -282,7 +282,8 @@
 
 "settings.developer.section" = "Developer";
 "settings.developer.smokeTest" = "Gemma 4 smoke test";
-"settings.developer.footer" = "Internal diagnostics screen. Loads the model and runs a test prompt.";
+"settings.developer.askDiagnostics" = "Show Ask diagnostics";
+"settings.developer.footer" = "Internal diagnostics screen. Loads the model and runs a test prompt. With Ask diagnostics enabled, every answer card shows an info button with retrieval stats, raw model output, and filter status.";
 
 // MARK: - Ask
 "ask.toolbar" = "Ask";
@@ -316,3 +317,36 @@
 "corpus.source.kinderkrebshilfe" = "Deutsche Kinderkrebshilfe";
 "corpus.source.glossaryDrugs" = "Drug glossary";
 "corpus.source.glossaryLabs" = "Lab glossary";
+
+// MARK: - Ask warnings + debug
+"ask.warning.adviceDrift" = "This answer could be read as medical advice. When in doubt, please discuss with your care team.";
+"ask.warning.noCitations" = "The answer could not be grounded clearly in your entries or the corpus. Please read with caution.";
+"ask.warning.partialCitations" = "Some citations were removed from this answer because they did not match your data.";
+
+"ask.debug.openButton" = "Open diagnostics";
+"ask.debug.title" = "Diagnostics";
+"ask.debug.retrieval" = "Retrieval";
+"ask.debug.scope" = "Scope";
+"ask.debug.journalHits" = "Journal hits";
+"ask.debug.corpusHits" = "Corpus hits";
+"ask.debug.promptContext" = "Prompt context";
+"ask.debug.promptedEntries" = "Entries in prompt";
+"ask.debug.entryIds" = "Entry IDs";
+"ask.debug.promptedChunks" = "Corpus chunks in prompt";
+"ask.debug.chunkIds" = "Chunk IDs";
+"ask.debug.promptChars" = "Prompt chars";
+"ask.debug.model" = "Model";
+"ask.debug.modelNotCalled" = "Model was not called (retrieval was empty).";
+"ask.debug.rawCharCount" = "Raw output chars";
+"ask.debug.rawOutput" = "Show raw output";
+"ask.debug.filter" = "Filter";
+"ask.debug.claimsBefore" = "Claims before filter";
+"ask.debug.claimsAfter" = "Claims after filter";
+"ask.debug.droppedCitations" = "Dropped citations";
+"ask.debug.warnings" = "Warnings";
+"ask.debug.refusalReason" = "Refusal reason";
+"ask.debug.refusalReason.footer" = "This answer was emitted as the canonical redirect because one of the conditions below fired before model generation or during parsing.";
+"ask.debug.refusalReason.emptyRetrieval" = "Retrieval was empty (no journal or corpus hits).";
+"ask.debug.refusalReason.modelError" = "Gemma raised an error.";
+"ask.debug.refusalReason.parseFailure" = "Gemma's response did not contain valid JSON.";
+"ask.debug.refusalReason.emptyClaims" = "Gemma returned JSON with zero claims.";

@@ -74,39 +74,67 @@ final class AskServiceTests: XCTestCase {
         XCTAssertEqual(parsed.claims[0].citations, [.corpus(chunkId: "glossary_labs/anc")])
     }
 
-    // MARK: - Verifiable-generation filter
+    // MARK: - Filter + warn (warn-don't-replace)
 
-    func test_filterUngrounded_dropsUnknownEntryIds() {
+    func test_filterAndWarn_dropsUnknownEntryCitationsKeepsClaim() {
         let valid = UUID()
         let fabricated = UUID()
         let claims = [
             AnswerClaim(text: "valide Aussage", citations: [.entry(valid)]),
             AnswerClaim(text: "erfundene Aussage", citations: [.entry(fabricated)]),
         ]
-        let filtered = AskService.filterUngrounded(
+        let outcome = AskService.filterAndWarn(
             claims: claims,
             validEntryIds: [valid],
             validChunkIds: []
         )
-        XCTAssertEqual(filtered.count, 1)
-        XCTAssertEqual(filtered[0].text, "valide Aussage")
+        // Both claims survive; texts preserved.
+        XCTAssertEqual(outcome.claims.count, 2)
+        XCTAssertEqual(outcome.claims[0].text, "valide Aussage")
+        XCTAssertEqual(outcome.claims[0].citations, [.entry(valid)])
+        XCTAssertEqual(outcome.claims[1].text, "erfundene Aussage")
+        XCTAssertTrue(outcome.claims[1].citations.isEmpty,
+                      "fabricated citations should be dropped from the claim")
+        XCTAssertEqual(outcome.droppedCitations, 1)
+        // Mixed survival → partialCitations rather than noCitations.
+        XCTAssertTrue(outcome.warnings.contains(.partialCitations))
     }
 
-    func test_filterUngrounded_dropsUnknownCorpusIds() {
+    func test_filterAndWarn_dropsUnknownCorpusCitations() {
         let claims = [
             AnswerClaim(text: "korrekte Quelle", citations: [.corpus(chunkId: "glossary_labs/anc")]),
             AnswerClaim(text: "erfundene Quelle", citations: [.corpus(chunkId: "fake/chunk")]),
         ]
-        let filtered = AskService.filterUngrounded(
+        let outcome = AskService.filterAndWarn(
             claims: claims,
             validEntryIds: [],
             validChunkIds: ["glossary_labs/anc"]
         )
-        XCTAssertEqual(filtered.count, 1)
-        XCTAssertEqual(filtered[0].text, "korrekte Quelle")
+        XCTAssertEqual(outcome.claims.count, 2)
+        XCTAssertEqual(outcome.claims[0].citations, [.corpus(chunkId: "glossary_labs/anc")])
+        XCTAssertTrue(outcome.claims[1].citations.isEmpty)
+        XCTAssertEqual(outcome.droppedCitations, 1)
+        XCTAssertTrue(outcome.warnings.contains(.partialCitations))
     }
 
-    func test_filterUngrounded_keepsClaimWithMixedCitations() {
+    func test_filterAndWarn_allCitationsFabricated_emitsNoCitationsWarning() {
+        let claims = [
+            AnswerClaim(text: "Aussage 1", citations: [.corpus(chunkId: "fake/a")]),
+            AnswerClaim(text: "Aussage 2", citations: [.corpus(chunkId: "fake/b")]),
+        ]
+        let outcome = AskService.filterAndWarn(
+            claims: claims,
+            validEntryIds: [],
+            validChunkIds: ["glossary_labs/anc"]
+        )
+        // Claims preserved with empty citations.
+        XCTAssertEqual(outcome.claims.count, 2)
+        XCTAssertTrue(outcome.claims.allSatisfy { $0.citations.isEmpty })
+        XCTAssertTrue(outcome.warnings.contains(.noCitations),
+                      ".noCitations fires when every citation was a fabrication")
+    }
+
+    func test_filterAndWarn_keepsClaimWithMixedCitations() {
         let valid = UUID()
         let fabricated = UUID()
         let claims = [
@@ -117,29 +145,63 @@ final class AskServiceTests: XCTestCase {
                 .corpus(chunkId: "fake/chunk"),
             ]),
         ]
-        let filtered = AskService.filterUngrounded(
+        let outcome = AskService.filterAndWarn(
             claims: claims,
             validEntryIds: [valid],
             validChunkIds: ["glossary_labs/anc"]
         )
-        XCTAssertEqual(filtered.count, 1)
-        XCTAssertEqual(filtered[0].citations.count, 2,
-                       "fabricated citations should be dropped but valid ones kept")
+        XCTAssertEqual(outcome.claims.count, 1)
+        XCTAssertEqual(outcome.claims[0].citations.count, 2,
+                       "fabricated citations dropped, valid kept")
+        XCTAssertEqual(outcome.droppedCitations, 2)
     }
 
-    func test_filterUngrounded_scrubsAdviceClaimText() {
+    func test_filterAndWarn_preservesAdviceClaimTextAndEmitsWarning() {
+        let valid = UUID()
+        let adviceText = "Sie sollten sofort einen Notarzt rufen."
+        let claims = [
+            AnswerClaim(text: adviceText, citations: [.entry(valid)]),
+        ]
+        let outcome = AskService.filterAndWarn(
+            claims: claims,
+            validEntryIds: [valid],
+            validChunkIds: []
+        )
+        XCTAssertEqual(outcome.claims.count, 1)
+        // WARN, DON'T REPLACE — the claim text stays verbatim.
+        XCTAssertEqual(outcome.claims[0].text, adviceText)
+        XCTAssertTrue(outcome.warnings.contains(.adviceDrift),
+                      "advice-pattern match emits a warning rather than scrubbing the text")
+    }
+
+    func test_filterAndWarn_modelReturnedNoCitationsAtAll() {
+        let claims = [
+            AnswerClaim(text: "Aussage ohne Citations", citations: []),
+        ]
+        let outcome = AskService.filterAndWarn(
+            claims: claims,
+            validEntryIds: [],
+            validChunkIds: []
+        )
+        XCTAssertEqual(outcome.claims.count, 1)
+        XCTAssertTrue(outcome.warnings.contains(.noCitations),
+                      "answer text without any citations is preserved with a warning")
+    }
+
+    func test_filterUngrounded_backCompat_returnsClaimsOnly() {
+        // The old API is preserved for legacy callers; the new semantics
+        // mean it no longer drops claims for missing citations.
         let valid = UUID()
         let claims = [
-            AnswerClaim(text: "Sie sollten sofort einen Notarzt rufen.", citations: [.entry(valid)]),
+            AnswerClaim(text: "ok", citations: [.entry(valid)]),
+            AnswerClaim(text: "fabricated", citations: [.entry(UUID())]),
         ]
         let filtered = AskService.filterUngrounded(
             claims: claims,
             validEntryIds: [valid],
             validChunkIds: []
         )
-        XCTAssertEqual(filtered.count, 1)
-        // Per RefusalService.scrubbed: advice text is replaced with the redirect.
-        XCTAssertEqual(filtered[0].text, RefusalService.redirectMessage)
+        XCTAssertEqual(filtered.count, 2)
     }
 
     // MARK: - Basis
@@ -172,14 +234,27 @@ final class AskServiceTests: XCTestCase {
         )
     }
 
-    // MARK: - Refusal
+    // MARK: - Refusal helpers
 
-    func test_refusal_carriesRedirectMessageAndRefusalBasis() {
-        let refusal = AskAnswer.refusal(question: "Was bedeutet ANC?")
+    func test_refusal_carriesRedirectMessageAndRefusalReason() {
+        let refusal = AskAnswer.refusal(question: "Was bedeutet ANC?", reason: .emptyRetrieval)
         XCTAssertEqual(refusal.basis, .refusal)
         XCTAssertEqual(refusal.claims.count, 1)
         XCTAssertEqual(refusal.claims[0].text, RefusalService.redirectMessage)
         XCTAssertTrue(refusal.followUps.isEmpty)
+        XCTAssertEqual(refusal.debug.refusalReason, .emptyRetrieval)
+    }
+
+    func test_refusal_eachReasonRoundtripsThroughDebugInfo() {
+        for reason in [
+            RefusalReason.emptyRetrieval,
+            .modelError,
+            .parseFailure,
+            .emptyClaims,
+        ] {
+            let answer = AskAnswer.refusal(question: "x", reason: reason)
+            XCTAssertEqual(answer.debug.refusalReason, reason)
+        }
     }
 
     // MARK: - Suggested starters

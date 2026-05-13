@@ -282,7 +282,8 @@
 
 "settings.developer.section" = "Entwicklung";
 "settings.developer.smokeTest" = "Gemma 4 Smoke-Test";
-"settings.developer.footer" = "Interner Diagnose-Bildschirm für die Entwicklung. Lädt das Modell und führt einen Test-Prompt aus.";
+"settings.developer.askDiagnostics" = "Ask-Diagnose anzeigen";
+"settings.developer.footer" = "Interner Diagnose-Bildschirm für die Entwicklung. Lädt das Modell und führt einen Test-Prompt aus. Bei aktiver Ask-Diagnose zeigt jede Antwort einen Info-Button mit Retrieval-Stats, Roh-Ausgabe und Filter-Status.";
 
 // MARK: - Fragen (Ask)
 "ask.toolbar" = "Fragen";
@@ -316,3 +317,36 @@
 "corpus.source.kinderkrebshilfe" = "Deutsche Kinderkrebshilfe";
 "corpus.source.glossaryDrugs" = "Medikamenten-Glossar";
 "corpus.source.glossaryLabs" = "Laborwerte-Glossar";
+
+// MARK: - Ask warnings + debug
+"ask.warning.adviceDrift" = "Diese Antwort könnte als medizinische Empfehlung gelesen werden. Im Zweifel bitte mit dem Behandlungsteam besprechen.";
+"ask.warning.noCitations" = "Die Antwort konnte nicht eindeutig auf Ihre Einträge oder den Korpus belegt werden. Bitte mit Vorsicht lesen.";
+"ask.warning.partialCitations" = "Einige Quellen-Verweise wurden aus der Antwort entfernt, weil sie nicht zu Ihren Daten passten.";
+
+"ask.debug.openButton" = "Diagnose öffnen";
+"ask.debug.title" = "Diagnose";
+"ask.debug.retrieval" = "Retrieval";
+"ask.debug.scope" = "Scope";
+"ask.debug.journalHits" = "Journal-Treffer";
+"ask.debug.corpusHits" = "Korpus-Treffer";
+"ask.debug.promptContext" = "Prompt-Kontext";
+"ask.debug.promptedEntries" = "Einträge im Prompt";
+"ask.debug.entryIds" = "Entry-IDs";
+"ask.debug.promptedChunks" = "Korpus-Chunks im Prompt";
+"ask.debug.chunkIds" = "Chunk-IDs";
+"ask.debug.promptChars" = "Prompt-Zeichen";
+"ask.debug.model" = "Modell";
+"ask.debug.modelNotCalled" = "Modell wurde nicht aufgerufen (Retrieval war leer).";
+"ask.debug.rawCharCount" = "Roh-Ausgabe Zeichen";
+"ask.debug.rawOutput" = "Roh-Ausgabe anzeigen";
+"ask.debug.filter" = "Filter";
+"ask.debug.claimsBefore" = "Aussagen vor Filter";
+"ask.debug.claimsAfter" = "Aussagen nach Filter";
+"ask.debug.droppedCitations" = "Verworfene Citations";
+"ask.debug.warnings" = "Warnungen";
+"ask.debug.refusalReason" = "Refusal-Grund";
+"ask.debug.refusalReason.footer" = "Diese Antwort wurde als kanonische Weiterleitung emittiert, weil eine der unten genannten Bedingungen vor der Modell-Generierung oder beim Parsing eintrat.";
+"ask.debug.refusalReason.emptyRetrieval" = "Retrieval war leer (weder Journal- noch Korpus-Treffer).";
+"ask.debug.refusalReason.modelError" = "Gemma hat einen Fehler geworfen.";
+"ask.debug.refusalReason.parseFailure" = "Gemma-Antwort enthielt kein gültiges JSON.";
+"ask.debug.refusalReason.emptyClaims" = "Gemma hat JSON ohne Aussagen geliefert.";

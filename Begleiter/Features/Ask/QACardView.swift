@@ -25,13 +25,16 @@ import SwiftUI
 struct QACardView: View {
     let answer: AskAnswer
     let chunkLabel: (String) -> String
+    let showDebugButton: Bool
     let onTapCitation: (Citation) -> Void
     let onTapFollowUp: (String) -> Void
+    let onTapDebug: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             questionHeader
             Divider()
+            warningBanners
             ForEach(answer.claims) { claim in
                 claimRow(claim)
             }
@@ -55,7 +58,59 @@ struct QACardView: View {
             Text(answer.question)
                 .font(.subheadline.weight(.semibold))
                 .frame(maxWidth: .infinity, alignment: .leading)
+            if showDebugButton {
+                Button(action: onTapDebug) {
+                    Image(systemName: "info.circle")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(L10n.t("ask.debug.openButton"))
+            }
         }
+    }
+
+    // MARK: - Warnings
+
+    @ViewBuilder
+    private var warningBanners: some View {
+        if !answer.warnings.isEmpty {
+            VStack(alignment: .leading, spacing: 4) {
+                ForEach(answer.warnings, id: \.self) { warning in
+                    warningBanner(warning)
+                }
+            }
+        }
+    }
+
+    private func warningBanner(_ warning: AnswerWarning) -> some View {
+        let key: String = {
+            switch warning {
+            case .adviceDrift:      return "ask.warning.adviceDrift"
+            case .noCitations:      return "ask.warning.noCitations"
+            case .partialCitations: return "ask.warning.partialCitations"
+            }
+        }()
+        let icon: String = {
+            switch warning {
+            case .adviceDrift:      return "stethoscope"
+            case .noCitations:      return "questionmark.diamond"
+            case .partialCitations: return "exclamationmark.triangle"
+            }
+        }()
+        return HStack(alignment: .top, spacing: 8) {
+            Image(systemName: icon)
+                .font(.caption)
+                .foregroundStyle(.orange)
+            Text(L10n.key(key))
+                .font(.caption)
+                .foregroundStyle(.orange)
+                .multilineTextAlignment(.leading)
+            Spacer()
+        }
+        .padding(8)
+        .background(Color.orange.opacity(0.10))
+        .clipShape(RoundedRectangle(cornerRadius: 8))
     }
 
     // MARK: - Claim

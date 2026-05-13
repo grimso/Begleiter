@@ -8,14 +8,13 @@ private let askLog = Logger(subsystem: "io.grimso.Begleiter", category: "gemma.a
 /// - maxTokens: read from `AppSettings.askMaxTokens` (default 512).
 ///   Five cited claims + 3 follow-ups in German runs ~300–450 tokens; 512
 ///   gives margin. The Settings screen lets users dial 256–1024.
-/// - temperature: 0.4 — moderate fluency, low drift. The honesty-bias
-///   refusal pathway is the safety net, not low temperature.
+/// - temperature: 0.4 — moderate fluency, low drift.
 private func askParameters() -> GenerateParameters {
     GenerateParameters(maxTokens: AppSettings.askMaxTokens, temperature: 0.4)
 }
 
 /// Errors surfaced internally by `AskService`. End-users never see these —
-/// any failure swaps the answer for the canonical refusal so the chat UI
+/// failure paths swap the answer for the canonical refusal so the chat UI
 /// stays usable.
 enum AskError: Error, LocalizedError {
     case modelReturnedNoJSON
@@ -45,6 +44,8 @@ nonisolated enum AnswerBasis: String, Sendable, Hashable {
     case journal
     case corpus
     case both
+    /// No surviving citations OR true refusal. UI hides the footer in this
+    /// case; the `warnings` list explains the situation if there is one.
     case refusal
 }
 
@@ -75,8 +76,10 @@ nonisolated enum Citation: Sendable, Hashable {
 }
 
 /// One claim in an answer. `text` is German parent-language; `citations`
-/// are the grounded references that survived the verifiable-generation
-/// filter.
+/// are the references that survived the verifiable-generation filter.
+/// We no longer drop claims for missing citations — that gets surfaced as
+/// an `.noCitations` warning at the answer level instead, so the parent
+/// still sees the model's prose.
 nonisolated struct AnswerClaim: Sendable, Hashable, Identifiable {
     let id: UUID
     let text: String
@@ -89,6 +92,74 @@ nonisolated struct AnswerClaim: Sendable, Hashable, Identifiable {
     }
 }
 
+/// Non-fatal issues raised during answer assembly. Communicated to the UI
+/// as warning banners — the parent still sees the answer, with context.
+nonisolated enum AnswerWarning: String, Sendable, Hashable, CaseIterable {
+    /// `RefusalService.containsClinicalAdvice` matched a clue phrase in
+    /// at least one claim. Pre-existing strict mode replaced the entire
+    /// claim with the redirect — now we surface a banner instead and let
+    /// the parent read the text in context.
+    case adviceDrift
+
+    /// Filter dropped every citation Gemma emitted because none matched
+    /// the retrieved subset (typically: model hallucinated UUIDs). The
+    /// claim text is preserved so the parent still sees the answer.
+    case noCitations
+
+    /// Some citations were dropped but at least one survived. Common when
+    /// Gemma mixes a real entryId with an invented one.
+    case partialCitations
+}
+
+/// Why an answer was emitted as a refusal. Populated only when
+/// `basis == .refusal` AND the answer carries the canonical redirect
+/// message (i.e., we never reached the post-generation phase, or the
+/// model returned nothing parseable).
+nonisolated enum RefusalReason: String, Sendable, Hashable {
+    case emptyRetrieval     // no journal hits AND no corpus hits
+    case modelError         // gemma.generate threw
+    case parseFailure       // model returned no parseable JSON
+    case emptyClaims        // model returned JSON with zero claims
+}
+
+/// Developer-facing diagnostic snapshot of one answer round-trip.
+/// Surfaced in `AskDebugSheet` when the Settings toggle is enabled.
+/// Always populated, even on refusal, so the parent can ask "why did it
+/// say that" and see the actual retrieval + model output.
+nonisolated struct AskDebugInfo: Sendable, Hashable {
+    let scope: AskScope
+    let journalHits: Int
+    let corpusHits: Int
+    let promptedEntryIds: [UUID]
+    let promptedChunkIds: [String]
+    let promptCharCount: Int
+    let rawModelOutput: String
+    let parseError: String?
+    let modelError: String?
+    let claimsBeforeFilter: Int
+    let claimsAfterFilter: Int
+    let droppedCitationCount: Int
+    let refusalReason: RefusalReason?
+
+    /// Empty placeholder used when an answer is constructed outside the
+    /// real pipeline (e.g., tests, the static `AskAnswer.refusal` helper).
+    static let empty = AskDebugInfo(
+        scope: .all,
+        journalHits: 0,
+        corpusHits: 0,
+        promptedEntryIds: [],
+        promptedChunkIds: [],
+        promptCharCount: 0,
+        rawModelOutput: "",
+        parseError: nil,
+        modelError: nil,
+        claimsBeforeFilter: 0,
+        claimsAfterFilter: 0,
+        droppedCitationCount: 0,
+        refusalReason: nil
+    )
+}
+
 /// One full answer. Session-ephemeral — `AskViewModel` holds a stack of
 /// these and discards them on sheet dismissal.
 nonisolated struct AskAnswer: Sendable, Hashable, Identifiable {
@@ -97,6 +168,8 @@ nonisolated struct AskAnswer: Sendable, Hashable, Identifiable {
     let claims: [AnswerClaim]
     let followUps: [String]
     let basis: AnswerBasis
+    let warnings: [AnswerWarning]
+    let debug: AskDebugInfo
     let renderedAt: Date
 
     /// Joined claim text for accessibility readouts and clipboard copy.
@@ -104,18 +177,44 @@ nonisolated struct AskAnswer: Sendable, Hashable, Identifiable {
         claims.map(\.text).joined(separator: "\n")
     }
 
-    /// A canonical refusal answer carrying only `RefusalService.redirectMessage`.
-    /// Used when retrieval is empty, parsing fails, all citations are
-    /// fabricated, or `RefusalService.containsClinicalAdvice` fires.
-    static func refusal(question: String) -> AskAnswer {
+    /// Canonical refusal answer carrying only `RefusalService.redirectMessage`.
+    /// Used when retrieval is empty, model fails, parse fails, or Gemma
+    /// emits no claims. `debug` carries the reason; the UI's debug sheet
+    /// renders it when enabled.
+    static func refusal(
+        question: String,
+        reason: RefusalReason,
+        debug: AskDebugInfo
+    ) -> AskAnswer {
         AskAnswer(
             id: UUID(),
             question: question,
             claims: [AnswerClaim(text: RefusalService.redirectMessage, citations: [])],
             followUps: [],
             basis: .refusal,
+            warnings: [],
+            debug: AskDebugInfo(
+                scope: debug.scope,
+                journalHits: debug.journalHits,
+                corpusHits: debug.corpusHits,
+                promptedEntryIds: debug.promptedEntryIds,
+                promptedChunkIds: debug.promptedChunkIds,
+                promptCharCount: debug.promptCharCount,
+                rawModelOutput: debug.rawModelOutput,
+                parseError: debug.parseError,
+                modelError: debug.modelError,
+                claimsBeforeFilter: debug.claimsBeforeFilter,
+                claimsAfterFilter: debug.claimsAfterFilter,
+                droppedCitationCount: debug.droppedCitationCount,
+                refusalReason: reason
+            ),
             renderedAt: .now
         )
+    }
+
+    /// Test convenience refusal with empty debug info.
+    static func refusal(question: String, reason: RefusalReason = .emptyRetrieval) -> AskAnswer {
+        refusal(question: question, reason: reason, debug: .empty)
     }
 }
 
@@ -125,18 +224,16 @@ nonisolated struct AskAnswer: Sendable, Hashable, Identifiable {
 /// Pipeline:
 /// 1. Retrieve top-6 journal hits (`RetrievalService.search`) +
 ///    top-6 corpus hits (`CorpusService.search`), filtered by `AskScope`.
-/// 2. If both are empty → return `AskAnswer.refusal`, skip the model call.
-/// 3. Build a prompt with `[ENTRY n]` / `[CORPUS n]` context blocks
-///    (BriefingService shape).
-/// 4. `gemma.generate(prompt:parameters:)`.
-/// 5. Parse JSON via `ExtractionService.firstJSONObject` +
-///    `JSONDecoder.extraction`.
-/// 6. Drop any citation whose UUID/chunkId is not in the retrieved subset
-///    (verifiable-generation guard — mirrors
-///    `BriefingService.filterUngroundedClaims`).
-/// 7. Scrub each claim via `RefusalService.scrubbed`; on any clinical-
-///    advice trigger swap the whole answer for the refusal.
-/// 8. Compute `AnswerBasis` from surviving citation kinds.
+/// 2. If both are empty → refusal (`emptyRetrieval`), skip the model call.
+/// 3. Build a prompt with `[ENTRY n]` / `[CORPUS n]` context blocks.
+/// 4. `gemma.generate(prompt:parameters:)`. On error → refusal (`modelError`).
+/// 5. Parse JSON. On failure → refusal (`parseFailure`).
+/// 6. **Filter + warn (warn-don't-replace).** Drop fabricated citations
+///    but keep the claim text. If text matches an advice-pattern, emit
+///    a `.adviceDrift` warning — do NOT replace the text. If all citations
+///    of a claim get dropped, emit `.noCitations` warning. If parsed
+///    claims is empty → refusal (`emptyClaims`).
+/// 7. Compute `AnswerBasis` from surviving citations.
 actor AskService {
 
     /// App-wide shared instance. One Gemma container, one corpus index.
@@ -162,6 +259,22 @@ actor AskService {
         _ question: AskQuestion,
         in entries: [JournalEntry]
     ) async -> AskAnswer {
+        var debug = AskDebugInfo(
+            scope: question.scope,
+            journalHits: 0,
+            corpusHits: 0,
+            promptedEntryIds: [],
+            promptedChunkIds: [],
+            promptCharCount: 0,
+            rawModelOutput: "",
+            parseError: nil,
+            modelError: nil,
+            claimsBeforeFilter: 0,
+            claimsAfterFilter: 0,
+            droppedCitationCount: 0,
+            refusalReason: nil
+        )
+
         // 1. Retrieval
         let filters = Self.filters(for: question.scope)
         let journalHits = retrieval.search(
@@ -175,10 +288,16 @@ actor AskService {
             scope: question.scope,
             limit: 6
         )
+        debug = debug.with(journalHits: journalHits.count, corpusHits: corpusHits.count)
+        askLog.info("retrieval: journal=\(journalHits.count, privacy: .public) corpus=\(corpusHits.count, privacy: .public) scope=\(question.scope.rawValue, privacy: .public)")
 
         if journalHits.isEmpty && corpusHits.isEmpty {
             askLog.info("empty retrieval — emitting refusal")
-            return AskAnswer.refusal(question: question.text)
+            return AskAnswer.refusal(
+                question: question.text,
+                reason: .emptyRetrieval,
+                debug: debug
+            )
         }
 
         // 2. Materialise hits → entries / chunks
@@ -191,6 +310,10 @@ actor AskService {
         let topChunks: [CorpusChunk] = corpusHits
             .prefix(4)
             .compactMap { corpus.chunk(id: $0.chunkId) }
+        debug = debug.with(
+            promptedEntryIds: topEntries.map(\.entryId),
+            promptedChunkIds: topChunks.map(\.id)
+        )
 
         // 3. Generate
         let prompt = Self.buildPrompt(
@@ -198,13 +321,22 @@ actor AskService {
             entries: topEntries,
             chunks: topChunks
         )
+        debug = debug.with(promptCharCount: prompt.count)
+
         let raw: String
         do {
             raw = try await gemma.generate(prompt: prompt, parameters: askParameters())
         } catch {
-            askLog.error("gemma.generate failed: \(error.localizedDescription, privacy: .public)")
-            return AskAnswer.refusal(question: question.text)
+            let errMessage = error.localizedDescription
+            askLog.error("gemma.generate failed: \(errMessage, privacy: .public)")
+            debug = debug.with(modelError: errMessage)
+            return AskAnswer.refusal(
+                question: question.text,
+                reason: .modelError,
+                debug: debug
+            )
         }
+        debug = debug.with(rawModelOutput: raw)
         askLog.debug("raw=\(raw, privacy: .public)")
 
         // 4. Parse
@@ -212,42 +344,51 @@ actor AskService {
         do {
             parsed = try Self.parseAnswer(from: raw)
         } catch {
-            askLog.error("parse failed: \(error.localizedDescription, privacy: .public)")
-            return AskAnswer.refusal(question: question.text)
+            let errMessage = error.localizedDescription
+            askLog.error("parse failed: \(errMessage, privacy: .public)")
+            debug = debug.with(parseError: errMessage)
+            return AskAnswer.refusal(
+                question: question.text,
+                reason: .parseFailure,
+                debug: debug
+            )
+        }
+        debug = debug.with(claimsBeforeFilter: parsed.claims.count)
+
+        if parsed.claims.isEmpty {
+            askLog.info("model returned zero claims — emitting refusal")
+            return AskAnswer.refusal(
+                question: question.text,
+                reason: .emptyClaims,
+                debug: debug
+            )
         }
 
-        // 5. Verifiable-generation filter
+        // 5. Filter + warn (warn-don't-replace)
         let validEntryIds = Set(topEntries.map(\.entryId))
         let validChunkIds = Set(topChunks.map(\.id))
-        let filteredClaims = Self.filterUngrounded(
+        let outcome = Self.filterAndWarn(
             claims: parsed.claims,
             validEntryIds: validEntryIds,
             validChunkIds: validChunkIds
         )
+        debug = debug.with(
+            claimsAfterFilter: outcome.claims.count,
+            droppedCitationCount: outcome.droppedCitations
+        )
+        askLog.info("filter: claimsBefore=\(parsed.claims.count, privacy: .public) claimsAfter=\(outcome.claims.count, privacy: .public) droppedCitations=\(outcome.droppedCitations, privacy: .public) warnings=\(outcome.warnings.map(\.rawValue).joined(separator: ","), privacy: .public)")
 
-        if filteredClaims.isEmpty {
-            askLog.info("all claims dropped by verifiable-generation filter — emitting refusal")
-            return AskAnswer.refusal(question: question.text)
-        }
-
-        // 6. Refusal scrub on the joined text (the per-claim scrub is in
-        // `filterUngrounded`; this catches advice that spans multiple
-        // claims).
-        let joined = filteredClaims.map(\.text).joined(separator: "\n")
-        if RefusalService.containsClinicalAdvice(joined) {
-            askLog.info("advice-drift fired on joined claims — emitting refusal")
-            return AskAnswer.refusal(question: question.text)
-        }
-
-        // 7. Compute basis
-        let basis = Self.computeBasis(for: filteredClaims)
+        // 6. Compute basis from surviving citations
+        let basis = Self.computeBasis(for: outcome.claims)
 
         return AskAnswer(
             id: UUID(),
             question: question.text,
-            claims: filteredClaims,
+            claims: outcome.claims,
             followUps: parsed.followUps,
             basis: basis,
+            warnings: outcome.warnings,
+            debug: debug,
             renderedAt: .now
         )
     }
@@ -390,34 +531,91 @@ actor AskService {
         return ParsedAnswer(claims: claims, followUps: wire.followUps ?? [])
     }
 
-    // MARK: - Verifiable-generation guard
+    // MARK: - Filter + warn
 
-    /// Drop citations whose UUID/chunkId is not in the retrieved subset,
-    /// scrub claim text via `RefusalService.scrubbed`, drop claims with
-    /// zero surviving citations. Mirrors
-    /// `BriefingService.filterUngroundedClaims` (lines 202–225), extended
-    /// for corpus IDs.
+    struct FilterOutcome: Hashable {
+        let claims: [AnswerClaim]
+        let warnings: [AnswerWarning]
+        let droppedCitations: Int
+    }
+
+    /// Verifiable-generation filter. **Warn-don't-replace** semantics:
+    /// - Drops citations whose entry UUID / corpus chunkId is not in the
+    ///   retrieved subset (model fabrications).
+    /// - **Keeps the claim text intact** even when all citations dropped
+    ///   or when `RefusalService.containsClinicalAdvice` matches a clue
+    ///   phrase. Both surface as `AnswerWarning`s instead.
+    /// - **Does not drop claims** — the parent always sees the model's
+    ///   prose. The previous "drop on no surviving citation" behaviour
+    ///   caused wholesale refusals when the 4-bit model hallucinated UUIDs.
+    static func filterAndWarn(
+        claims: [AnswerClaim],
+        validEntryIds: Set<UUID>,
+        validChunkIds: Set<String>
+    ) -> FilterOutcome {
+        var warnings: [AnswerWarning] = []
+        var droppedTotal = 0
+        var anyClaimHadCitations = false
+        var anyClaimLostAllCitations = false
+        var adviceFired = false
+
+        let filtered: [AnswerClaim] = claims.map { claim in
+            let surviving = claim.citations.filter { citation in
+                switch citation {
+                case .entry(let id):  return validEntryIds.contains(id)
+                case .corpus(let id): return validChunkIds.contains(id)
+                }
+            }
+            let dropped = claim.citations.count - surviving.count
+            droppedTotal += dropped
+            if !claim.citations.isEmpty {
+                anyClaimHadCitations = true
+                if surviving.isEmpty { anyClaimLostAllCitations = true }
+            }
+            if RefusalService.containsClinicalAdvice(claim.text) {
+                adviceFired = true
+            }
+            return AnswerClaim(
+                id: claim.id,
+                text: claim.text,  // text preserved verbatim — warn, don't replace
+                citations: surviving
+            )
+        }
+
+        if adviceFired {
+            warnings.append(.adviceDrift)
+        }
+        let totalSurvivingCitations = filtered.flatMap(\.citations).count
+        if anyClaimHadCitations && totalSurvivingCitations == 0 {
+            warnings.append(.noCitations)
+        } else if droppedTotal > 0 {
+            warnings.append(.partialCitations)
+        } else if !anyClaimHadCitations {
+            // Model emitted text but never provided any citations at all.
+            warnings.append(.noCitations)
+        }
+
+        return FilterOutcome(
+            claims: filtered,
+            warnings: warnings,
+            droppedCitations: droppedTotal
+        )
+    }
+
+    /// Back-compat shim for tests written against the old API. Returns
+    /// just the claims so existing assertions still hold — but now claim
+    /// text is preserved (no `RefusalService.scrubbed` replacement) and
+    /// claims with no surviving citations are kept.
     static func filterUngrounded(
         claims: [AnswerClaim],
         validEntryIds: Set<UUID>,
         validChunkIds: Set<String>
     ) -> [AnswerClaim] {
-        claims.compactMap { claim -> AnswerClaim? in
-            let surviving = claim.citations.filter { citation in
-                switch citation {
-                case .entry(let id):
-                    return validEntryIds.contains(id)
-                case .corpus(let id):
-                    return validChunkIds.contains(id)
-                }
-            }
-            guard !surviving.isEmpty else { return nil }
-            return AnswerClaim(
-                id: claim.id,
-                text: RefusalService.scrubbed(claim.text),
-                citations: surviving
-            )
-        }
+        filterAndWarn(
+            claims: claims,
+            validEntryIds: validEntryIds,
+            validChunkIds: validChunkIds
+        ).claims
     }
 
     // MARK: - Basis
@@ -460,4 +658,39 @@ actor AskService {
         f.locale = Locale(identifier: "de_DE")
         return f
     }()
+}
+
+// MARK: - AskDebugInfo builder helpers
+
+extension AskDebugInfo {
+    func with(
+        journalHits: Int? = nil,
+        corpusHits: Int? = nil,
+        promptedEntryIds: [UUID]? = nil,
+        promptedChunkIds: [String]? = nil,
+        promptCharCount: Int? = nil,
+        rawModelOutput: String? = nil,
+        parseError: String? = nil,
+        modelError: String? = nil,
+        claimsBeforeFilter: Int? = nil,
+        claimsAfterFilter: Int? = nil,
+        droppedCitationCount: Int? = nil,
+        refusalReason: RefusalReason? = nil
+    ) -> AskDebugInfo {
+        AskDebugInfo(
+            scope: self.scope,
+            journalHits: journalHits ?? self.journalHits,
+            corpusHits: corpusHits ?? self.corpusHits,
+            promptedEntryIds: promptedEntryIds ?? self.promptedEntryIds,
+            promptedChunkIds: promptedChunkIds ?? self.promptedChunkIds,
+            promptCharCount: promptCharCount ?? self.promptCharCount,
+            rawModelOutput: rawModelOutput ?? self.rawModelOutput,
+            parseError: parseError ?? self.parseError,
+            modelError: modelError ?? self.modelError,
+            claimsBeforeFilter: claimsBeforeFilter ?? self.claimsBeforeFilter,
+            claimsAfterFilter: claimsAfterFilter ?? self.claimsAfterFilter,
+            droppedCitationCount: droppedCitationCount ?? self.droppedCitationCount,
+            refusalReason: refusalReason ?? self.refusalReason
+        )
+    }
 }

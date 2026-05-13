@@ -22,7 +22,11 @@ struct AskView: View {
     @State private var viewModel: AskViewModel?
     @State private var presentedChunk: CorpusChunk?
     @State private var pendingEntryDetailId: UUID?
+    @State private var presentedDebugAnswer: AskAnswer?
     @FocusState private var inputFocused: Bool
+
+    @AppStorage(AppSettings.askDiagnosticsEnabledKey)
+    private var diagnosticsEnabled: Bool = AppSettings.defaultAskDiagnosticsEnabled
 
     private let corpus = CorpusService.shared
 
@@ -44,6 +48,9 @@ struct AskView: View {
             }
             .sheet(item: $presentedChunk) { chunk in
                 CorpusChunkSheet(chunk: chunk)
+            }
+            .sheet(item: $presentedDebugAnswer) { answer in
+                AskDebugSheet(answer: answer)
             }
             .sheet(
                 isPresented: Binding(
@@ -160,11 +167,13 @@ struct AskView: View {
                         QACardView(
                             answer: answer,
                             chunkLabel: { corpus.chunk(id: $0)?.title ?? $0 },
+                            showDebugButton: diagnosticsEnabled,
                             onTapCitation: { handleTapCitation($0) },
                             onTapFollowUp: { followUp in
                                 vm.prefillDraft(followUp)
                                 inputFocused = true
-                            }
+                            },
+                            onTapDebug: { presentedDebugAnswer = answer }
                         )
                         .id(answer.id)
                     }
