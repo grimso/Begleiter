@@ -73,3 +73,6 @@ secrets/
 .cache/
 tools/.cache/
 .claude/
+
+# Claude Code session metadata
+claude.session-name
