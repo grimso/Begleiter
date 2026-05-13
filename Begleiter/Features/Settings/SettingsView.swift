@@ -72,6 +72,7 @@ struct SettingsView: View {
             generationSection
             labSection
             diagnosticsSection
+            developerSection
         }
         .navigationTitle(L10n.key("settings.title"))
         .navigationBarTitleDisplayMode(.inline)
@@ -256,6 +257,25 @@ struct SettingsView: View {
             Text(L10n.key("settings.diagnostics.section"))
         } footer: {
             Text(L10n.key("settings.diagnostics.clearCacheFooter"))
+        }
+    }
+
+    /// Developer-facing entries that don't belong on a parent's top bar.
+    /// Houses the model smoke-test moved out of the TimelineView toolbar
+    /// so the toolbar can host the new "Fragen" entry without overflowing
+    /// on small iPhones.
+    private var developerSection: some View {
+        Section {
+            NavigationLink {
+                SmokeTestView()
+            } label: {
+                Label(L10n.key("settings.developer.smokeTest"),
+                      systemImage: "brain.head.profile")
+            }
+        } header: {
+            Text(L10n.key("settings.developer.section"))
+        } footer: {
+            Text(L10n.key("settings.developer.footer"))
         }
     }
 

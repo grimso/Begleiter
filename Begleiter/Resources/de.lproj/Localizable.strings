@@ -278,3 +278,40 @@
 "settings.diagnostics.clearCache" = "Modell-Cache leeren";
 "settings.diagnostics.clearCacheFooter" = "Gibt die im Speicher gehaltenen Gewichte frei. Der nächste Aufruf lädt das Modell aus dem lokalen Hugging-Face-Cache neu (kein Download, einige Sekunden).";
 "settings.diagnostics.cacheCleared" = "Cache geleert";
+
+"settings.developer.section" = "Entwicklung";
+"settings.developer.smokeTest" = "Gemma 4 Smoke-Test";
+"settings.developer.footer" = "Interner Diagnose-Bildschirm für die Entwicklung. Lädt das Modell und führt einen Test-Prompt aus.";
+
+// MARK: - Fragen (Ask)
+"ask.toolbar" = "Fragen";
+"ask.title" = "Fragen";
+"ask.title.labs" = "Frag deine Werte";
+"ask.placeholder" = "Frage stellen …";
+"ask.send" = "Senden";
+"ask.answering" = "Begleiter denkt nach …";
+
+"ask.empty.title" = "Stellen Sie eine Frage";
+"ask.empty.description" = "Begleiter sucht in Ihren Einträgen und im Referenzkorpus nach einer fundierten Antwort. Bei medizinischen Entscheidungen fragen Sie immer Ihr Behandlungsteam.";
+"ask.empty.title.labs" = "Frag deine Blutwerte";
+"ask.empty.description.labs" = "Stellen Sie eine Frage zu den Laborwerten Ihres Kindes — Begleiter zieht den Verlauf aus dem Journal und Erklärungen aus dem Glossar heran.";
+
+"ask.starters.heading" = "Vorschläge";
+"ask.followups.title" = "Vorschläge";
+
+"ask.basis.journal" = "Aus Ihrem Journal";
+"ask.basis.corpus" = "Aus dem Referenzkorpus";
+"ask.basis.both" = "Aus Journal und Korpus";
+
+"ask.citation.entry" = "Eintrag";
+"ask.citation.hint" = "Quelle öffnen";
+
+"labs.ask.cta" = "Frag deine Werte";
+
+"corpus.sheet.title" = "Quelle";
+"corpus.referenceURL.label" = "Originalquelle";
+"corpus.updatedAt" = "Stand: %@";
+"corpus.source.kinderkrebsinfo" = "kinderkrebsinfo.de (GPOH)";
+"corpus.source.kinderkrebshilfe" = "Deutsche Kinderkrebshilfe";
+"corpus.source.glossaryDrugs" = "Medikamenten-Glossar";
+"corpus.source.glossaryLabs" = "Laborwerte-Glossar";

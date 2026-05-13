@@ -9,6 +9,7 @@ struct LabValuesView: View {
     let child: ChildState
 
     @Environment(\.dismiss) private var dismiss
+    @State private var presentingAsk = false
 
     @Query(sort: \JournalEntry.visitDate, order: .reverse)
     private var entries: [JournalEntry]
@@ -29,6 +30,9 @@ struct LabValuesView: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button(L10n.t("app.done")) { dismiss() }
                 }
+            }
+            .sheet(isPresented: $presentingAsk) {
+                AskView(child: child, scope: .labs)
             }
         }
     }
@@ -54,6 +58,27 @@ struct LabValuesView: View {
                             measurementCount, entriesWithLabs))
                     .font(.caption)
                     .foregroundStyle(.secondary)
+            }
+
+            Section {
+                Button {
+                    presentingAsk = true
+                } label: {
+                    HStack {
+                        Image(systemName: "bubble.left.and.text.bubble.right.fill")
+                        Text(L10n.key("labs.ask.cta"))
+                            .fontWeight(.semibold)
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(.vertical, 6)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .listRowBackground(Color.accentColor.opacity(0.12))
+                .accessibilityLabel(L10n.t("labs.ask.cta"))
             }
 
             Section {

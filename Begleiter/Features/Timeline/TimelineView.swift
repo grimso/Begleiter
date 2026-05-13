@@ -16,6 +16,7 @@ struct TimelineView: View {
     @State private var presentingBriefing = false
     @State private var presentingHandoff = false
     @State private var presentingLabs = false
+    @State private var presentingAsk = false
     @State private var searchText: String = ""
 
     private let retrieval = RetrievalService()
@@ -69,12 +70,14 @@ struct TimelineView: View {
                     }
                 }
                 ToolbarItem(placement: .topBarLeading) {
-                    NavigationLink {
-                        SmokeTestView()
+                    Button {
+                        presentingAsk = true
                     } label: {
-                        Image(systemName: "brain.head.profile")
+                        Label(
+                            L10n.t("ask.toolbar"),
+                            systemImage: "bubble.left.and.text.bubble.right"
+                        )
                     }
-                    .accessibilityLabel(L10n.t("debug.smoke.title"))
                 }
                 ToolbarItem(placement: .topBarLeading) {
                     NavigationLink {
@@ -96,6 +99,9 @@ struct TimelineView: View {
             }
             .sheet(isPresented: $presentingLabs) {
                 LabValuesView(child: child)
+            }
+            .sheet(isPresented: $presentingAsk) {
+                AskView(child: child, scope: .all)
             }
         }
     }

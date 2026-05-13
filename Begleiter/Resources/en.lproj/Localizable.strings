@@ -278,3 +278,40 @@
 "settings.diagnostics.clearCache" = "Clear model cache";
 "settings.diagnostics.clearCacheFooter" = "Releases the in-memory weights. The next call reloads the model from the local Hugging Face cache (no download, a few seconds).";
 "settings.diagnostics.cacheCleared" = "Cache cleared";
+
+"settings.developer.section" = "Developer";
+"settings.developer.smokeTest" = "Gemma 4 smoke test";
+"settings.developer.footer" = "Internal diagnostics screen. Loads the model and runs a test prompt.";
+
+// MARK: - Ask
+"ask.toolbar" = "Ask";
+"ask.title" = "Ask";
+"ask.title.labs" = "Ask your labs";
+"ask.placeholder" = "Type a question …";
+"ask.send" = "Send";
+"ask.answering" = "Begleiter is thinking …";
+
+"ask.empty.title" = "Ask a question";
+"ask.empty.description" = "Begleiter searches your journal and the reference corpus for a grounded answer. For medical decisions, always consult your care team.";
+"ask.empty.title.labs" = "Ask about your labs";
+"ask.empty.description.labs" = "Ask a question about your child's lab values — Begleiter pulls the trend from the journal and the explanation from the glossary.";
+
+"ask.starters.heading" = "Suggestions";
+"ask.followups.title" = "Suggestions";
+
+"ask.basis.journal" = "From your journal";
+"ask.basis.corpus" = "From the reference corpus";
+"ask.basis.both" = "From journal and corpus";
+
+"ask.citation.entry" = "Entry";
+"ask.citation.hint" = "Open source";
+
+"labs.ask.cta" = "Ask your labs";
+
+"corpus.sheet.title" = "Source";
+"corpus.referenceURL.label" = "Original source";
+"corpus.updatedAt" = "Updated: %@";
+"corpus.source.kinderkrebsinfo" = "kinderkrebsinfo.de (GPOH)";
+"corpus.source.kinderkrebshilfe" = "Deutsche Kinderkrebshilfe";
+"corpus.source.glossaryDrugs" = "Drug glossary";
+"corpus.source.glossaryLabs" = "Lab glossary";
