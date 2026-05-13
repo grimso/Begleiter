@@ -13,6 +13,7 @@
 		F40B9F602FB1DE2100FA6B3A /* MLXHuggingFace in Frameworks */ = {isa = PBXBuildFile; productRef = F40B9F5F2FB1DE2100FA6B3A /* MLXHuggingFace */; };
 		F40B9F632FB1DE5500FA6B3A /* HuggingFace in Frameworks */ = {isa = PBXBuildFile; productRef = F40B9F622FB1DE5500FA6B3A /* HuggingFace */; };
 		F40B9F662FB1DE8A00FA6B3A /* Tokenizers in Frameworks */ = {isa = PBXBuildFile; productRef = F40B9F652FB1DE8A00FA6B3A /* Tokenizers */; };
+		F40B9F712FB1DC4E00FA6B3A /* MLXEmbedders in Frameworks */ = {isa = PBXBuildFile; productRef = F40B9F702FB1DC4E00FA6B3A /* MLXEmbedders */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -67,6 +68,7 @@
 				F40B9F632FB1DE5500FA6B3A /* HuggingFace in Frameworks */,
 				F40B9F582FB1C94B00FA6B3A /* WhisperKit in Frameworks */,
 				F40B9F602FB1DE2100FA6B3A /* MLXHuggingFace in Frameworks */,
+				F40B9F712FB1DC4E00FA6B3A /* MLXEmbedders in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -141,6 +143,7 @@
 				F40B9F5F2FB1DE2100FA6B3A /* MLXHuggingFace */,
 				F40B9F622FB1DE5500FA6B3A /* HuggingFace */,
 				F40B9F652FB1DE8A00FA6B3A /* Tokenizers */,
+				F40B9F702FB1DC4E00FA6B3A /* MLXEmbedders */,
 			);
 			productName = Begleiter;
 			productReference = F40B9ECF2FB1BCB500FA6B3A /* Begleiter.app */;
@@ -684,6 +687,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = F40B9F642FB1DE8A00FA6B3A /* XCRemoteSwiftPackageReference "swift-transformers" */;
 			productName = Tokenizers;
+		};
+		F40B9F702FB1DC4E00FA6B3A /* MLXEmbedders */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = F40B9F592FB1DC4E00FA6B3A /* XCRemoteSwiftPackageReference "mlx-swift-lm" */;
+			productName = MLXEmbedders;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

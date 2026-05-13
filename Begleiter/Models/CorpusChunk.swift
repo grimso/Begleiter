@@ -39,6 +39,37 @@ nonisolated struct CorpusChunk: Codable, Hashable, Sendable, Identifiable {
     /// ISO `yyyy-MM-dd` last-update date. Surfaced in `CorpusChunkSheet`
     /// so the parent can tell the summary isn't months out of date.
     let updatedAt: String
+
+    /// Optional dense embedding for the dense-rerank path
+    /// (`AskService` + `RerankerEngine`). Today this stays `nil` in the
+    /// bundled `corpus.json` and gets filled at runtime by
+    /// `CorpusService.backfillVectors(using:)`. Auto-Codable treats the
+    /// missing key as `nil`, so older `corpus.json` files keep decoding.
+    let vector: [Float]?
+
+    /// Memberwise initialiser with `vector` defaulting to `nil` so call
+    /// sites that predate the dense-rerank feature (especially the test
+    /// fixtures and any future code building chunks programmatically)
+    /// don't have to spell `vector: nil` at every construction site.
+    init(
+        id: String,
+        source: CorpusSource,
+        topicTags: [String],
+        title: String,
+        text: String,
+        referenceURL: String?,
+        updatedAt: String,
+        vector: [Float]? = nil
+    ) {
+        self.id = id
+        self.source = source
+        self.topicTags = topicTags
+        self.title = title
+        self.text = text
+        self.referenceURL = referenceURL
+        self.updatedAt = updatedAt
+        self.vector = vector
+    }
 }
 
 /// Authoring stream of a `CorpusChunk`. The raw values are stable identifiers

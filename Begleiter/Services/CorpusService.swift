@@ -122,6 +122,85 @@ struct CorpusService: Sendable {
         activeIndex?.chunks[id]
     }
 
+    // MARK: - Dense vectors (rerank cache)
+
+    /// Lookup dense embeddings for the given chunk ids. Returns the
+    /// subset that have a cached vector — caller can detect missing
+    /// chunks by comparing keys to the input list and trigger backfill.
+    /// Used by the dense-rerank path in `AskService`.
+    func vectors(for ids: [String]) -> [String: [Float]] {
+        _ = activeIndex  // trigger lazy hydration of `_vectors` from disk
+        var out: [String: [Float]] = [:]
+        for id in ids {
+            if let v = Self._vectors[id] {
+                out[id] = v
+            }
+        }
+        return out
+    }
+
+    /// Compute and persist vectors for every chunk that doesn't have one
+    /// yet. No-op when every retrieved candidate already has a cached
+    /// vector. The embedder must be loaded by the caller; vectors are
+    /// produced with `kind: .passage` (E5 convention for indexed text).
+    ///
+    /// Returns the chunk ids that were freshly embedded — `AskService`
+    /// records this in `AskDebugInfo.corpusEmbedCount` for the Diagnose
+    /// sheet.
+    @discardableResult
+    func backfillVectors(
+        for ids: [String],
+        using embedder: EmbeddingService
+    ) async throws -> [String] {
+        _ = activeIndex  // hydrate _vectors if first call
+        guard let index = activeIndex else { return [] }
+
+        let missing: [(id: String, text: String)] = ids.compactMap { id in
+            guard Self._vectors[id] == nil, let chunk = index.chunks[id] else {
+                return nil
+            }
+            // Pre-baked vector path: if the bundled JSON ever carries
+            // baked vectors, promote them straight into the cache.
+            if let baked = chunk.vector, !baked.isEmpty {
+                Self._vectors[id] = baked
+                return nil
+            }
+            return (id, chunk.title + " " + chunk.text)
+        }
+        guard !missing.isEmpty else { return [] }
+
+        let texts = missing.map(\.text)
+        let vectors = try await embedder.embed(texts, kind: .passage)
+        guard vectors.count == missing.count else {
+            corpusLog.error("embedder returned \(vectors.count, privacy: .public) vectors for \(missing.count, privacy: .public) inputs")
+            return []
+        }
+        var freshlyEmbedded: [String] = []
+        for (i, item) in missing.enumerated() {
+            Self._vectors[item.id] = vectors[i]
+            freshlyEmbedded.append(item.id)
+        }
+        Self.persistVectors()
+        return freshlyEmbedded
+    }
+
+    /// Total cached vectors right now — useful for the "Clear cache"
+    /// affordance to know whether the button does anything.
+    var cachedVectorCount: Int {
+        _ = activeIndex
+        return Self._vectors.count
+    }
+
+    /// Drop all cached corpus vectors and delete the on-disk file.
+    /// Called by the Settings "Clear embedding cache" button.
+    func clearCachedVectors() {
+        Self._vectors.removeAll()
+        let url = Self.vectorsCacheURL
+        if let url, FileManager.default.fileExists(atPath: url.path) {
+            try? FileManager.default.removeItem(at: url)
+        }
+    }
+
     /// All chunks currently in the index. Stable order: source then id.
     /// Used by tests and by a future in-app corpus browser.
     var allChunks: [CorpusChunk] {
@@ -176,10 +255,20 @@ struct CorpusService: Sendable {
     nonisolated(unsafe) private static var _cachedIndex: Index?
     nonisolated(unsafe) private static var _indexAttempted: Bool = false
 
+    /// Runtime cache of dense embeddings keyed by chunk id. Populated
+    /// from `Documents/corpus_embeddings.json` on first index load and
+    /// extended by `backfillVectors(...)` whenever the rerank path
+    /// encounters a chunk without a vector. Persisted back to disk so
+    /// the next launch can rehydrate instantly. `nonisolated(unsafe)`
+    /// because all writes go through `CorpusService.shared` from
+    /// `AskService` (an actor), which serialises access.
+    nonisolated(unsafe) fileprivate static var _vectors: [String: [Float]] = [:]
+
     private static var indexResult: Index? {
         if !_indexAttempted {
             _indexAttempted = true
             _cachedIndex = loadIndex()
+            hydrateVectorsFromDisk()
         }
         return _cachedIndex
     }
@@ -257,6 +346,48 @@ struct CorpusService: Sendable {
         switch scope {
         case .all:  return Array(index.allChunkIds)
         case .labs: return Array(index.labChunkIds)
+        }
+    }
+
+    // MARK: - Vector persistence
+
+    /// Resolved URL for the on-disk vector cache. Returns `nil` only on
+    /// the rare device where `Documents` is unreachable.
+    private static var vectorsCacheURL: URL? {
+        guard let docs = FileManager.default.urls(
+            for: .documentDirectory, in: .userDomainMask
+        ).first else { return nil }
+        return docs.appending(component: "corpus_embeddings.json")
+    }
+
+    /// Read `corpus_embeddings.json` if it exists; populate `_vectors`.
+    /// Silently ignores read / decode errors — a missing or corrupt
+    /// cache file just means the next backfill re-embeds.
+    private static func hydrateVectorsFromDisk() {
+        guard let url = vectorsCacheURL,
+              FileManager.default.fileExists(atPath: url.path) else {
+            return
+        }
+        do {
+            let data = try Data(contentsOf: url)
+            let decoded = try JSONDecoder().decode([String: [Float]].self, from: data)
+            _vectors = decoded
+            corpusLog.info("hydrated \(decoded.count, privacy: .public) corpus vectors from disk")
+        } catch {
+            corpusLog.error("failed to hydrate corpus vectors: \(error.localizedDescription, privacy: .public)")
+        }
+    }
+
+    /// Write `_vectors` to disk. Called by `backfillVectors(...)` and
+    /// any future invalidation path. Best-effort — if the write fails
+    /// we still have the in-memory cache for this session.
+    fileprivate static func persistVectors() {
+        guard let url = vectorsCacheURL else { return }
+        do {
+            let data = try JSONEncoder().encode(_vectors)
+            try data.write(to: url, options: [.atomic])
+        } catch {
+            corpusLog.error("failed to persist corpus vectors: \(error.localizedDescription, privacy: .public)")
         }
     }
 }
