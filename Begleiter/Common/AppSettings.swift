@@ -57,6 +57,35 @@ enum LabPipelineMode: String, CaseIterable, Identifiable, Sendable {
     var id: String { rawValue }
 }
 
+/// How `AskService.answer(...)` runs end-to-end.
+///
+/// `.chat` (default) — single-shot retrieve-then-prompt pipeline.
+/// `RetrievalService` + `CorpusService` pull top-K candidates before the
+/// model runs; the model just synthesises an answer from the prefab
+/// context. Production-quality, deterministic latency, no tool loop.
+///
+/// `.mlxToolCall` — `ChatSession(tools:toolDispatch:)` path. Gemma 4
+/// decides which tools to call. Currently **broken end-to-end** because
+/// mlx-swift-lm 3.31.3 doesn't recognise Gemma 4's tool-call format
+/// (see `docs/upstream-issue-gemma4-toolcall.md`). Kept for evidence
+/// of intent and to start working automatically once upstream lands a
+/// fix.
+///
+/// `.customAgent` — own parser + multi-turn loop. We rebuild the
+/// prompt each turn with the running tool transcript and parse
+/// Gemma 4's native function-call syntax ourselves
+/// (`GemmaToolCallExtractor`). Slower than `.chat` (multiple Gemma
+/// calls) but actually executes the function-calling story today.
+///
+/// Default stays `.chat` so existing users see no behaviour change.
+enum AskMode: String, CaseIterable, Identifiable, Sendable {
+    case chat
+    case mlxToolCall
+    case customAgent
+
+    var id: String { rawValue }
+}
+
 /// Static facade around `@AppStorage` keys so any view or actor can read
 /// settings without dependency injection. Defaults match the values that
 /// were hardcoded at call sites before this screen existed, so an upgrade
@@ -77,6 +106,7 @@ enum AppSettings {
     nonisolated static let askDenseRerankerEnabledKey = "askDenseRerankerEnabled"
     nonisolated static let askEventGuardEnabledKey = "askEventGuardEnabled"
     nonisolated static let askAgentEnabledKey      = "askAgentEnabled"
+    nonisolated static let askModeKey              = "askMode"
     nonisolated static let labPipelineModeKey      = "labPipelineMode"
     nonisolated static let visionMaxLongEdgeKey    = "visionMaxLongEdge"
 
@@ -180,18 +210,36 @@ enum AppSettings {
             ?? defaultAskEventGuardEnabled
     }
 
-    /// When `true`, `AskService.answer(...)` routes to the
-    /// function-calling agent path (`answerAgent`) instead of the
-    /// single-shot retrieve-then-prompt pipeline. Gemma 4 decides which
-    /// of the four tools (`search_journal`, `search_corpus`,
-    /// `get_lab_trend`, `get_phase_metadata`) to call and weaves the
-    /// citation markers from their outputs into its final JSON answer.
-    /// Off by default; toggle lives in Settings → Entwicklung.
-    /// Pairs with thinking mode internally regardless of
-    /// ``askThinkingEnabled``, because the function-calling docs note
-    /// the synergy explicitly.
+    /// **Deprecated** — replaced by ``askMode``. Kept only so the read
+    /// path can migrate a pre-1.0 user who had the old boolean toggle
+    /// on: those users land in ``AskMode.mlxToolCall`` (the current
+    /// behaviour of "toggle on" before the 3-way picker shipped). New
+    /// callers should read ``askMode`` directly.
+    @available(*, deprecated, message: "Read AppSettings.askMode instead.")
     nonisolated static var askAgentEnabled: Bool {
         UserDefaults.standard.bool(forKey: askAgentEnabledKey)
+    }
+
+    /// Which `AskService.answer(...)` path runs. See ``AskMode`` for
+    /// the three options. Default `.chat` — single-shot retrieval +
+    /// synthesis, the production-quality path. The picker lives in
+    /// Settings → Entwicklung → Antwort-Modus.
+    ///
+    /// Migration: if the new key is unset but the old `askAgentEnabled`
+    /// boolean was `true`, we return `.mlxToolCall` so the user who
+    /// previously opted into the broken upstream path stays there.
+    nonisolated static var askMode: AskMode {
+        if let raw = UserDefaults.standard.string(forKey: askModeKey),
+           let mode = AskMode(rawValue: raw) {
+            return mode
+        }
+        // Legacy migration. Once a user actively picks via the new
+        // picker, the new key gets written and this branch never
+        // fires for them again.
+        if UserDefaults.standard.bool(forKey: askAgentEnabledKey) {
+            return .mlxToolCall
+        }
+        return .chat
     }
 
     nonisolated static var labPipelineMode: LabPipelineMode {

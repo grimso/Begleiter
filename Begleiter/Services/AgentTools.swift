@@ -249,6 +249,114 @@ struct AgentTools: @unchecked Sendable {
         }
     }
 
+    /// Parallel dispatcher for the custom agent loop
+    /// (``AskService.answerCustomAgent``) that takes the
+    /// ``GemmaToolCallExtractor.Call`` output directly — bypassing the
+    /// mlx-swift-lm `ToolCall` round-trip that doesn't fire for Gemma 4
+    /// today (see `docs/upstream-issue-gemma4-toolcall.md`).
+    ///
+    /// Argument coercion is intentionally lenient: missing string
+    /// arguments become `""`, missing optional arguments become `nil`,
+    /// non-string arguments where a string was expected get stringified
+    /// via Swift's `String(describing:)`. The handler then validates
+    /// "important" args (e.g. an empty `query` short-circuits to a
+    /// no-result message inside `handleSearchJournal`), so a fuzzy
+    /// extraction doesn't crash the loop — it just yields an empty
+    /// tool result and the model can retry on the next turn.
+    func dispatch(
+        name: String,
+        args: [String: GemmaToolCallExtractor.ArgValue]
+    ) async throws -> String {
+        agentLog.info("dispatch.custom: \(name, privacy: .public)")
+        switch name {
+        case searchJournal.name:
+            let input = SearchJournalInput(
+                query: stringArg(args["query"]) ?? "",
+                phase: stringArg(args["phase"]),
+                drug: stringArg(args["drug"]),
+                since: stringArg(args["since"]) ?? stringArg(args["sinceISO"]),
+                until: stringArg(args["until"]) ?? stringArg(args["untilISO"]),
+                labs_only: boolArg(args["labs_only"]) ?? boolArg(args["labsOnly"]),
+                limit: intArg(args["limit"])
+            )
+            return await Self.handleSearchJournal(
+                input,
+                retrieval: retrieval,
+                entries: entries
+            )
+
+        case searchCorpus.name:
+            let input = SearchCorpusInput(
+                query: stringArg(args["query"]) ?? "",
+                scope: stringArg(args["scope"]),
+                limit: intArg(args["limit"])
+            )
+            return await Self.handleSearchCorpus(
+                input,
+                corpus: corpus
+            )
+
+        case getLabTrend.name:
+            let input = GetLabTrendInput(
+                parameter: stringArg(args["parameter"]) ?? "",
+                since: stringArg(args["since"]) ?? stringArg(args["sinceISO"]),
+                until: stringArg(args["until"]) ?? stringArg(args["untilISO"])
+            )
+            return await Self.handleGetLabTrend(
+                input,
+                entries: entries
+            )
+
+        case getPhaseMetadataTool.name:
+            let input = GetPhaseMetadataInput(
+                phase: stringArg(args["phase"]) ?? ""
+            )
+            return await Self.handleGetPhaseMetadata(input)
+
+        default:
+            agentLog.warning("dispatch.custom: unknown tool \(name, privacy: .public)")
+            throw AgentToolError.unknownTool(name)
+        }
+    }
+
+    // MARK: - ArgValue down-casting helpers
+
+    /// Coerce an `ArgValue?` to `String?`. Non-string types get
+    /// stringified — the model occasionally emits `query:Asparaginase`
+    /// (no escape markers) which decodes as a `.string("Asparaginase")`
+    /// already, but if it ever decodes as e.g. `.int(42)` we still
+    /// hand the handler a usable string.
+    private func stringArg(_ value: GemmaToolCallExtractor.ArgValue?) -> String? {
+        guard let value else { return nil }
+        switch value {
+        case .string(let s): return s.isEmpty ? nil : s
+        case .int(let i):    return String(i)
+        case .double(let d): return String(d)
+        case .bool(let b):   return String(b)
+        case .null:          return nil
+        }
+    }
+
+    private func intArg(_ value: GemmaToolCallExtractor.ArgValue?) -> Int? {
+        guard let value else { return nil }
+        switch value {
+        case .int(let i):    return i
+        case .double(let d): return Int(d)
+        case .string(let s): return Int(s)
+        case .bool, .null:   return nil
+        }
+    }
+
+    private func boolArg(_ value: GemmaToolCallExtractor.ArgValue?) -> Bool? {
+        guard let value else { return nil }
+        switch value {
+        case .bool(let b):   return b
+        case .string(let s): return Bool(s.lowercased())
+        case .int(let i):    return i != 0
+        case .double, .null: return nil
+        }
+    }
+
     // MARK: - Handlers (static so unit tests can call them without
     //         constructing a full registry)
 

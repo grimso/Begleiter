@@ -51,6 +51,9 @@ struct SettingsView: View {
     @AppStorage(AppSettings.askAgentEnabledKey)
     private var askAgentEnabled: Bool = AppSettings.defaultAskAgentEnabled
 
+    @AppStorage(AppSettings.askModeKey)
+    private var askModeRaw: String = AskMode.chat.rawValue
+
     @AppStorage(AppSettings.labPipelineModeKey)
     private var labPipelineModeRaw: String = LabPipelineMode.ocrThenGemma.rawValue
 
@@ -86,6 +89,13 @@ struct SettingsView: View {
         Binding(
             get: { LabPipelineMode(rawValue: labPipelineModeRaw) ?? .ocrThenGemma },
             set: { labPipelineModeRaw = $0.rawValue }
+        )
+    }
+
+    private var askMode: Binding<AskMode> {
+        Binding(
+            get: { AskMode(rawValue: askModeRaw) ?? .chat },
+            set: { askModeRaw = $0.rawValue }
         )
     }
 
@@ -374,24 +384,28 @@ struct SettingsView: View {
                 Label(L10n.key("settings.developer.askEventGuard"),
                       systemImage: "calendar.badge.exclamationmark")
             }
-            Toggle(isOn: $askAgentEnabled) {
-                Label(L10n.key("settings.developer.askAgent"),
+            Picker(selection: askMode) {
+                Text(L10n.key("settings.developer.askMode.chat")).tag(AskMode.chat)
+                Text(L10n.key("settings.developer.askMode.mlxToolCall")).tag(AskMode.mlxToolCall)
+                Text(L10n.key("settings.developer.askMode.customAgent")).tag(AskMode.customAgent)
+            } label: {
+                Label(L10n.key("settings.developer.askMode"),
                       systemImage: "wrench.and.screwdriver")
             }
-            if askAgentEnabled {
-                Label(L10n.key("settings.developer.askAgent.hint"),
-                      systemImage: "info.circle")
-                    .font(.caption)
-                    .foregroundStyle(.orange)
-            }
-            if askAgentEnabled {
-                Label(L10n.key("settings.developer.askAgent.upstreamWarning"),
+            if askMode.wrappedValue == .mlxToolCall {
+                Label(L10n.key("settings.developer.askMode.mlxToolCall.warning"),
                       systemImage: "exclamationmark.triangle.fill")
                     .font(.caption)
                     .foregroundStyle(.red)
             }
-            if askAgentEnabled && askMaxTokens < 4096 {
-                Label(L10n.key("settings.developer.askAgent.budgetHint"),
+            if askMode.wrappedValue == .customAgent {
+                Label(L10n.key("settings.developer.askMode.customAgent.hint"),
+                      systemImage: "info.circle")
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+            }
+            if askMode.wrappedValue != .chat && askMaxTokens < 4096 {
+                Label(L10n.key("settings.developer.askMode.budgetHint"),
                       systemImage: "info.circle")
                     .font(.caption)
                     .foregroundStyle(.orange)

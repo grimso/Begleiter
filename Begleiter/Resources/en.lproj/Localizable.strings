@@ -398,7 +398,10 @@
 "ask.debug.refusalReason.noJournalForEventQuestion" = "Question targets journal events but no matching entry — Swift guard answered without calling Gemma.";
 
 "settings.developer.askEventGuard" = "Journal guard for event questions";
-"settings.developer.askAgent" = "Agent mode (tool calls)";
-"settings.developer.askAgent.hint" = "Gemma 4 decides which tools (journal search, corpus, lab trend, phase metadata) to call. Reasoning is enabled internally, runs slower, often more precise hits and multiple tool steps per question.";
-"settings.developer.askAgent.budgetHint" = "Agent mode emits reasoning + tool calls + final answer. Recommendation: set the Ask token budget to 4096 or higher.";
-"settings.developer.askAgent.upstreamWarning" = "Known limitation: mlx-swift-lm 3.31.3 doesn't recognise Gemma 4's tool-call format yet (see docs/upstream-issue-gemma4-toolcall.md). Tool calls aren't actually dispatched — the raw output contains the tool tags. Use the simple mode (toggle off) for real answers.";
+"settings.developer.askMode" = "Answer mode";
+"settings.developer.askMode.chat" = "Chat (default)";
+"settings.developer.askMode.mlxToolCall" = "MLX tool calls (broken)";
+"settings.developer.askMode.customAgent" = "Custom agent (tool calls)";
+"settings.developer.askMode.mlxToolCall.warning" = "Known limitation: mlx-swift-lm 3.31.3 doesn't recognise Gemma 4's tool-call format (see docs/upstream-issue-gemma4-toolcall.md). Tool calls aren't dispatched — use Chat or Custom Agent for real answers.";
+"settings.developer.askMode.customAgent.hint" = "Custom loop: parses Gemma 4's native `call:name{…}` format ourselves and invokes the tools (journal search, corpus, lab trend, phase metadata). Multiple model calls per question, runs slower; enables reasoning internally.";
+"settings.developer.askMode.budgetHint" = "Tool-call modes emit reasoning + tool calls + final answer. Recommendation: set the Ask token budget to 4096 or higher.";

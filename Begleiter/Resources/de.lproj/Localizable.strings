@@ -398,7 +398,10 @@
 "ask.debug.refusalReason.noJournalForEventQuestion" = "Frage zielt auf Journal-Ereignisse, aber kein passender Eintrag — Swift-Guard hat ohne Gemma-Aufruf geantwortet.";
 
 "settings.developer.askEventGuard" = "Journal-Schutz für Ereignisfragen";
-"settings.developer.askAgent" = "Agent-Modus (Werkzeug-Aufrufe)";
-"settings.developer.askAgent.hint" = "Gemma 4 entscheidet selbst, welche Werkzeuge (Journal-Suche, Korpus, Labor-Verlauf, Phaseninfo) gerufen werden. Aktiviert intern Reasoning, dauert länger, oft präzisere Treffer und mehrere Werkzeug-Schritte pro Frage.";
-"settings.developer.askAgent.budgetHint" = "Agent-Modus erzeugt Reasoning + Werkzeug-Aufrufe + finale Antwort. Empfehlung: Ask-Token-Budget auf 4096 oder höher stellen.";
-"settings.developer.askAgent.upstreamWarning" = "Bekannte Einschränkung: mlx-swift-lm 3.31.3 erkennt das Werkzeug-Format von Gemma 4 noch nicht (siehe docs/upstream-issue-gemma4-toolcall.md). Werkzeug-Aufrufe werden derzeit nicht ausgeführt — die Roh-Ausgabe enthält die Tool-Tags. Bitte den einfachen Modus (Toggle aus) für tatsächliche Antworten verwenden.";
+"settings.developer.askMode" = "Antwort-Modus";
+"settings.developer.askMode.chat" = "Chat (Standard)";
+"settings.developer.askMode.mlxToolCall" = "MLX-Werkzeug-Aufrufe (defekt)";
+"settings.developer.askMode.customAgent" = "Eigener Agent (Werkzeug-Aufrufe)";
+"settings.developer.askMode.mlxToolCall.warning" = "Bekannte Einschränkung: mlx-swift-lm 3.31.3 erkennt das Werkzeug-Format von Gemma 4 nicht (siehe docs/upstream-issue-gemma4-toolcall.md). Werkzeug-Aufrufe werden NICHT ausgeführt — der einfache Chat-Modus oder „Eigener Agent“ liefern tatsächliche Antworten.";
+"settings.developer.askMode.customAgent.hint" = "Eigener Loop: parst Gemma 4s natives `call:name{…}` Format selbst und ruft die Werkzeuge (Journal-Suche, Korpus, Labor-Verlauf, Phaseninfo) auf. Mehrere Modell-Aufrufe pro Frage, dauert länger; aktiviert Reasoning intern.";
+"settings.developer.askMode.budgetHint" = "Werkzeug-Modi erzeugen Reasoning + Werkzeug-Aufrufe + finale Antwort. Empfehlung: Ask-Token-Budget auf 4096 oder höher stellen.";

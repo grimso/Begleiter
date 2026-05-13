@@ -403,13 +403,17 @@ actor AskService {
         in entries: [JournalEntry],
         persistEntryEmbeddings: EntryEmbeddingPersister? = nil
     ) async -> AskAnswer {
-        // Agent mode (toggle in Settings → Entwicklung) replaces the
-        // single-shot retrieve-then-prompt pipeline with a function-
-        // calling loop: Gemma decides which tools to call (search,
-        // glossary, lab-trend, phase-metadata) and weaves the citation
-        // markers from their outputs into its final JSON answer.
-        if AppSettings.askAgentEnabled {
+        // Mode picker (Settings → Entwicklung → Antwort-Modus).
+        //   .chat         — single-shot retrieve-then-prompt (this method)
+        //   .mlxToolCall  — ChatSession(tools:) — broken upstream for Gemma 4
+        //   .customAgent  — own parser + multi-turn loop
+        switch AppSettings.askMode {
+        case .chat:
+            break  // fall through to the existing single-shot pipeline
+        case .mlxToolCall:
             return await answerAgent(question, in: entries)
+        case .customAgent:
+            return await answerCustomAgent(question, in: entries)
         }
 
         let thinkingEnabled = AppSettings.askThinkingEnabled
@@ -849,6 +853,263 @@ actor AskService {
 
         Beginnen Sie nach Abschluss aller Werkzeug-Aufrufe direkt mit { und schließen Sie mit }.
         """
+    }
+
+    // MARK: - Custom agent path (own parser + loop)
+
+    /// Multi-turn agent loop that bypasses mlx-swift-lm's broken-for-
+    /// Gemma-4 ``ChatSession`` tool layer. The model emits tool calls
+    /// in its native `call:name{key:value}` format; we extract them
+    /// with ``GemmaToolCallExtractor``, dispatch via
+    /// ``AgentTools.dispatch(name:args:)``, and feed the tool result
+    /// back as part of an accumulating transcript that we re-prompt
+    /// the model with each turn. Cap at 4 tool turns (matches the
+    /// system-prompt rule), then force the model into a final-answer
+    /// turn.
+    ///
+    /// Gated by ``AppSettings.askMode = .customAgent`` (Settings →
+    /// Entwicklung → Antwort-Modus). Slower than ``.chat`` because
+    /// each tool turn is a separate Gemma generation, but actually
+    /// executes the function-calling story today — independent of
+    /// any upstream library fixes.
+    ///
+    /// Errors during tool dispatch surface as a `.modelError` refusal
+    /// so the chat UI stays usable.
+    func answerCustomAgent(
+        _ question: AskQuestion,
+        in entries: [JournalEntry]
+    ) async -> AskAnswer {
+        var debug = AskDebugInfo(
+            scope: question.scope,
+            journalHits: 0,
+            corpusHits: 0,
+            promptedEntryIds: [],
+            promptedChunkIds: [],
+            promptCharCount: 0,
+            promptText: "",
+            thinkingEnabled: true,
+            rawModelOutput: "",
+            parseError: nil,
+            modelError: nil,
+            claimsBeforeFilter: 0,
+            claimsAfterFilter: 0,
+            droppedCitationCount: 0,
+            refusalReason: nil,
+            denseRerankerEnabled: false,
+            candidatesBeforeRerankJournal: 0,
+            candidatesBeforeRerankCorpus: 0,
+            rerankReorderCount: 0,
+            embedderLoadMs: nil,
+            queryEmbedMs: nil,
+            entryEmbedCount: 0,
+            corpusEmbedCount: 0,
+            rerankSkippedReason: nil,
+            eventQuestionDetected: false,
+            eventGuardFired: false
+        )
+
+        let tools = AgentTools(
+            retrieval: retrieval,
+            corpus: corpus,
+            entries: entries
+        )
+        let baseInstructions = Self.buildCustomAgentSystemPrompt(scope: question.scope)
+        askLog.info("custom-agent: starting question=\(question.text, privacy: .public)")
+
+        // Running transcript of tool turns. Re-injected into the
+        // prompt on every iteration so the model has full context.
+        var transcript: [String] = []
+        var finalRaw = ""
+
+        // 4 tool turns + 1 forced-final turn = 5 generations max.
+        let maxToolTurns = 4
+        var turn = 0
+
+        while turn <= maxToolTurns {
+            let isFinalTurn = (turn == maxToolTurns)
+            let instructions = Self.buildCustomAgentInstructions(
+                base: baseInstructions,
+                transcript: transcript,
+                forceFinal: isFinalTurn
+            )
+
+            let raw: String
+            do {
+                raw = try await gemma.generate(
+                    prompt: question.text,
+                    parameters: askParameters(),
+                    enableThinking: true,
+                    instructions: instructions,
+                    tools: nil,
+                    toolDispatch: nil
+                )
+            } catch {
+                let msg = error.localizedDescription
+                askLog.error("custom-agent: generate failed (turn \(turn, privacy: .public)): \(msg, privacy: .public)")
+                return AskAnswer.refusal(
+                    question: question.text,
+                    reason: .modelError,
+                    debug: debug.with(promptText: instructions, modelError: msg)
+                )
+            }
+
+            finalRaw = raw
+            askLog.debug("custom-agent.turn=\(turn, privacy: .public) raw=\(raw, privacy: .public)")
+
+            // If we forced a final turn, don't try to parse another
+            // tool call — go straight to JSON parsing.
+            if isFinalTurn { break }
+
+            // Look for a tool call. If absent, the model produced its
+            // final answer turn (or a non-tool refusal), so we stop.
+            guard let call = GemmaToolCallExtractor.extract(from: raw) else {
+                askLog.info("custom-agent.turn=\(turn, privacy: .public) no tool call — final answer")
+                break
+            }
+
+            // Dispatch the tool. Failure short-circuits to refusal.
+            let result: String
+            do {
+                result = try await tools.dispatch(name: call.name, args: call.arguments)
+            } catch {
+                let msg = "tool '\(call.name)': \(error.localizedDescription)"
+                askLog.error("custom-agent: dispatch failed: \(msg, privacy: .public)")
+                return AskAnswer.refusal(
+                    question: question.text,
+                    reason: .modelError,
+                    debug: debug.with(rawModelOutput: raw, modelError: msg)
+                )
+            }
+
+            askLog.info("custom-agent.turn=\(turn, privacy: .public) dispatched \(call.name, privacy: .public) → \(result.count, privacy: .public) chars")
+            transcript.append("Werkzeug-Aufruf #\(turn + 1): \(call.name)\nErgebnis: \(result)")
+            turn += 1
+        }
+
+        debug = debug.with(
+            promptText: Self.buildCustomAgentInstructions(
+                base: baseInstructions,
+                transcript: transcript,
+                forceFinal: false
+            ),
+            rawModelOutput: finalRaw
+        )
+
+        // Parse the final JSON answer using the same helpers as the
+        // single-shot path so the UI sees an identical AskAnswer shape.
+        let parsed: ParsedAnswer
+        do {
+            parsed = try Self.parseAnswer(from: finalRaw)
+        } catch {
+            askLog.error("custom-agent: parse failed: \(error.localizedDescription, privacy: .public)")
+            return AskAnswer.refusal(
+                question: question.text,
+                reason: .parseFailure,
+                debug: debug.with(parseError: error.localizedDescription)
+            )
+        }
+        debug = debug.with(claimsBeforeFilter: parsed.claims.count)
+
+        // Verifiable-generation filter against the full universe of
+        // entry / chunk ids the tools could have surfaced.
+        let validEntryIds = Set(entries.map(\.entryId))
+        let validChunkIds = Set(corpus.allChunkIds())
+        let outcome = Self.filterAndWarn(
+            claims: parsed.claims,
+            validEntryIds: validEntryIds,
+            validChunkIds: validChunkIds
+        )
+        debug = debug.with(
+            claimsAfterFilter: outcome.claims.count,
+            droppedCitationCount: outcome.droppedCitations
+        )
+
+        if outcome.claims.isEmpty {
+            return AskAnswer.refusal(
+                question: question.text,
+                reason: .emptyClaims,
+                debug: debug
+            )
+        }
+
+        return AskAnswer(
+            id: UUID(),
+            question: question.text,
+            claims: outcome.claims,
+            followUps: parsed.followUps,
+            basis: Self.computeBasis(for: outcome.claims),
+            warnings: outcome.warnings,
+            debug: debug,
+            renderedAt: .now
+        )
+    }
+
+    /// Base system prompt for the custom agent. Differs from
+    /// ``buildAgentSystemPrompt`` in two ways:
+    ///   1. Documents the exact emit format we'll be parsing
+    ///      (`call:name{key:<|"|>value<|"|>}`) so the model emits
+    ///      something we can extract.
+    ///   2. Tells the model how the running transcript will be
+    ///      formatted in subsequent turns, so it doesn't re-call
+    ///      tools whose results it can already see.
+    static func buildCustomAgentSystemPrompt(scope: AskScope) -> String {
+        let scopeHint: String
+        switch scope {
+        case .all:
+            scopeHint = "Frage betrifft das gesamte Journal."
+        case .labs:
+            scopeHint = "Frage betrifft Laborwerte; bevorzuge `get_lab_trend` und `search_corpus` mit scope=\"labs\"."
+        }
+        return """
+        Sie sind ein Tagebuch-Assistent für Eltern eines Kindes in der AIEOP-BFM ALL 2017 Behandlung.
+
+        AUFGABE: Beantworten Sie die Frage der Eltern, indem Sie die zur Verfügung gestellten Werkzeuge nutzen, um Fakten zu finden. \(scopeHint)
+
+        WERKZEUGE (Aufrufformat: `call:name{key:wert,key:wert}` — Zeichenketten in `<|"|>…<|"|>`):
+        - `search_journal(query, phase?, drug?, since?, until?, labs_only?, limit?)` — Volltext-Suche im Journal. Treffer mit `[E:<UUID>]`.
+        - `search_corpus(query, scope?, limit?)` — Wissens-Korpus (Medikamente, Labor-Glossar, Phaseninfo). `scope` ist `"drugs"`, `"labs"` oder `"all"`. Treffer mit `[K:<chunkId>]`.
+        - `get_lab_trend(parameter, since?, until?)` — Zeitreihe eines Laborparameters; jeder Punkt mit `[E:<UUID>]`.
+        - `get_phase_metadata(phase)` — Deterministische Phasen-Daten (Dauer, Medikamente, Prozeduren).
+
+        ABLAUF:
+        - Rufen Sie nacheinander Werkzeuge auf, eines pro Antwort. Maximal 4 Werkzeug-Aufrufe insgesamt.
+        - Nach jedem Aufruf zeigen wir Ihnen das Ergebnis als Block „Werkzeug-Aufruf #n: name / Ergebnis: …". Nutzen Sie das Ergebnis und entscheiden Sie über den nächsten Schritt.
+        - Sobald Sie genug Information haben, antworten Sie ausschließlich mit dem JSON-Schema unten — KEIN weiterer Werkzeug-Aufruf.
+
+        REGELN:
+        - Bei Fragen nach Ereignissen oder Werten aus dem Leben des Kindes IMMER zuerst `search_journal` / `get_lab_trend` aufrufen — NIEMALS aus dem Korpus paraphrasieren, als wäre es ein Tagebuch-Eintrag.
+        - Jede Aussage in Ihrer Antwort braucht eine Quelle: `[E:<UUID>]` für Journal-Einträge, `[K:<chunkId>]` für Korpus-Auszüge. Verwenden Sie nur Marker, die die Werkzeuge geliefert haben — keine UUIDs aus dem Gedächtnis.
+        - Wenn keine Quelle vorliegt, sagen Sie das ehrlich und geben Sie keine Antwort.
+        - Geben Sie KEINE medizinischen Empfehlungen, Dosen oder Diagnosen ab.
+
+        JSON-SCHEMA (für die finale Antwort):
+        {
+          "claims": [
+            { "text": "<deutscher Satz mit Citations am Ende, z.B. … [E:UUID]>", "citations": ["E:<UUID>", "K:<chunkId>", …] }
+          ],
+          "followUps": ["<Folgefrage 1>", "<Folgefrage 2>"]
+        }
+        """
+    }
+
+    /// Per-turn instructions: base prompt + accumulated transcript
+    /// (one block per completed tool call). When `forceFinal` is true,
+    /// we add a closing directive that bans further tool calls — used
+    /// for the 5th turn when the model has used its 4-call budget.
+    static func buildCustomAgentInstructions(
+        base: String,
+        transcript: [String],
+        forceFinal: Bool
+    ) -> String {
+        var parts: [String] = [base]
+        if !transcript.isEmpty {
+            parts.append("BISHERIGE WERKZEUG-AUFRUFE UND ERGEBNISSE:")
+            parts.append(transcript.joined(separator: "\n\n"))
+        }
+        if forceFinal {
+            parts.append("WICHTIG: Sie haben das Werkzeug-Budget aufgebraucht. Antworten Sie JETZT ausschließlich mit dem JSON-Schema — kein weiterer `call:` Aufruf.")
+        }
+        return parts.joined(separator: "\n\n")
     }
 
     /// 3. Backfill any journal entries missing an embedding — read them

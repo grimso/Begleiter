@@ -15,7 +15,7 @@
 		F40B9F662FB1DE8A00FA6B3A /* Tokenizers in Frameworks */ = {isa = PBXBuildFile; productRef = F40B9F652FB1DE8A00FA6B3A /* Tokenizers */; };
 		F40B9F712FB1DC4E00FA6B3A /* MLXEmbedders in Frameworks */ = {isa = PBXBuildFile; productRef = F40B9F702FB1DC4E00FA6B3A /* MLXEmbedders */; };
 		F40B9F722FB1DC4E00FA6B3A /* MLXVLM in Frameworks */ = {isa = PBXBuildFile; productRef = F40B9F732FB1DC4E00FA6B3A /* MLXVLM */; };
-		F40B9F742FB1DC4E00FA6B3A /* MLXLMCommon in Frameworks (Tests) */ = {isa = PBXBuildFile; productRef = F40B9F752FB1DC4E00FA6B3A /* MLXLMCommon (Tests) */; };
+		F40B9F742FB1DC4E00FA6B3A /* MLXLMCommon in Frameworks */ = {isa = PBXBuildFile; productRef = F40B9F752FB1DC4E00FA6B3A /* MLXLMCommon */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -79,7 +79,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				F40B9F742FB1DC4E00FA6B3A /* MLXLMCommon in Frameworks (Tests) */,
+				F40B9F742FB1DC4E00FA6B3A /* MLXLMCommon in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -172,7 +172,7 @@
 			);
 			name = BegleiterTests;
 			packageProductDependencies = (
-				F40B9F752FB1DC4E00FA6B3A /* MLXLMCommon (Tests) */,
+				F40B9F752FB1DC4E00FA6B3A /* MLXLMCommon */,
 			);
 			productName = BegleiterTests;
 			productReference = F40B9EDE2FB1BCB600FA6B3A /* BegleiterTests.xctest */;
@@ -704,7 +704,7 @@
 			package = F40B9F592FB1DC4E00FA6B3A /* XCRemoteSwiftPackageReference "mlx-swift-lm" */;
 			productName = MLXVLM;
 		};
-		F40B9F752FB1DC4E00FA6B3A /* MLXLMCommon (Tests) */ = {
+		F40B9F752FB1DC4E00FA6B3A /* MLXLMCommon */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = F40B9F592FB1DC4E00FA6B3A /* XCRemoteSwiftPackageReference "mlx-swift-lm" */;
 			productName = MLXLMCommon;
