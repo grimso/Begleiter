@@ -83,12 +83,15 @@ actor GemmaService {
         guard !_cacheLimitConfigured else { return }
         _cacheLimitConfigured = true
         #if !targetEnvironment(simulator)
-        // 50 MB cap on the recyclable buffer pool. Default scales with
-        // recommendedMaxWorkingSetSize and can grow to multiple GB on long
-        // inference runs — that's exactly the headroom we're losing on
-        // iPhone 14 Pro running Gemma 4 E2B (~3.3 GB resident + uncapped
-        // scratch ≈ jetsam).
-        MLX.Memory.cacheLimit = 50 * 1024 * 1024
+        // 16 MB cap on the recyclable buffer pool. The MLX default scales
+        // with `recommendedMaxWorkingSetSize` and can grow to multiple GB
+        // on long inference runs — exactly the headroom we're losing on
+        // iPhone 14 Pro (4.1 GB ceiling with Increased Memory Limit) when
+        // Gemma 4 E2B (~2 GB resident) + KV cache scratch + view stack +
+        // SwiftData working set already lives at ~3 GB. Lowering from
+        // 50 MB → 16 MB returns freed buffers to the OS sooner — slightly
+        // slower decode but a measurable drop in peak RSS over a session.
+        MLX.Memory.cacheLimit = 16 * 1024 * 1024
         #endif
     }
 

@@ -1,3 +1,4 @@
+import MLX
 import SwiftData
 import SwiftUI
 import UIKit
@@ -93,11 +94,24 @@ final class MemoryWarningObserver {
             )
             for await _ in notifications {
                 MemoryDiagnostics.snapshot(label: "memory-warning")
-                // Drop the single shared model. Extraction, briefing, and
-                // handoff all share this instance, so a single unload
-                // releases the weights for the whole app. Next inference
-                // call re-loads from the on-device HF cache.
+                // Drop every model that could be holding weights. The text
+                // and vision sides are mutually exclusive on disk-load but
+                // either could be the one currently resident; we don't
+                // know which without polling each service's state, so we
+                // unload both unconditionally — `unload()` is a cheap nil
+                // assign when the service hasn't loaded anything.
+                // Embedding (E5 reranker) lives in its own actor with its
+                // own ~130 MB container; drop it too.
                 await GemmaService.shared.unload()
+                await GemmaVisionService.shared.unload()
+                await EmbeddingService.shared.unload()
+                #if !targetEnvironment(simulator)
+                // Return MLX's recycled-buffer pool to the OS. Without
+                // this the next allocation can still see >100 MB of
+                // already-counted-as-resident scratch under the hood.
+                MLX.Memory.clearCache()
+                #endif
+                MemoryDiagnostics.snapshot(label: "memory-warning.cleared")
             }
         }
     }
