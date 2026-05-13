@@ -302,6 +302,10 @@
 "settings.diagnostics.clearCache" = "Clear model cache";
 "settings.diagnostics.clearCacheFooter" = "Releases the in-memory weights. The next call reloads the model from the local Hugging Face cache (no download, a few seconds).";
 "settings.diagnostics.cacheCleared" = "Cache cleared";
+"settings.diagnostics.memoryCeiling" = "Memory limit (app)";
+"settings.diagnostics.memoryResident" = "Currently used";
+"settings.diagnostics.memoryRefresh" = "Re-sample";
+"settings.diagnostics.memoryHint" = "Limit = used + available. With \"Increased Memory Limit\" expect ~3.0 GB (6 GB devices) or ~4.5 GB (8 GB devices).";
 
 "settings.developer.section" = "Developer";
 "settings.developer.smokeTest" = "Gemma 4 smoke test";

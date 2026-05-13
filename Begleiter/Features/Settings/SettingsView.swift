@@ -62,6 +62,7 @@ struct SettingsView: View {
     @State private var modelReloading: Bool = false
     @State private var fellBackToE2BMessage: String?
     @State private var cacheClearedFlash: Bool = false
+    @State private var memorySnapshot: MemoryDiagnostics.UISnapshot = MemoryDiagnostics.uiSnapshot()
 
     // MARK: - Derived bindings
 
@@ -286,6 +287,26 @@ struct SettingsView: View {
                     .monospacedDigit()
                     .foregroundStyle(.secondary)
             }
+            LabeledContent(L10n.t("settings.diagnostics.memoryCeiling")) {
+                Text(Self.formatBytes(memorySnapshot.ceiling))
+                    .monospacedDigit()
+                    .foregroundStyle(.secondary)
+            }
+            LabeledContent(L10n.t("settings.diagnostics.memoryResident")) {
+                Text(Self.formatBytes(memorySnapshot.resident))
+                    .monospacedDigit()
+                    .foregroundStyle(.secondary)
+            }
+            Button {
+                memorySnapshot = MemoryDiagnostics.uiSnapshot()
+            } label: {
+                Label(L10n.key("settings.diagnostics.memoryRefresh"),
+                      systemImage: "arrow.clockwise")
+            }
+            Label(L10n.key("settings.diagnostics.memoryHint"),
+                  systemImage: "info.circle")
+                .font(.caption)
+                .foregroundStyle(.secondary)
             Button {
                 Task { await clearCache() }
             } label: {
@@ -425,6 +446,18 @@ struct SettingsView: View {
     /// surface the value from `Package.resolved` as a constant. Bump this
     /// when bumping the package pin so the Diagnostics view stays honest.
     private static let mlxSwiftLmVersion = "3.31.3"
+
+    /// Bytes → human-readable string (MB up to 1024 MB, then GB). Used by
+    /// the memory rows in the Diagnose section so the parent reads
+    /// "2940 MB" rather than 3 081 207 808.
+    private static func formatBytes(_ bytes: Int) -> String {
+        guard bytes > 0 else { return "—" }
+        let mb = Double(bytes) / (1024 * 1024)
+        if mb < 1024 {
+            return String(format: "%.0f MB", mb)
+        }
+        return String(format: "%.2f GB", mb / 1024)
+    }
 }
 
 #Preview {

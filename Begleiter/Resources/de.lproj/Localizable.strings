@@ -302,6 +302,10 @@
 "settings.diagnostics.clearCache" = "Modell-Cache leeren";
 "settings.diagnostics.clearCacheFooter" = "Gibt die im Speicher gehaltenen Gewichte frei. Der nächste Aufruf lädt das Modell aus dem lokalen Hugging-Face-Cache neu (kein Download, einige Sekunden).";
 "settings.diagnostics.cacheCleared" = "Cache geleert";
+"settings.diagnostics.memoryCeiling" = "Speicher-Limit (App)";
+"settings.diagnostics.memoryResident" = "Aktuell belegt";
+"settings.diagnostics.memoryRefresh" = "Neu messen";
+"settings.diagnostics.memoryHint" = "Limit = belegt + frei. Mit „Increased Memory Limit“ sind ~3,0 GB (6-GB-Geräte) bzw. ~4,5 GB (8-GB-Geräte) zu erwarten.";
 
 "settings.developer.section" = "Entwicklung";
 "settings.developer.smokeTest" = "Gemma 4 Smoke-Test";
