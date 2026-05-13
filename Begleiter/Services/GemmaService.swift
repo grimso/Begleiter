@@ -112,11 +112,26 @@ actor GemmaService {
     /// Map a `ModelVariant` to the matching `LLMRegistry` entry from
     /// mlx-swift-lm. Centralised so `init` and `reload(variant:)` agree
     /// on which symbol corresponds to which variant.
+    ///
+    /// Sets `toolCallFormat = .gemma` because mlx-swift-lm 3.31.3's
+    /// `ToolCallFormat.infer(from:)` matches `model_type == "gemma"`
+    /// only — it returns `nil` for `"gemma4"`, falling back to
+    /// `.json` which expects `<tool_call>{"name":…}</tool_call>` that
+    /// Gemma 4 never emits. Forcing `.gemma` here gets us as far as
+    /// the parser-level fix can go; the deeper start/end-tag mismatch
+    /// (`<|tool_call>` vs `<start_function_call>`) still blocks the
+    /// processor from triggering — tracked in
+    /// `docs/upstream-issue-gemma4-toolcall.md`. Harmless when the
+    /// caller doesn't pass `tools:`; future-proofs us for when upstream
+    /// lands a fix.
     private static func configuration(for variant: ModelVariant) -> ModelConfiguration {
+        var cfg: ModelConfiguration
         switch variant {
-        case .e2b: return LLMRegistry.gemma4_e2b_it_4bit
-        case .e4b: return LLMRegistry.gemma4_e4b_it_4bit
+        case .e2b: cfg = LLMRegistry.gemma4_e2b_it_4bit
+        case .e4b: cfg = LLMRegistry.gemma4_e4b_it_4bit
         }
+        cfg.toolCallFormat = .gemma
+        return cfg
     }
 
     // MARK: - Load

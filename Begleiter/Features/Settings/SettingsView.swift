@@ -384,6 +384,12 @@ struct SettingsView: View {
                     .font(.caption)
                     .foregroundStyle(.orange)
             }
+            if askAgentEnabled {
+                Label(L10n.key("settings.developer.askAgent.upstreamWarning"),
+                      systemImage: "exclamationmark.triangle.fill")
+                    .font(.caption)
+                    .foregroundStyle(.red)
+            }
             if askAgentEnabled && askMaxTokens < 4096 {
                 Label(L10n.key("settings.developer.askAgent.budgetHint"),
                       systemImage: "info.circle")

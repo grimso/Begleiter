@@ -668,6 +668,25 @@ actor AskService {
     /// default OFF). When the toggle is off, ``answer(_:in:...)`` runs
     /// the existing single-shot path; when on, it forwards here.
     ///
+    /// **Known upstream limitation (mlx-swift-lm 3.31.3).** Tool-call
+    /// dispatch doesn't actually fire end-to-end for Gemma 4. Two
+    /// bugs in the library:
+    /// 1. `ToolCallFormat.infer` matches `model_type == "gemma"` exactly
+    ///    and returns `nil` for `"gemma4"`, falling back to `.json`.
+    /// 2. `GemmaFunctionParser`'s start/end tags
+    ///    (`<start_function_call>` / `<end_function_call>`) don't match
+    ///    what Gemma 4 emits (`<|tool_call>` / `<tool_call|>`), so even
+    ///    forcing `.gemma` format still misses the processor's tag-
+    ///    detection gate.
+    ///
+    /// Net: with this toggle on, the model produces a correct
+    /// reasoning + tool-call turn, but the dispatch closure is never
+    /// invoked and the raw tagged text leaks into the final answer.
+    /// See `docs/upstream-issue-gemma4-toolcall.md` for the full
+    /// upstream report. Keeping the code in place so the path works
+    /// automatically once the library lands a fix; UI surfaces a red
+    /// warning when the toggle is on.
+    ///
     /// Errors during tool dispatch surface as a `.modelError` refusal so
     /// the chat UI stays usable.
     func answerAgent(

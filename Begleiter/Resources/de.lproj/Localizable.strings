@@ -401,3 +401,4 @@
 "settings.developer.askAgent" = "Agent-Modus (Werkzeug-Aufrufe)";
 "settings.developer.askAgent.hint" = "Gemma 4 entscheidet selbst, welche Werkzeuge (Journal-Suche, Korpus, Labor-Verlauf, Phaseninfo) gerufen werden. Aktiviert intern Reasoning, dauert länger, oft präzisere Treffer und mehrere Werkzeug-Schritte pro Frage.";
 "settings.developer.askAgent.budgetHint" = "Agent-Modus erzeugt Reasoning + Werkzeug-Aufrufe + finale Antwort. Empfehlung: Ask-Token-Budget auf 4096 oder höher stellen.";
+"settings.developer.askAgent.upstreamWarning" = "Bekannte Einschränkung: mlx-swift-lm 3.31.3 erkennt das Werkzeug-Format von Gemma 4 noch nicht (siehe docs/upstream-issue-gemma4-toolcall.md). Werkzeug-Aufrufe werden derzeit nicht ausgeführt — die Roh-Ausgabe enthält die Tool-Tags. Bitte den einfachen Modus (Toggle aus) für tatsächliche Antworten verwenden.";

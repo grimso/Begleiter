@@ -401,3 +401,4 @@
 "settings.developer.askAgent" = "Agent mode (tool calls)";
 "settings.developer.askAgent.hint" = "Gemma 4 decides which tools (journal search, corpus, lab trend, phase metadata) to call. Reasoning is enabled internally, runs slower, often more precise hits and multiple tool steps per question.";
 "settings.developer.askAgent.budgetHint" = "Agent mode emits reasoning + tool calls + final answer. Recommendation: set the Ask token budget to 4096 or higher.";
+"settings.developer.askAgent.upstreamWarning" = "Known limitation: mlx-swift-lm 3.31.3 doesn't recognise Gemma 4's tool-call format yet (see docs/upstream-issue-gemma4-toolcall.md). Tool calls aren't actually dispatched — the raw output contains the tool tags. Use the simple mode (toggle off) for real answers.";
