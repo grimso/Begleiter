@@ -131,6 +131,34 @@ final class GemmaToolCallExtractorTests: XCTestCase {
         XCTAssertEqual(call?.arguments["query"], .string("Fieber"))
     }
 
+    // MARK: - Python-style fallback (observed in the wild)
+
+    /// Real failure case from a live agent run: the model adopted
+    /// Python syntax (`name(args)`) instead of the documented
+    /// `name{args}` form. Parser must still extract because the
+    /// alternative is dropping the turn entirely.
+    func test_extract_pythonStyleParenthesesCall() {
+        let raw = #"call:search_journal(query:<|"|>Asparaginase-Reaktion<|"|>,phase:<|"|>None<|"|>,drug:<|"|>None<|"|>)"#
+        let call = GemmaToolCallExtractor.extract(from: raw)
+        XCTAssertEqual(call?.name, "search_journal")
+        XCTAssertEqual(call?.arguments["query"], .string("Asparaginase-Reaktion"))
+        // `None` strings stay as strings at the parser level — the
+        // dispatcher's `stringArg`/`isNullSentinel` converts them to
+        // nil at handler-invocation time.
+        XCTAssertEqual(call?.arguments["phase"], .string("None"))
+        XCTAssertEqual(call?.arguments["drug"], .string("None"))
+    }
+
+    /// Bare `None` / `True` / `False` literals (no escape markers)
+    /// should decode as the corresponding JSON values directly.
+    func test_extract_pythonBareLiterals() {
+        let raw = "call:configure{x:None,y:True,z:False}"
+        let call = GemmaToolCallExtractor.extract(from: raw)
+        XCTAssertEqual(call?.arguments["x"], .null)
+        XCTAssertEqual(call?.arguments["y"], .bool(true))
+        XCTAssertEqual(call?.arguments["z"], .bool(false))
+    }
+
     func test_extract_handlesNewlineInsideArgsBody() {
         // Some Gemma 4 turns wrap the args across lines. Whitespace
         // around keys / values / commas must not break parsing.

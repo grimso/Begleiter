@@ -98,18 +98,30 @@ enum GemmaToolCallExtractor {
         guard let callRange = text.range(of: "call:") else { return nil }
         let afterCall = text[callRange.upperBound...]
 
-        // 3. Function name runs until the first `{`. Trim whitespace
-        //    so newlines between `call:` and the name don't break.
-        guard let braceOpen = afterCall.firstIndex(of: "{") else { return nil }
-        let name = afterCall[..<braceOpen]
+        // 3. Function name runs until the first arg-list opener.
+        //    Gemma 4 _docs_ specify `{…}`, but in practice the model
+        //    also emits the Python-flavoured `name(args)` form when
+        //    its thinking trace adopts that style. Accept either —
+        //    extracting tool intent matters more than format purity.
+        guard let openIdx = afterCall.firstIndex(where: { $0 == "{" || $0 == "(" }) else {
+            return nil
+        }
+        let name = afterCall[..<openIdx]
             .trimmingCharacters(in: .whitespacesAndNewlines)
         guard !name.isEmpty else { return nil }
 
-        // 4. Argument body lies between `{` and the matching `}`.
-        //    Brace-balance the scan so escaped values containing `{`
-        //    or `}` (rare but legal) don't terminate early.
-        let bodyStart = afterCall.index(after: braceOpen)
-        guard let bodyEnd = findMatchingBrace(in: afterCall, openAt: braceOpen) else {
+        // 4. Argument body lies between the opener and its matching
+        //    closer. Track depth so escaped values containing the
+        //    opener or closer don't terminate early.
+        let openChar = afterCall[openIdx]
+        let closeChar: Character = (openChar == "(") ? ")" : "}"
+        let bodyStart = afterCall.index(after: openIdx)
+        guard let bodyEnd = findMatchingClose(
+            in: afterCall,
+            openAt: openIdx,
+            openChar: openChar,
+            closeChar: closeChar
+        ) else {
             return nil
         }
         let body = String(afterCall[bodyStart..<bodyEnd])
@@ -121,20 +133,24 @@ enum GemmaToolCallExtractor {
 
     // MARK: - Brace matching
 
-    /// Returns the index of the `}` matching the `{` at `openAt`,
-    /// tracking nesting depth. `nil` if no matching brace is found in
-    /// the remainder (truncated output).
-    private static func findMatchingBrace(
+    /// Returns the index of the closer matching the opener at
+    /// `openAt`, tracking nesting depth. `nil` if no matching closer
+    /// is found in the remainder (truncated output). Works for both
+    /// `{}` and `()` arg-list delimiters — the caller passes the pair
+    /// it discovered when locating the opener.
+    private static func findMatchingClose(
         in text: Substring,
-        openAt openIndex: Substring.Index
+        openAt openIndex: Substring.Index,
+        openChar: Character,
+        closeChar: Character
     ) -> Substring.Index? {
         var depth = 0
         var idx = openIndex
         while idx < text.endIndex {
             let ch = text[idx]
-            if ch == "{" {
+            if ch == openChar {
                 depth += 1
-            } else if ch == "}" {
+            } else if ch == closeChar {
                 depth -= 1
                 if depth == 0 { return idx }
             }
@@ -220,12 +236,14 @@ enum GemmaToolCallExtractor {
     }
 
     /// Coerce a non-string token (`raw`) into the most specific
-    /// `ArgValue` it matches.
+    /// `ArgValue` it matches. Treats Python's `None`, `True`, `False`
+    /// as their JSON equivalents — the model sometimes drops into
+    /// Python literal style when its thinking trace is Python-flavoured.
     private static func decodeLiteral(_ raw: String) -> ArgValue {
         if raw.isEmpty { return .string("") }
-        if raw == "true" { return .bool(true) }
-        if raw == "false" { return .bool(false) }
-        if raw == "null" { return .null }
+        if raw == "true" || raw == "True" { return .bool(true) }
+        if raw == "false" || raw == "False" { return .bool(false) }
+        if raw == "null" || raw == "None" { return .null }
         if let i = Int(raw) { return .int(i) }
         if let d = Double(raw) { return .double(d) }
         return .string(raw)

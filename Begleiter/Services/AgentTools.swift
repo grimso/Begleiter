@@ -321,15 +321,33 @@ struct AgentTools: @unchecked Sendable {
 
     // MARK: - ArgValue down-casting helpers
 
+    /// Strings the model emits as Python-style sentinels for "no
+    /// value". The model fills in EVERY optional argument when its
+    /// thinking trace adopts Python style (`phase=None, drug=None,
+    /// since=None, ...`), so we treat these literal strings as nil
+    /// rather than passing them through to the handler. Case-
+    /// insensitive — observed in the wild: `None`, `NONE`, `null`.
+    private static let nullSentinelStrings: Set<String> = [
+        "none", "null", "nil", "nan"
+    ]
+
+    private func isNullSentinel(_ s: String) -> Bool {
+        Self.nullSentinelStrings.contains(s.lowercased())
+    }
+
     /// Coerce an `ArgValue?` to `String?`. Non-string types get
     /// stringified — the model occasionally emits `query:Asparaginase`
     /// (no escape markers) which decodes as a `.string("Asparaginase")`
     /// already, but if it ever decodes as e.g. `.int(42)` we still
-    /// hand the handler a usable string.
+    /// hand the handler a usable string. Python-style `None` sentinels
+    /// are stripped to nil so the handler doesn't try to filter on
+    /// the literal string `"None"`.
     private func stringArg(_ value: GemmaToolCallExtractor.ArgValue?) -> String? {
         guard let value else { return nil }
         switch value {
-        case .string(let s): return s.isEmpty ? nil : s
+        case .string(let s):
+            if s.isEmpty || isNullSentinel(s) { return nil }
+            return s
         case .int(let i):    return String(i)
         case .double(let d): return String(d)
         case .bool(let b):   return String(b)
@@ -342,7 +360,9 @@ struct AgentTools: @unchecked Sendable {
         switch value {
         case .int(let i):    return i
         case .double(let d): return Int(d)
-        case .string(let s): return Int(s)
+        case .string(let s):
+            if isNullSentinel(s) { return nil }
+            return Int(s)
         case .bool, .null:   return nil
         }
     }
@@ -351,7 +371,10 @@ struct AgentTools: @unchecked Sendable {
         guard let value else { return nil }
         switch value {
         case .bool(let b):   return b
-        case .string(let s): return Bool(s.lowercased())
+        case .string(let s):
+            if isNullSentinel(s) { return nil }
+            // Recognise both "true"/"false" and Python "True"/"False".
+            return Bool(s.lowercased())
         case .int(let i):    return i != 0
         case .double, .null: return nil
         }
