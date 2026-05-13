@@ -124,8 +124,15 @@ enum AppSettings {
     }
 
     /// Output budget for `AskService.answer(...)`. Default 512 covers
-    /// ~5 cited claims + 3 follow-ups; Settings slider lets advanced
-    /// users dial it between 256 (terse) and 1024 (more verbose).
+    /// ~5 cited claims + 3 follow-ups on the single-shot path. The
+    /// Settings slider runs 256–8192 in 256-token steps. The high end
+    /// exists for the agent path (`askAgentEnabled`) which forces
+    /// thinking mode and adds several hundred reasoning tokens per
+    /// turn × N tool turns × the final JSON answer — 2048 is often
+    /// not enough for a multi-tool agent run, so users need headroom.
+    /// KV-cache memory cost is roughly ~25 KB per output token on
+    /// Gemma 4 E2B 4-bit, so 8192 ≈ 200 MB transient — fits inside
+    /// the Increased-Memory-Limit ceiling but worth flagging.
     nonisolated static var askMaxTokens: Int {
         let v = UserDefaults.standard.integer(forKey: askMaxTokensKey)
         return v > 0 ? v : defaultAskMaxTokens

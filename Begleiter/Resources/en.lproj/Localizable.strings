@@ -400,3 +400,4 @@
 "settings.developer.askEventGuard" = "Journal guard for event questions";
 "settings.developer.askAgent" = "Agent mode (tool calls)";
 "settings.developer.askAgent.hint" = "Gemma 4 decides which tools (journal search, corpus, lab trend, phase metadata) to call. Reasoning is enabled internally, runs slower, often more precise hits and multiple tool steps per question.";
+"settings.developer.askAgent.budgetHint" = "Agent mode emits reasoning + tool calls + final answer. Recommendation: set the Ask token budget to 4096 or higher.";

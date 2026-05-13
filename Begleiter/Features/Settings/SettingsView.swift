@@ -164,8 +164,8 @@ struct SettingsView: View {
             tokenStepper(
                 title: L10n.t("settings.generation.ask"),
                 value: $askMaxTokens,
-                range: 256...2048,
-                step: 128
+                range: 256...8192,
+                step: 256
             )
         } header: {
             Text(L10n.key("settings.generation.section"))
@@ -380,6 +380,12 @@ struct SettingsView: View {
             }
             if askAgentEnabled {
                 Label(L10n.key("settings.developer.askAgent.hint"),
+                      systemImage: "info.circle")
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+            }
+            if askAgentEnabled && askMaxTokens < 4096 {
+                Label(L10n.key("settings.developer.askAgent.budgetHint"),
                       systemImage: "info.circle")
                     .font(.caption)
                     .foregroundStyle(.orange)
