@@ -76,6 +76,7 @@ enum AppSettings {
     nonisolated static let askThinkingEnabledKey   = "askThinkingEnabled"
     nonisolated static let askDenseRerankerEnabledKey = "askDenseRerankerEnabled"
     nonisolated static let askEventGuardEnabledKey = "askEventGuardEnabled"
+    nonisolated static let askAgentEnabledKey      = "askAgentEnabled"
     nonisolated static let labPipelineModeKey      = "labPipelineMode"
     nonisolated static let visionMaxLongEdgeKey    = "visionMaxLongEdge"
 
@@ -87,6 +88,7 @@ enum AppSettings {
     nonisolated static let defaultAskThinkingEnabled    = false
     nonisolated static let defaultAskDenseRerankerEnabled = false
     nonisolated static let defaultAskEventGuardEnabled    = true
+    nonisolated static let defaultAskAgentEnabled         = false
     /// Long-edge pixel cap applied to Befund images before they reach
     /// Gemma 4 vision. 1568 px matches the largest grid resolution
     /// Gemma's vision processor maps onto its 1120-token budget without
@@ -169,6 +171,20 @@ enum AppSettings {
         // never set, so we mirror via a sentinel.
         UserDefaults.standard.object(forKey: askEventGuardEnabledKey) as? Bool
             ?? defaultAskEventGuardEnabled
+    }
+
+    /// When `true`, `AskService.answer(...)` routes to the
+    /// function-calling agent path (`answerAgent`) instead of the
+    /// single-shot retrieve-then-prompt pipeline. Gemma 4 decides which
+    /// of the four tools (`search_journal`, `search_corpus`,
+    /// `get_lab_trend`, `get_phase_metadata`) to call and weaves the
+    /// citation markers from their outputs into its final JSON answer.
+    /// Off by default; toggle lives in Settings → Entwicklung.
+    /// Pairs with thinking mode internally regardless of
+    /// ``askThinkingEnabled``, because the function-calling docs note
+    /// the synergy explicitly.
+    nonisolated static var askAgentEnabled: Bool {
+        UserDefaults.standard.bool(forKey: askAgentEnabledKey)
     }
 
     nonisolated static var labPipelineMode: LabPipelineMode {

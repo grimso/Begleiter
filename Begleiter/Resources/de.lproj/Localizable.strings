@@ -394,3 +394,5 @@
 "ask.debug.refusalReason.noJournalForEventQuestion" = "Frage zielt auf Journal-Ereignisse, aber kein passender Eintrag — Swift-Guard hat ohne Gemma-Aufruf geantwortet.";
 
 "settings.developer.askEventGuard" = "Journal-Schutz für Ereignisfragen";
+"settings.developer.askAgent" = "Agent-Modus (Werkzeug-Aufrufe)";
+"settings.developer.askAgent.hint" = "Gemma 4 entscheidet selbst, welche Werkzeuge (Journal-Suche, Korpus, Labor-Verlauf, Phaseninfo) gerufen werden. Aktiviert intern Reasoning, dauert länger, oft präzisere Treffer und mehrere Werkzeug-Schritte pro Frage.";

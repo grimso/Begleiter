@@ -187,11 +187,46 @@ actor GemmaService {
         parameters: GenerateParameters? = nil,
         enableThinking: Bool = false
     ) async throws -> String {
+        try await generate(
+            prompt: prompt,
+            parameters: parameters,
+            enableThinking: enableThinking,
+            instructions: nil,
+            tools: nil,
+            toolDispatch: nil
+        )
+    }
+
+    /// Full generation overload: adds optional `instructions` (system
+    /// message), `tools` schemas, and `toolDispatch` so callers that need
+    /// the function-calling agent loop can opt in without disturbing the
+    /// simple text-in / text-out callers above. ``ChatSession`` runs the
+    /// multi-turn agent loop itself — it collects ``ToolCall`` items from
+    /// the model's generation stream, invokes `toolDispatch`, feeds the
+    /// returned string back as a `tool` message, and restarts generation
+    /// until the model emits a tool-call-free turn. The string we return
+    /// here is that final turn's content.
+    ///
+    /// Used by ``AskService.answerAgent`` behind the
+    /// `AppSettings.askAgentEnabled` toggle (default OFF). Existing
+    /// callers go through the parameterless-tools form above and see no
+    /// behaviour change.
+    func generate(
+        prompt: String,
+        parameters: GenerateParameters? = nil,
+        enableThinking: Bool = false,
+        instructions: String? = nil,
+        tools: [ToolSpec]? = nil,
+        toolDispatch: (@Sendable (ToolCall) async throws -> String)? = nil
+    ) async throws -> String {
         let container = try await loadModel()
         let session = ChatSession(
             container,
+            instructions: instructions,
             generateParameters: parameters ?? defaultGenerateParameters,
-            additionalContext: enableThinking ? ["enable_thinking": true] : nil
+            additionalContext: enableThinking ? ["enable_thinking": true] : nil,
+            tools: tools,
+            toolDispatch: toolDispatch
         )
         MemoryDiagnostics.snapshot(label: "before-generate")
         defer {

@@ -48,6 +48,9 @@ struct SettingsView: View {
     @AppStorage(AppSettings.askEventGuardEnabledKey)
     private var askEventGuardEnabled: Bool = AppSettings.defaultAskEventGuardEnabled
 
+    @AppStorage(AppSettings.askAgentEnabledKey)
+    private var askAgentEnabled: Bool = AppSettings.defaultAskAgentEnabled
+
     @AppStorage(AppSettings.labPipelineModeKey)
     private var labPipelineModeRaw: String = LabPipelineMode.ocrThenGemma.rawValue
 
@@ -349,6 +352,16 @@ struct SettingsView: View {
             Toggle(isOn: $askEventGuardEnabled) {
                 Label(L10n.key("settings.developer.askEventGuard"),
                       systemImage: "calendar.badge.exclamationmark")
+            }
+            Toggle(isOn: $askAgentEnabled) {
+                Label(L10n.key("settings.developer.askAgent"),
+                      systemImage: "wrench.and.screwdriver")
+            }
+            if askAgentEnabled {
+                Label(L10n.key("settings.developer.askAgent.hint"),
+                      systemImage: "info.circle")
+                    .font(.caption)
+                    .foregroundStyle(.orange)
             }
         } header: {
             Text(L10n.key("settings.developer.section"))

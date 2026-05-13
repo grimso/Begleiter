@@ -403,6 +403,15 @@ actor AskService {
         in entries: [JournalEntry],
         persistEntryEmbeddings: EntryEmbeddingPersister? = nil
     ) async -> AskAnswer {
+        // Agent mode (toggle in Settings → Entwicklung) replaces the
+        // single-shot retrieve-then-prompt pipeline with a function-
+        // calling loop: Gemma decides which tools to call (search,
+        // glossary, lab-trend, phase-metadata) and weaves the citation
+        // markers from their outputs into its final JSON answer.
+        if AppSettings.askAgentEnabled {
+            return await answerAgent(question, in: entries)
+        }
+
         let thinkingEnabled = AppSettings.askThinkingEnabled
         let rerankEnabled = AppSettings.askDenseRerankerEnabled
         var debug = AskDebugInfo(
@@ -643,6 +652,186 @@ actor AskService {
     /// Drive the embedder through one rerank cycle:
     /// 1. Load the embedder (timed).
     /// 2. Embed the question with `kind: .query` (timed).
+    // MARK: - Agent path
+
+    /// Function-calling alternative to ``answer(_:in:persistEntryEmbeddings:)``.
+    /// Replaces the single-shot retrieve-then-prompt pipeline with a
+    /// ``ChatSession``-managed agent loop: Gemma 4 decides when to call
+    /// ``AgentTools`` (search_journal / search_corpus / get_lab_trend /
+    /// get_phase_metadata) and weaves the citation markers from their
+    /// outputs into a final JSON answer that matches the same
+    /// claims/followUps schema the single-shot path emits — so the rest
+    /// of the UI (cards, filter, basis chip, debug sheet) needs no
+    /// branching.
+    ///
+    /// Gated by ``AppSettings.askAgentEnabled`` (Settings → Entwicklung,
+    /// default OFF). When the toggle is off, ``answer(_:in:...)`` runs
+    /// the existing single-shot path; when on, it forwards here.
+    ///
+    /// Errors during tool dispatch surface as a `.modelError` refusal so
+    /// the chat UI stays usable.
+    func answerAgent(
+        _ question: AskQuestion,
+        in entries: [JournalEntry]
+    ) async -> AskAnswer {
+        // AskDebugInfo's `scope` field is set at init, so we build the
+        // starting struct directly with the requested scope rather than
+        // round-tripping through `.empty` + a non-existent `.with(scope:)`.
+        var debug = AskDebugInfo(
+            scope: question.scope,
+            journalHits: 0,
+            corpusHits: 0,
+            promptedEntryIds: [],
+            promptedChunkIds: [],
+            promptCharCount: 0,
+            promptText: "",
+            thinkingEnabled: true,
+            rawModelOutput: "",
+            parseError: nil,
+            modelError: nil,
+            claimsBeforeFilter: 0,
+            claimsAfterFilter: 0,
+            droppedCitationCount: 0,
+            refusalReason: nil,
+            denseRerankerEnabled: false,
+            candidatesBeforeRerankJournal: 0,
+            candidatesBeforeRerankCorpus: 0,
+            rerankReorderCount: 0,
+            embedderLoadMs: nil,
+            queryEmbedMs: nil,
+            entryEmbedCount: 0,
+            corpusEmbedCount: 0,
+            rerankSkippedReason: nil,
+            eventQuestionDetected: false,
+            eventGuardFired: false
+        )
+
+        let tools = AgentTools(
+            retrieval: retrieval,
+            corpus: corpus,
+            entries: entries
+        )
+        let instructions = Self.buildAgentSystemPrompt(scope: question.scope)
+        debug = debug.with(promptCharCount: instructions.count, promptText: instructions)
+        askLog.info("agent: starting question=\(question.text, privacy: .public)")
+
+        let raw: String
+        do {
+            raw = try await gemma.generate(
+                prompt: question.text,
+                parameters: askParameters(),
+                enableThinking: true,
+                instructions: instructions,
+                tools: tools.schemas,
+                toolDispatch: { call in
+                    try await tools.dispatch(call)
+                }
+            )
+        } catch {
+            let msg = error.localizedDescription
+            askLog.error("agent: generate failed: \(msg, privacy: .public)")
+            return AskAnswer.refusal(
+                question: question.text,
+                reason: .modelError,
+                debug: debug.with(modelError: msg)
+            )
+        }
+        debug = debug.with(rawModelOutput: raw)
+
+        // Parse the final JSON using the existing single-shot helpers so
+        // both code paths emit identical `AskAnswer` shapes.
+        let parsed: ParsedAnswer
+        do {
+            parsed = try Self.parseAnswer(from: raw)
+        } catch {
+            askLog.error("agent: parse failed: \(error.localizedDescription, privacy: .public)")
+            return AskAnswer.refusal(
+                question: question.text,
+                reason: .parseFailure,
+                debug: debug.with(parseError: error.localizedDescription)
+            )
+        }
+        debug = debug.with(claimsBeforeFilter: parsed.claims.count)
+
+        // Verifiable-generation filter. Same contract as the single-shot
+        // path: drop fabricated citations, keep claim text, warn instead
+        // of replacing. The agent could in principle cite any entry or
+        // chunk the tools surfaced, so the valid sets are the universe
+        // of UUIDs / chunk ids the tools could have returned.
+        let validEntryIds = Set(entries.map(\.entryId))
+        let validChunkIds = Set(corpus.allChunkIds())
+        let outcome = Self.filterAndWarn(
+            claims: parsed.claims,
+            validEntryIds: validEntryIds,
+            validChunkIds: validChunkIds
+        )
+        debug = debug.with(
+            claimsAfterFilter: outcome.claims.count,
+            droppedCitationCount: outcome.droppedCitations
+        )
+
+        if outcome.claims.isEmpty {
+            return AskAnswer.refusal(
+                question: question.text,
+                reason: .emptyClaims,
+                debug: debug
+            )
+        }
+
+        return AskAnswer(
+            id: UUID(),
+            question: question.text,
+            claims: outcome.claims,
+            followUps: parsed.followUps,
+            basis: Self.computeBasis(for: outcome.claims),
+            warnings: outcome.warnings,
+            debug: debug,
+            renderedAt: .now
+        )
+    }
+
+    /// System message for the agent path. Tells Gemma which tools exist,
+    /// the citation contract, the refusal rules, and the final JSON
+    /// shape. Kept terse on purpose — the schema-level descriptions on
+    /// each `Tool` already explain the per-tool details.
+    static func buildAgentSystemPrompt(scope: AskScope) -> String {
+        let scopeHint: String
+        switch scope {
+        case .all:
+            scopeHint = "Frage betrifft das gesamte Journal."
+        case .labs:
+            scopeHint = "Frage betrifft Laborwerte; bevorzuge `get_lab_trend` und `search_corpus` mit scope=\"labs\"."
+        }
+        return """
+        Sie sind ein Tagebuch-Assistent für Eltern eines Kindes in der AIEOP-BFM ALL 2017 Behandlung.
+
+        AUFGABE: Beantworten Sie die Frage der Eltern, indem Sie die zur Verfügung gestellten Werkzeuge nutzen, um Fakten zu finden. \(scopeHint)
+
+        WERKZEUGE:
+        - `search_journal(query, …)` — Volltext-Suche im Journal. Treffer mit `[E:<UUID>]`.
+        - `search_corpus(query, scope?)` — Wissens-Korpus (Medikamente, Labor-Glossar, Phaseninfo). Treffer mit `[K:<chunkId>]`.
+        - `get_lab_trend(parameter, since?, until?)` — Zeitreihe eines Laborparameters; jeder Punkt mit `[E:<UUID>]`.
+        - `get_phase_metadata(phase)` — Deterministische Phasen-Daten (Dauer, Medikamente, Prozeduren).
+
+        REGELN:
+        - Rufen Sie nur Werkzeuge auf, die für die Frage tatsächlich relevant sind. Maximal 4 Aufrufe insgesamt.
+        - Bei Fragen nach Ereignissen oder Werten aus dem Leben des Kindes IMMER zuerst `search_journal` / `get_lab_trend` aufrufen — NIEMALS aus dem Korpus paraphrasieren, als wäre es ein Tagebuch-Eintrag.
+        - Jede Aussage in Ihrer Antwort braucht eine Quelle: `[E:<UUID>]` für Journal-Einträge, `[K:<chunkId>]` für Korpus-Auszüge. Verwenden Sie die Marker, die die Werkzeuge geliefert haben — kopieren Sie keine UUIDs aus dem Gedächtnis.
+        - Wenn keine Quelle vorliegt, sagen Sie das ehrlich und geben Sie keine Antwort.
+        - Geben Sie KEINE medizinischen Empfehlungen, Dosen oder Diagnosen ab.
+        - Antworten Sie ausschließlich mit JSON nach diesem Schema:
+
+        {
+          "claims": [
+            { "text": "<deutscher Satz mit Citations am Ende, z.B. … [E:UUID]>", "citations": ["E:<UUID>", "K:<chunkId>", …] }
+          ],
+          "followUps": ["<Folgefrage 1>", "<Folgefrage 2>"]
+        }
+
+        Beginnen Sie nach Abschluss aller Werkzeug-Aufrufe direkt mit { und schließen Sie mit }.
+        """
+    }
+
     /// 3. Backfill any journal entries missing an embedding — read them
     ///    out of the BM25 candidate list, embed in one batch with
     ///    `kind: .passage`, persist via the caller-supplied callback.

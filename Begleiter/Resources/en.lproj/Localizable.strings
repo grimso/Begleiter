@@ -394,3 +394,5 @@
 "ask.debug.refusalReason.noJournalForEventQuestion" = "Question targets journal events but no matching entry — Swift guard answered without calling Gemma.";
 
 "settings.developer.askEventGuard" = "Journal guard for event questions";
+"settings.developer.askAgent" = "Agent mode (tool calls)";
+"settings.developer.askAgent.hint" = "Gemma 4 decides which tools (journal search, corpus, lab trend, phase metadata) to call. Reasoning is enabled internally, runs slower, often more precise hits and multiple tool steps per question.";

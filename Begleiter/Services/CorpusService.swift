@@ -122,6 +122,15 @@ struct CorpusService: Sendable {
         activeIndex?.chunks[id]
     }
 
+    /// Universe of chunk ids known to this index. Used by the agent path
+    /// in `AskService.answerAgent` to validate the citations Gemma
+    /// produces — a citation pointing at a chunk id outside this set is
+    /// dropped by the verifiable-generation filter.
+    func allChunkIds() -> [String] {
+        guard let index = activeIndex else { return [] }
+        return Array(index.allChunkIds)
+    }
+
     // MARK: - Dense vectors (rerank cache)
 
     /// Lookup dense embeddings for the given chunk ids. Returns the

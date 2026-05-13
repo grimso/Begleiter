@@ -15,6 +15,7 @@
 		F40B9F662FB1DE8A00FA6B3A /* Tokenizers in Frameworks */ = {isa = PBXBuildFile; productRef = F40B9F652FB1DE8A00FA6B3A /* Tokenizers */; };
 		F40B9F712FB1DC4E00FA6B3A /* MLXEmbedders in Frameworks */ = {isa = PBXBuildFile; productRef = F40B9F702FB1DC4E00FA6B3A /* MLXEmbedders */; };
 		F40B9F722FB1DC4E00FA6B3A /* MLXVLM in Frameworks */ = {isa = PBXBuildFile; productRef = F40B9F732FB1DC4E00FA6B3A /* MLXVLM */; };
+		F40B9F742FB1DC4E00FA6B3A /* MLXLMCommon in Frameworks (Tests) */ = {isa = PBXBuildFile; productRef = F40B9F752FB1DC4E00FA6B3A /* MLXLMCommon (Tests) */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -78,6 +79,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				F40B9F742FB1DC4E00FA6B3A /* MLXLMCommon in Frameworks (Tests) */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -170,6 +172,7 @@
 			);
 			name = BegleiterTests;
 			packageProductDependencies = (
+				F40B9F752FB1DC4E00FA6B3A /* MLXLMCommon (Tests) */,
 			);
 			productName = BegleiterTests;
 			productReference = F40B9EDE2FB1BCB600FA6B3A /* BegleiterTests.xctest */;
@@ -316,6 +319,7 @@
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_LOCALIZABILITY_NONLOCALIZED = YES;
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
@@ -346,6 +350,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = SC5HX97BTL;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
@@ -369,6 +374,7 @@
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
 				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 			};
@@ -379,6 +385,7 @@
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_LOCALIZABILITY_NONLOCALIZED = YES;
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
@@ -409,6 +416,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = SC5HX97BTL;
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
@@ -425,6 +433,7 @@
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_COMPILATION_MODE = wholemodule;
 				VALIDATE_PRODUCT = YES;
 			};
@@ -438,7 +447,6 @@
 				CODE_SIGN_ENTITLEMENTS = Begleiter/Begleiter.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = SC5HX97BTL;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Begleiter nimmt Ihre Sprachnotizen lokal auf dem Gerät auf, um sie zu transkribieren. Die Audiodaten verlassen das Gerät nicht.";
@@ -473,7 +481,6 @@
 				CODE_SIGN_ENTITLEMENTS = Begleiter/Begleiter.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = SC5HX97BTL;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Begleiter nimmt Ihre Sprachnotizen lokal auf dem Gerät auf, um sie zu transkribieren. Die Audiodaten verlassen das Gerät nicht.";
@@ -506,7 +513,6 @@
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = SC5HX97BTL;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.4;
 				MARKETING_VERSION = 1.0;
@@ -528,7 +534,6 @@
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = SC5HX97BTL;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.4;
 				MARKETING_VERSION = 1.0;
@@ -549,7 +554,6 @@
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = SC5HX97BTL;
 				GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = io.grimso.BegleiterUITests;
@@ -569,7 +573,6 @@
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = SC5HX97BTL;
 				GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = io.grimso.BegleiterUITests;
@@ -700,6 +703,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = F40B9F592FB1DC4E00FA6B3A /* XCRemoteSwiftPackageReference "mlx-swift-lm" */;
 			productName = MLXVLM;
+		};
+		F40B9F752FB1DC4E00FA6B3A /* MLXLMCommon (Tests) */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = F40B9F592FB1DC4E00FA6B3A /* XCRemoteSwiftPackageReference "mlx-swift-lm" */;
+			productName = MLXLMCommon;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
