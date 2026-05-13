@@ -245,3 +245,36 @@
 "debug.smoke.generateButton" = "Generate response";
 "debug.smoke.generating" = "Generating …";
 "debug.smoke.outputSection" = "Response";
+
+// MARK: - Settings (Model, Generation length, Lab processing, Diagnostics)
+"settings.title" = "Settings";
+"settings.toolbar" = "Settings";
+
+"settings.model.section" = "Model";
+"settings.model.picker" = "Gemma variant";
+"settings.model.e2b" = "Gemma 4 E2B (3.3 GB)";
+"settings.model.e4b" = "Gemma 4 E4B (4.86 GB)";
+"settings.model.footer" = "E2B is the recommended default. E4B requires the \"Increased Memory Limit\" entitlement and is only reliable on iPhone 15 Pro and later. If E4B fails to load, the app falls back to E2B automatically.";
+"settings.model.applying" = "Switching model …";
+"settings.model.fellBackTitle" = "Fell back to E2B";
+
+"settings.generation.section" = "Generation length (max tokens)";
+"settings.generation.extraction" = "Extraction";
+"settings.generation.briefing" = "Briefing";
+"settings.generation.handoff" = "Handover";
+"settings.generation.footer" = "Higher values allow longer answers but cost time and memory. The defaults match typical Befund lengths.";
+
+"settings.lab.section" = "Lab-report processing";
+"settings.lab.picker" = "Pipeline";
+"settings.lab.ocr" = "Apple Vision OCR → Gemma (recommended)";
+"settings.lab.multimodal" = "Direct Gemma 4 (multimodal)";
+"settings.lab.comingSoon" = "Coming soon";
+"settings.lab.footer" = "Today every lab report runs through Apple's on-device text recognition first, then Gemma. The direct multimodal path arrives once the MLXVLM hookup ships.";
+
+"settings.diagnostics.section" = "Diagnostics";
+"settings.diagnostics.model" = "Active model";
+"settings.diagnostics.modelId" = "Model ID";
+"settings.diagnostics.mlxVersion" = "mlx-swift-lm";
+"settings.diagnostics.clearCache" = "Clear model cache";
+"settings.diagnostics.clearCacheFooter" = "Releases the in-memory weights. The next call reloads the model from the local Hugging Face cache (no download, a few seconds).";
+"settings.diagnostics.cacheCleared" = "Cache cleared";

@@ -5,13 +5,17 @@ import OSLog
 private let extractionLog = Logger(subsystem: "io.grimso.Begleiter", category: "gemma.extraction")
 
 /// Per-call generation parameters for the extraction path.
-/// - maxTokens: 2500 — real Befund PDFs run 15–25 lab values. Combined
-///   with drugs / observations / summary, full output exceeds 1500
-///   tokens. 2500 gives comfortable margin even for chemistry + CBC +
-///   coag panels. KV-cache cost at this length is ~260 MB, still
-///   trivial against the 3.3 GB model.
+/// - maxTokens: read from `AppSettings.extractionMaxTokens` (default 2500).
+///   Real Befund PDFs run 15–25 lab values; combined with drugs /
+///   observations / summary, full output exceeds 1500 tokens. 2500 gives
+///   comfortable margin even for chemistry + CBC + coag panels. The
+///   Settings screen lets users dial this between 512 and 4096.
 /// - temperature: 0.3 — structured extraction wants deterministic output.
-private let extractionParameters = GenerateParameters(maxTokens: 2500, temperature: 0.3)
+///   Not user-configurable; exposing it would risk parents accidentally
+///   breaking the JSON-only contract Gemma honours at low temperature.
+private func extractionParameters() -> GenerateParameters {
+    GenerateParameters(maxTokens: AppSettings.extractionMaxTokens, temperature: 0.3)
+}
 
 /// Outcome of an extraction attempt: parsed structured fields plus the raw
 /// string Gemma emitted (verbatim, with markdown fences if present), plus
@@ -112,6 +116,17 @@ actor ExtractionService {
             throw ExtractionError.emptyInput
         }
 
+        // Lab-pipeline mode switch. Only `.ocrThenGemma` is wired today.
+        // `.directMultimodal` is the future MLXVLM seam — the Settings UI
+        // disables it, but if someone flips it via debugger / Settings.app
+        // we log and fall through to OCR so the entry still extracts.
+        switch AppSettings.labPipelineMode {
+        case .ocrThenGemma:
+            break
+        case .directMultimodal:
+            extractionLog.warning("labPipelineMode=directMultimodal not yet implemented; falling back to OCR→Gemma")
+        }
+
         let prompt = Self.buildPrompt(
             text: trimmedText,
             ocrText: trimmedOCR,
@@ -123,7 +138,7 @@ actor ExtractionService {
 
         extractionLog.info("extract: text=\(trimmedText.count, privacy: .public) chars, ocrText=\(trimmedOCR?.count ?? 0, privacy: .public) chars")
 
-        let raw1 = try await gemma.generate(prompt: prompt, parameters: extractionParameters)
+        let raw1 = try await gemma.generate(prompt: prompt, parameters: extractionParameters())
         extractionLog.debug("attempt=1 raw=\(raw1, privacy: .public)")
         if let fields = try? Self.parseExtractedFields(from: raw1) {
             let labCount = fields.labValues?.value.count ?? 0
@@ -140,7 +155,7 @@ actor ExtractionService {
             visitDate: visitDate,
             strictMode: true
         )
-        let raw2 = try await gemma.generate(prompt: retryPrompt, parameters: extractionParameters)
+        let raw2 = try await gemma.generate(prompt: retryPrompt, parameters: extractionParameters())
         extractionLog.debug("attempt=2 raw=\(raw2, privacy: .public)")
         let fields = try Self.parseExtractedFields(from: raw2)
         let labCount = fields.labValues?.value.count ?? 0

@@ -4,10 +4,15 @@ import OSLog
 
 private let briefingLog = Logger(subsystem: "io.grimso.Begleiter", category: "gemma.briefing")
 
-/// Generation parameters for briefing: longer maxTokens (5 sections with
-/// multiple cited claims easily runs 400+ tokens), moderate temperature
-/// (some German fluency needed but no creative drift).
-private let briefingParameters = GenerateParameters(maxTokens: 640, temperature: 0.5)
+/// Generation parameters for briefing.
+/// - maxTokens: read from `AppSettings.briefingMaxTokens` (default 640).
+///   Five sections with multiple cited claims easily runs 400+ tokens;
+///   640 leaves a margin for verbose German prose. User-configurable
+///   from the Settings screen between 256 and 2048.
+/// - temperature: 0.5 — some German fluency needed, no creative drift.
+private func briefingParameters() -> GenerateParameters {
+    GenerateParameters(maxTokens: AppSettings.briefingMaxTokens, temperature: 0.5)
+}
 
 /// Errors surfaced by `BriefingService`.
 enum BriefingError: Error, LocalizedError {
@@ -73,7 +78,7 @@ actor BriefingService {
             child: child,
             entries: extractedEntries
         )
-        let raw = try await gemma.generate(prompt: prompt, parameters: briefingParameters)
+        let raw = try await gemma.generate(prompt: prompt, parameters: briefingParameters())
         briefingLog.debug("raw=\(raw, privacy: .public)")
         let parsed = try Self.parseBriefing(from: raw, visitDate: visitDate)
 

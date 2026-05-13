@@ -76,6 +76,14 @@ struct TimelineView: View {
                     }
                     .accessibilityLabel(L10n.t("debug.smoke.title"))
                 }
+                ToolbarItem(placement: .topBarLeading) {
+                    NavigationLink {
+                        SettingsView()
+                    } label: {
+                        Image(systemName: "gear")
+                    }
+                    .accessibilityLabel(L10n.t("settings.toolbar"))
+                }
             }
             .sheet(isPresented: $presentingCapture) {
                 CaptureView(child: child)

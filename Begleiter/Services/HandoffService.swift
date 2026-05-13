@@ -1,10 +1,15 @@
 import Foundation
 import MLXLMCommon
 
-/// Generation parameters for handoff: medium maxTokens (only the 3 prose
-/// sections — the rest of the document is assembled deterministically),
-/// lower temperature for clinical phrasing.
-private let handoffParameters = GenerateParameters(maxTokens: 512, temperature: 0.4)
+/// Generation parameters for handoff.
+/// - maxTokens: read from `AppSettings.handoffMaxTokens` (default 512).
+///   Only the three prose sections come from Gemma — the rest of the
+///   document is assembled deterministically — so the budget is smaller
+///   than extraction. User-configurable from 256 to 2048 in Settings.
+/// - temperature: 0.4 — clinical phrasing for the rotating-doctor audience.
+private func handoffParameters() -> GenerateParameters {
+    GenerateParameters(maxTokens: AppSettings.handoffMaxTokens, temperature: 0.4)
+}
 
 enum HandoffError: Error, LocalizedError {
     case modelReturnedNoJSON
@@ -81,7 +86,7 @@ actor HandoffService {
             recent: recent,
             language: language
         )
-        let raw = try await gemma.generate(prompt: prompt, parameters: handoffParameters)
+        let raw = try await gemma.generate(prompt: prompt, parameters: handoffParameters())
         let prose = try Self.parseProseSections(from: raw)
 
         return HandoffDocument(

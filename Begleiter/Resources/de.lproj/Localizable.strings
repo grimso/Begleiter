@@ -245,3 +245,36 @@
 "debug.smoke.generateButton" = "Antwort erzeugen";
 "debug.smoke.generating" = "Erzeuge Antwort …";
 "debug.smoke.outputSection" = "Antwort";
+
+// MARK: - Settings (Modell, Generierungslänge, Befund-Verarbeitung, Diagnose)
+"settings.title" = "Einstellungen";
+"settings.toolbar" = "Einstellungen";
+
+"settings.model.section" = "Modell";
+"settings.model.picker" = "Gemma-Variante";
+"settings.model.e2b" = "Gemma 4 E2B (3,3 GB)";
+"settings.model.e4b" = "Gemma 4 E4B (4,86 GB)";
+"settings.model.footer" = "E2B ist die empfohlene Wahl. E4B benötigt das \"Increased Memory Limit\"-Entitlement und ist nur auf iPhone 15 Pro oder neuer zuverlässig. Wenn E4B nicht geladen werden kann, schaltet die App automatisch auf E2B zurück.";
+"settings.model.applying" = "Modell wird umgestellt …";
+"settings.model.fellBackTitle" = "Auf E2B zurückgeschaltet";
+
+"settings.generation.section" = "Generierungslänge (max. Tokens)";
+"settings.generation.extraction" = "Extraktion";
+"settings.generation.briefing" = "Vorbereitung";
+"settings.generation.handoff" = "Übergabe";
+"settings.generation.footer" = "Höhere Werte erlauben ausführlichere Antworten, brauchen aber mehr Zeit und Speicher. Die Voreinstellungen passen zu typischen Befundlängen.";
+
+"settings.lab.section" = "Befund-Verarbeitung";
+"settings.lab.picker" = "Verarbeitungsweg";
+"settings.lab.ocr" = "Apple Vision OCR → Gemma (empfohlen)";
+"settings.lab.multimodal" = "Direkt Gemma 4 (multimodal)";
+"settings.lab.comingSoon" = "Bald verfügbar";
+"settings.lab.footer" = "Aktuell läuft jeder Befund zuerst durch die on-device Texterkennung von Apple und dann durch Gemma. Der direkte multimodale Weg folgt, sobald die MLXVLM-Anbindung steht.";
+
+"settings.diagnostics.section" = "Diagnose";
+"settings.diagnostics.model" = "Aktives Modell";
+"settings.diagnostics.modelId" = "Modell-ID";
+"settings.diagnostics.mlxVersion" = "mlx-swift-lm";
+"settings.diagnostics.clearCache" = "Modell-Cache leeren";
+"settings.diagnostics.clearCacheFooter" = "Gibt die im Speicher gehaltenen Gewichte frei. Der nächste Aufruf lädt das Modell aus dem lokalen Hugging-Face-Cache neu (kein Download, einige Sekunden).";
+"settings.diagnostics.cacheCleared" = "Cache geleert";

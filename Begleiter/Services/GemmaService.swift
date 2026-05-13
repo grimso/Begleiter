@@ -51,7 +51,10 @@ actor GemmaService {
     /// rather than baking parameters into the service.
     static let shared = GemmaService()
 
-    private let configuration: ModelConfiguration
+    /// Mutable so `reload(variant:)` can swap E2B ↔ E4B at runtime. Reads
+    /// the persisted `AppSettings.modelVariant` on first load.
+    private var configuration: ModelConfiguration
+    private(set) var activeVariant: ModelVariant
     private let defaultGenerateParameters: GenerateParameters
     private var container: ModelContainer?
     private(set) var state: LoadState = .idle
@@ -90,15 +93,27 @@ actor GemmaService {
     }
 
     init(
-        configuration: ModelConfiguration = LLMRegistry.gemma4_e2b_it_4bit,
+        variant: ModelVariant? = nil,
         maxTokens: Int = 256,
         temperature: Float = 0.6
     ) {
-        self.configuration = configuration
+        let resolved = variant ?? AppSettings.modelVariant
+        self.activeVariant = resolved
+        self.configuration = Self.configuration(for: resolved)
         self.defaultGenerateParameters = GenerateParameters(
             maxTokens: maxTokens,
             temperature: temperature
         )
+    }
+
+    /// Map a `ModelVariant` to the matching `LLMRegistry` entry from
+    /// mlx-swift-lm. Centralised so `init` and `reload(variant:)` agree
+    /// on which symbol corresponds to which variant.
+    private static func configuration(for variant: ModelVariant) -> ModelConfiguration {
+        switch variant {
+        case .e2b: return LLMRegistry.gemma4_e2b_it_4bit
+        case .e4b: return LLMRegistry.gemma4_e4b_it_4bit
+        }
     }
 
     // MARK: - Load
@@ -181,5 +196,56 @@ actor GemmaService {
     func unload() {
         container = nil
         state = .idle
+    }
+
+    /// Switch to a different Gemma variant at runtime. Called by the
+    /// Settings screen after the user changes the model picker.
+    ///
+    /// Strategy:
+    /// 1. Drop the current container so its weights can be freed before
+    ///    the new ones load (otherwise we briefly hold both in memory
+    ///    and trip jetsam on smaller devices).
+    /// 2. Swap `configuration` to the new variant and load.
+    /// 3. If the requested variant is E4B and the load fails — almost
+    ///    always a memory-pressure kill on devices without the
+    ///    Increased Memory Limit entitlement headroom — demote to E2B,
+    ///    persist that demotion so the Settings UI reflects the
+    ///    effective state, and retry. Surface a soft error to the
+    ///    caller so they can show a toast.
+    func reload(variant: ModelVariant) async throws {
+        container = nil
+        state = .idle
+        activeVariant = variant
+        configuration = Self.configuration(for: variant)
+        do {
+            _ = try await loadModel()
+        } catch {
+            guard variant == .e4b else { throw error }
+            // E4B is the only variant we fall back from. E2B is the
+            // baseline; if that fails, something is fundamentally
+            // wrong (corrupt cache, no disk space) and we let it raise.
+            container = nil
+            state = .idle
+            activeVariant = .e2b
+            configuration = Self.configuration(for: .e2b)
+            AppSettings.persistModelVariant(.e2b)
+            _ = try await loadModel()
+            throw GemmaReloadError.fellBackToE2B(originalError: error)
+        }
+    }
+}
+
+/// Soft error reported by `reload(variant:)` when the requested variant
+/// could not be loaded but the service successfully fell back to E2B.
+/// Surfaced so the Settings UI can show a one-time alert explaining the
+/// demotion; the app is otherwise fully functional.
+enum GemmaReloadError: LocalizedError {
+    case fellBackToE2B(originalError: Error)
+
+    var errorDescription: String? {
+        switch self {
+        case .fellBackToE2B(let originalError):
+            return "E4B konnte nicht geladen werden, daher wurde auf E2B zurückgeschaltet. Grund: \(originalError.localizedDescription)"
+        }
     }
 }
