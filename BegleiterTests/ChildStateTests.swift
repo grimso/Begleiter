@@ -81,4 +81,66 @@ final class ChildStateTests: XCTestCase {
         let child = makeChild(phase: .reinductionII)
         XCTAssertEqual(child.phaseMetadata.phase, .reinductionII)
     }
+
+    // MARK: - dateRange(forPhase:fromDay:toDay:)
+
+    func test_dateRange_forCurrentPhase_usesCurrentPhaseStartDate() {
+        let calendar = Calendar.current
+        let day1 = calendar.startOfDay(for: .now)
+        let child = makeChild(phase: .inductionIA, phaseStart: day1)
+
+        // First two weeks: days 1-14 → start of day1 ..< start of day15
+        let range = child.dateRange(forPhase: .inductionIA, fromDay: 1, toDay: 14)
+        XCTAssertNotNil(range)
+        XCTAssertEqual(range?.start, day1)
+        let day15 = calendar.date(byAdding: .day, value: 14, to: day1)!
+        XCTAssertEqual(range?.end, day15)
+    }
+
+    func test_dateRange_forCompletedPhase_usesCompletedPhaseStartedOn() {
+        let calendar = Calendar.current
+        let day1 = calendar.startOfDay(for: .now)
+        let day40 = calendar.date(byAdding: .day, value: 39, to: day1)!
+
+        let child = makeChild(phase: .inductionIA, phaseStart: day1)
+        child.advanceTo(phase: .inductionIB, on: day40)
+        // Now child's current phase is IB; IA is completed with startedOn=day1.
+
+        let range = child.dateRange(forPhase: .inductionIA, fromDay: 1, toDay: 14)
+        XCTAssertNotNil(range)
+        XCTAssertEqual(range?.start, day1)
+        let day15 = calendar.date(byAdding: .day, value: 14, to: day1)!
+        XCTAssertEqual(range?.end, day15)
+    }
+
+    func test_dateRange_forUnenteredPhase_returnsNil() {
+        let child = makeChild(phase: .inductionIA)
+        // Child is in IA, hasn't entered Reinduction II yet.
+        XCTAssertNil(child.dateRange(forPhase: .reinductionII, fromDay: 1, toDay: 7))
+    }
+
+    func test_dateRange_normalisesReversedDayOffsets() {
+        let calendar = Calendar.current
+        let day1 = calendar.startOfDay(for: .now)
+        let child = makeChild(phase: .inductionIA, phaseStart: day1)
+
+        // Reversed input: should produce the same window as 7..14.
+        let reversed = child.dateRange(forPhase: .inductionIA, fromDay: 14, toDay: 7)
+        let normal = child.dateRange(forPhase: .inductionIA, fromDay: 7, toDay: 14)
+        XCTAssertEqual(reversed, normal)
+    }
+
+    func test_dateRange_singleDayWindow() {
+        let calendar = Calendar.current
+        let day1 = calendar.startOfDay(for: .now)
+        let child = makeChild(phase: .inductionIA, phaseStart: day1)
+
+        // fromDay == toDay == 5 → start of day5 ..< start of day6.
+        let range = child.dateRange(forPhase: .inductionIA, fromDay: 5, toDay: 5)
+        XCTAssertNotNil(range)
+        let day5 = calendar.date(byAdding: .day, value: 4, to: day1)!
+        let day6 = calendar.date(byAdding: .day, value: 5, to: day1)!
+        XCTAssertEqual(range?.start, day5)
+        XCTAssertEqual(range?.end, day6)
+    }
 }
