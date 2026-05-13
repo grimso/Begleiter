@@ -36,6 +36,9 @@ struct SettingsView: View {
     @AppStorage(AppSettings.askDiagnosticsEnabledKey)
     private var askDiagnosticsEnabled: Bool = AppSettings.defaultAskDiagnosticsEnabled
 
+    @AppStorage(AppSettings.askThinkingEnabledKey)
+    private var askThinkingEnabled: Bool = AppSettings.defaultAskThinkingEnabled
+
     @AppStorage(AppSettings.labPipelineModeKey)
     private var labPipelineModeRaw: String = LabPipelineMode.ocrThenGemma.rawValue
 
@@ -145,7 +148,7 @@ struct SettingsView: View {
             tokenStepper(
                 title: L10n.t("settings.generation.ask"),
                 value: $askMaxTokens,
-                range: 256...1024,
+                range: 256...2048,
                 step: 128
             )
         } header: {
@@ -287,6 +290,16 @@ struct SettingsView: View {
             Toggle(isOn: $askDiagnosticsEnabled) {
                 Label(L10n.key("settings.developer.askDiagnostics"),
                       systemImage: "stethoscope")
+            }
+            Toggle(isOn: $askThinkingEnabled) {
+                Label(L10n.key("settings.developer.askThinking"),
+                      systemImage: "brain")
+            }
+            if askThinkingEnabled && askMaxTokens < 1024 {
+                Label(L10n.key("settings.developer.askThinking.budgetHint"),
+                      systemImage: "info.circle")
+                    .font(.caption)
+                    .foregroundStyle(.orange)
             }
         } header: {
             Text(L10n.key("settings.developer.section"))

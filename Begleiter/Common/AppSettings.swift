@@ -63,6 +63,7 @@ enum AppSettings {
     nonisolated static let handoffMaxTokensKey     = "handoffMaxTokens"
     nonisolated static let askMaxTokensKey         = "askMaxTokens"
     nonisolated static let askDiagnosticsEnabledKey = "askDiagnosticsEnabled"
+    nonisolated static let askThinkingEnabledKey   = "askThinkingEnabled"
     nonisolated static let labPipelineModeKey      = "labPipelineMode"
 
     nonisolated static let defaultExtractionMaxTokens = 2500
@@ -70,6 +71,7 @@ enum AppSettings {
     nonisolated static let defaultHandoffMaxTokens    = 512
     nonisolated static let defaultAskMaxTokens        = 512
     nonisolated static let defaultAskDiagnosticsEnabled = false
+    nonisolated static let defaultAskThinkingEnabled    = false
 
     /// Plain-Swift read path for non-SwiftUI callers (services / actors).
     /// `@AppStorage` is a SwiftUI property wrapper and can't be read from
@@ -109,6 +111,16 @@ enum AppSettings {
     /// `SettingsView`→Entwicklung.
     nonisolated static var askDiagnosticsEnabled: Bool {
         UserDefaults.standard.bool(forKey: askDiagnosticsEnabledKey)
+    }
+
+    /// When `true`, `AskService` opts every Gemma call into thinking mode
+    /// (`additionalContext: ["enable_thinking": true]`). The chat template
+    /// inserts a `<|think|>` token; Gemma emits a `<|channel>thought`
+    /// reasoning section before the JSON answer. Costs several hundred
+    /// extra output tokens per call — pair with `askMaxTokens ≥ 1024`.
+    /// Off by default; the toggle lives in `SettingsView`→Entwicklung.
+    nonisolated static var askThinkingEnabled: Bool {
+        UserDefaults.standard.bool(forKey: askThinkingEnabledKey)
     }
 
     nonisolated static var labPipelineMode: LabPipelineMode {

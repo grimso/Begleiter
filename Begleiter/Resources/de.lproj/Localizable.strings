@@ -283,7 +283,9 @@
 "settings.developer.section" = "Entwicklung";
 "settings.developer.smokeTest" = "Gemma 4 Smoke-Test";
 "settings.developer.askDiagnostics" = "Ask-Diagnose anzeigen";
-"settings.developer.footer" = "Interner Diagnose-Bildschirm für die Entwicklung. Lädt das Modell und führt einen Test-Prompt aus. Bei aktiver Ask-Diagnose zeigt jede Antwort einen Info-Button mit Retrieval-Stats, Roh-Ausgabe und Filter-Status.";
+"settings.developer.askThinking" = "Gemma Reasoning aktivieren";
+"settings.developer.askThinking.budgetHint" = "Reasoning braucht mehr Tokens. Empfehlung: Ask-Token-Budget auf 1024 oder höher stellen.";
+"settings.developer.footer" = "Interner Diagnose-Bildschirm für die Entwicklung. Lädt das Modell und führt einen Test-Prompt aus. Bei aktiver Ask-Diagnose zeigt jede Antwort einen Info-Button mit Retrieval-Stats, Roh-Ausgabe und Filter-Status. Aktiviertes Reasoning lässt Gemma vor der Antwort intern nachdenken (langsamer, mehr Tokens, oft bessere Strukturierung).";
 
 // MARK: - Fragen (Ask)
 "ask.toolbar" = "Fragen";
@@ -344,6 +346,8 @@
 "ask.debug.claimsAfter" = "Aussagen nach Filter";
 "ask.debug.droppedCitations" = "Verworfene Citations";
 "ask.debug.warnings" = "Warnungen";
+"ask.debug.thinkingEnabled" = "Reasoning aktiv";
+"ask.debug.thinkingDisabled" = "Reasoning aus";
 "ask.debug.refusalReason" = "Refusal-Grund";
 "ask.debug.refusalReason.footer" = "Diese Antwort wurde als kanonische Weiterleitung emittiert, weil eine der unten genannten Bedingungen vor der Modell-Generierung oder beim Parsing eintrat.";
 "ask.debug.refusalReason.emptyRetrieval" = "Retrieval war leer (weder Journal- noch Korpus-Treffer).";

@@ -133,6 +133,7 @@ nonisolated struct AskDebugInfo: Sendable, Hashable {
     let promptedEntryIds: [UUID]
     let promptedChunkIds: [String]
     let promptCharCount: Int
+    let thinkingEnabled: Bool
     let rawModelOutput: String
     let parseError: String?
     let modelError: String?
@@ -150,6 +151,7 @@ nonisolated struct AskDebugInfo: Sendable, Hashable {
         promptedEntryIds: [],
         promptedChunkIds: [],
         promptCharCount: 0,
+        thinkingEnabled: false,
         rawModelOutput: "",
         parseError: nil,
         modelError: nil,
@@ -200,6 +202,7 @@ nonisolated struct AskAnswer: Sendable, Hashable, Identifiable {
                 promptedEntryIds: debug.promptedEntryIds,
                 promptedChunkIds: debug.promptedChunkIds,
                 promptCharCount: debug.promptCharCount,
+                thinkingEnabled: debug.thinkingEnabled,
                 rawModelOutput: debug.rawModelOutput,
                 parseError: debug.parseError,
                 modelError: debug.modelError,
@@ -259,6 +262,7 @@ actor AskService {
         _ question: AskQuestion,
         in entries: [JournalEntry]
     ) async -> AskAnswer {
+        let thinkingEnabled = AppSettings.askThinkingEnabled
         var debug = AskDebugInfo(
             scope: question.scope,
             journalHits: 0,
@@ -266,6 +270,7 @@ actor AskService {
             promptedEntryIds: [],
             promptedChunkIds: [],
             promptCharCount: 0,
+            thinkingEnabled: thinkingEnabled,
             rawModelOutput: "",
             parseError: nil,
             modelError: nil,
@@ -325,7 +330,11 @@ actor AskService {
 
         let raw: String
         do {
-            raw = try await gemma.generate(prompt: prompt, parameters: askParameters())
+            raw = try await gemma.generate(
+                prompt: prompt,
+                parameters: askParameters(),
+                enableThinking: thinkingEnabled
+            )
         } catch {
             let errMessage = error.localizedDescription
             askLog.error("gemma.generate failed: \(errMessage, privacy: .public)")
@@ -669,6 +678,7 @@ extension AskDebugInfo {
         promptedEntryIds: [UUID]? = nil,
         promptedChunkIds: [String]? = nil,
         promptCharCount: Int? = nil,
+        thinkingEnabled: Bool? = nil,
         rawModelOutput: String? = nil,
         parseError: String? = nil,
         modelError: String? = nil,
@@ -684,6 +694,7 @@ extension AskDebugInfo {
             promptedEntryIds: promptedEntryIds ?? self.promptedEntryIds,
             promptedChunkIds: promptedChunkIds ?? self.promptedChunkIds,
             promptCharCount: promptCharCount ?? self.promptCharCount,
+            thinkingEnabled: thinkingEnabled ?? self.thinkingEnabled,
             rawModelOutput: rawModelOutput ?? self.rawModelOutput,
             parseError: parseError ?? self.parseError,
             modelError: modelError ?? self.modelError,

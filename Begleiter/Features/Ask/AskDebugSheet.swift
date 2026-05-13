@@ -94,6 +94,11 @@ struct AskDebugSheet: View {
 
     private var modelSection: some View {
         Section {
+            Label(answer.debug.thinkingEnabled
+                  ? L10n.t("ask.debug.thinkingEnabled")
+                  : L10n.t("ask.debug.thinkingDisabled"),
+                  systemImage: answer.debug.thinkingEnabled ? "brain" : "brain.head.profile")
+                .foregroundStyle(answer.debug.thinkingEnabled ? .purple : .secondary)
             if let modelError = answer.debug.modelError {
                 Label(modelError, systemImage: "exclamationmark.triangle.fill")
                     .foregroundStyle(.red)

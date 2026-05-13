@@ -165,17 +165,27 @@ actor GemmaService {
     /// handoff want moderate creative output (default 0.6). Each caller
     /// passes its own.
     ///
+    /// `enableThinking` opts into Gemma 4's reasoning mode. When `true`,
+    /// the chat template inserts a `<|think|>` token at the start of the
+    /// system turn and Gemma emits a `<|channel>thought` reasoning section
+    /// before the final answer. Costs several hundred extra output tokens
+    /// per call — callers should pair this with a larger `maxTokens`
+    /// budget (≥1024). Off by default to preserve the existing token
+    /// budget for callers that don't need it.
+    ///
     /// Memory-hygiene wrapper: snapshots before + after the generation and
     /// drops MLX's freed-buffer cache after it returns (or throws), which
     /// otherwise accumulates several GB across repeated calls.
     func generate(
         prompt: String,
-        parameters: GenerateParameters? = nil
+        parameters: GenerateParameters? = nil,
+        enableThinking: Bool = false
     ) async throws -> String {
         let container = try await loadModel()
         let session = ChatSession(
             container,
-            generateParameters: parameters ?? defaultGenerateParameters
+            generateParameters: parameters ?? defaultGenerateParameters,
+            additionalContext: enableThinking ? ["enable_thinking": true] : nil
         )
         MemoryDiagnostics.snapshot(label: "before-generate")
         defer {
