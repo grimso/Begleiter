@@ -133,6 +133,10 @@ nonisolated struct AskDebugInfo: Sendable, Hashable {
     let promptedEntryIds: [UUID]
     let promptedChunkIds: [String]
     let promptCharCount: Int
+    /// The full prompt string sent to Gemma. Always captured; the
+    /// Diagnose sheet only renders it when the diagnostics toggle is
+    /// on. Empty when retrieval was empty (no Gemma call).
+    let promptText: String
     let thinkingEnabled: Bool
     let rawModelOutput: String
     let parseError: String?
@@ -176,6 +180,7 @@ nonisolated struct AskDebugInfo: Sendable, Hashable {
         promptedEntryIds: [],
         promptedChunkIds: [],
         promptCharCount: 0,
+        promptText: "",
         thinkingEnabled: false,
         rawModelOutput: "",
         parseError: nil,
@@ -236,6 +241,7 @@ nonisolated struct AskAnswer: Sendable, Hashable, Identifiable {
                 promptedEntryIds: debug.promptedEntryIds,
                 promptedChunkIds: debug.promptedChunkIds,
                 promptCharCount: debug.promptCharCount,
+                promptText: debug.promptText,
                 thinkingEnabled: debug.thinkingEnabled,
                 rawModelOutput: debug.rawModelOutput,
                 parseError: debug.parseError,
@@ -331,6 +337,7 @@ actor AskService {
             promptedEntryIds: [],
             promptedChunkIds: [],
             promptCharCount: 0,
+            promptText: "",
             thinkingEnabled: thinkingEnabled,
             rawModelOutput: "",
             parseError: nil,
@@ -442,7 +449,7 @@ actor AskService {
             entries: topEntries,
             chunks: topChunks
         )
-        debug = debug.with(promptCharCount: prompt.count)
+        debug = debug.with(promptCharCount: prompt.count, promptText: prompt)
 
         let raw: String
         do {
@@ -681,6 +688,16 @@ actor AskService {
     /// Build the German prompt. Models the `[ENTRY n] id=...` block shape
     /// of `BriefingService.buildPrompt` (lines 115–135) but adds
     /// `[CORPUS n] id=...` blocks for retrieved reference chunks.
+    ///
+    /// Trimmed for token budget — every line in REGELN earns its place.
+    /// Adds a **Quellenwahl** rule that distinguishes event-questions
+    /// ("welche … gab es?", "wann hatte …?", "wie war …?") from
+    /// knowledge-questions ("was bedeutet …?", "Nebenwirkungen?"). For
+    /// event-questions the model is told to answer only from ENTRY
+    /// blocks and to admit no match rather than fall back to CORPUS —
+    /// without this rule, BM25/dense retrieval surfaces a topically
+    /// relevant corpus chunk that the model happily paraphrases,
+    /// producing answers that read true but are actually generic info.
     static func buildPrompt(
         question: String,
         entries: [JournalEntry],
@@ -690,22 +707,22 @@ actor AskService {
             let date = dateFormatter.string(from: entry.visitDate)
             let f = entry.extractedFields
             var lines: [String] = []
-            lines.append("[ENTRY \(idx + 1)] id=\(entry.entryId.uuidString) | datum=\(date)")
+            lines.append("[ENTRY \(idx + 1)] id=\(entry.entryId.uuidString) datum=\(date)")
             if let summary = f.summary?.value, !summary.isEmpty {
-                lines.append("  zusammenfassung: \(summary)")
+                lines.append("zusf: \(summary)")
             }
             if let drugs = f.drugsMentioned?.value, !drugs.isEmpty {
-                lines.append("  medikamente: \(drugs.map { $0.germanLabel }.joined(separator: ", "))")
+                lines.append("med: \(drugs.map { $0.germanLabel }.joined(separator: ", "))")
             }
             if let labs = f.labValues?.value, !labs.isEmpty {
                 let lab = labs.map { "\($0.germanLabel) \($0.value)\($0.unit)" }.joined(separator: ", ")
-                lines.append("  labor: \(lab)")
+                lines.append("lab: \(lab)")
             }
             if let rx = f.reactions?.value, !rx.isEmpty {
-                lines.append("  reaktionen: \(rx.map { $0.description }.joined(separator: "; "))")
+                lines.append("rx: \(rx.map { $0.description }.joined(separator: "; "))")
             }
             if let obs = f.parentObservations?.value, !obs.isEmpty {
-                lines.append("  beobachtungen: \(obs.joined(separator: "; "))")
+                lines.append("obs: \(obs.joined(separator: "; "))")
             }
             return lines.joined(separator: "\n")
         }.joined(separator: "\n\n")
@@ -713,38 +730,32 @@ actor AskService {
         let chunkBlocks = chunks.enumerated().map { (idx, chunk) -> String in
             """
             [CORPUS \(idx + 1)] id=\(chunk.id)
-              titel: \(chunk.title)
-              inhalt: \(chunk.text)
+            titel: \(chunk.title)
+            inhalt: \(chunk.text)
             """
         }.joined(separator: "\n\n")
 
         let entriesSection = entries.isEmpty
             ? ""
-            : "EINTRÄGE AUS DEM JOURNAL (gefiltert nach Relevanz):\n\(entryBlocks)\n\n"
+            : "EINTRÄGE AUS DEM JOURNAL:\n\(entryBlocks)\n\n"
         let chunksSection = chunks.isEmpty
             ? ""
-            : "REFERENZKORPUS (gefiltert nach Relevanz):\n\(chunkBlocks)\n\n"
+            : "REFERENZKORPUS:\n\(chunkBlocks)\n\n"
 
         return """
-        Sie beantworten die Frage eines Elternteils zum Krebsbehandlungsverlauf seines Kindes. Antworten Sie AUSSCHLIESSLICH mit JSON nach dem unten stehenden Schema. Maximal 200 Wörter im JSON insgesamt.
+        Beantworte die Frage des Elternteils zum Behandlungsverlauf des Kindes. Antworte AUSSCHLIESSLICH mit JSON (max. 200 Wörter).
 
         REGELN:
-        - Antworten Sie auf Deutsch, in einfacher Sprache für Eltern (keine Fachsprache ohne Erklärung).
-        - Jede Aussage MUSS mindestens eine Citation tragen.
-        - Citation-Format: "E:<UUID>" für einen Journal-Eintrag, "K:<chunkId>" für einen Korpus-Eintrag.
-        - Verwenden Sie NUR IDs, die in den Kontext-Blöcken oben vorkommen. Erfinden Sie keine IDs.
-        - KEINE medizinischen Empfehlungen, KEINE Dosis-Aussagen, KEINE Diagnosen. Bei Behandlungsfragen verweisen Sie an das Behandlungsteam.
-        - Schlagen Sie 2–3 hilfreiche Folgefragen auf Deutsch vor, die zur Frage passen.
+        - Einfaches Deutsch für Eltern.
+        - Jede Aussage braucht eine Citation. Format: E:<UUID> für ENTRY, K:<id> für CORPUS. Nur IDs aus den Kontext-Blöcken.
+        - Quellenwahl: Bei Ereignisfragen ("welche … gab es?", "wann hatte …?", "wie war …?", "was ist passiert?") AUSSCHLIESSLICH aus ENTRY-Blöcken antworten. Kein passender Eintrag? Antworte genau: "Im Journal finde ich dazu keinen Eintrag." mit leerer citations-Liste — keine CORPUS-Inhalte als Ersatz. Bei Wissensfragen ("was bedeutet …?", "Nebenwirkungen?") darfst du CORPUS nutzen.
+        - Keine Empfehlungen/Dosen/Diagnosen — verweise ans Behandlungsteam.
+        - Schlage 2–3 Folgefragen vor.
 
         \(entriesSection)\(chunksSection)FRAGE: \(question)
 
         SCHEMA:
-        {
-          "claims": [
-            { "text": "<eine Aussage auf Deutsch>", "citations": ["E:<UUID>" oder "K:<chunkId>"] }
-          ],
-          "followUps": ["<Folgefrage 1>", "<Folgefrage 2>", "<Folgefrage 3>"]
-        }
+        {"claims":[{"text":"…","citations":["E:<UUID>" oder "K:<id>"]}],"followUps":["…"]}
 
         JSON:
         """
@@ -928,6 +939,7 @@ extension AskDebugInfo {
         promptedEntryIds: [UUID]? = nil,
         promptedChunkIds: [String]? = nil,
         promptCharCount: Int? = nil,
+        promptText: String? = nil,
         thinkingEnabled: Bool? = nil,
         rawModelOutput: String? = nil,
         parseError: String? = nil,
@@ -953,6 +965,7 @@ extension AskDebugInfo {
             promptedEntryIds: promptedEntryIds ?? self.promptedEntryIds,
             promptedChunkIds: promptedChunkIds ?? self.promptedChunkIds,
             promptCharCount: promptCharCount ?? self.promptCharCount,
+            promptText: promptText ?? self.promptText,
             thinkingEnabled: thinkingEnabled ?? self.thinkingEnabled,
             rawModelOutput: rawModelOutput ?? self.rawModelOutput,
             parseError: parseError ?? self.parseError,

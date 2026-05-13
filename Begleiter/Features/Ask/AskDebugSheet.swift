@@ -154,6 +154,16 @@ struct AskDebugSheet: View {
                   : L10n.t("ask.debug.thinkingDisabled"),
                   systemImage: answer.debug.thinkingEnabled ? "brain" : "brain.head.profile")
                 .foregroundStyle(answer.debug.thinkingEnabled ? .purple : .secondary)
+            if !answer.debug.promptText.isEmpty {
+                DisclosureGroup(
+                    "\(L10n.t("ask.debug.promptText")) (\(answer.debug.promptCharCount))"
+                ) {
+                    Text(answer.debug.promptText)
+                        .font(.caption.monospaced())
+                        .textSelection(.enabled)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+            }
             if let modelError = answer.debug.modelError {
                 Label(modelError, systemImage: "exclamationmark.triangle.fill")
                     .foregroundStyle(.red)

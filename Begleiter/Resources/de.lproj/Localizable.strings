@@ -341,6 +341,7 @@
 "ask.debug.modelNotCalled" = "Modell wurde nicht aufgerufen (Retrieval war leer).";
 "ask.debug.rawCharCount" = "Roh-Ausgabe Zeichen";
 "ask.debug.rawOutput" = "Roh-Ausgabe anzeigen";
+"ask.debug.promptText" = "Prompt anzeigen";
 "ask.debug.filter" = "Filter";
 "ask.debug.claimsBefore" = "Aussagen vor Filter";
 "ask.debug.claimsAfter" = "Aussagen nach Filter";

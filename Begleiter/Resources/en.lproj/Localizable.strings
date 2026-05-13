@@ -341,6 +341,7 @@
 "ask.debug.modelNotCalled" = "Model was not called (retrieval was empty).";
 "ask.debug.rawCharCount" = "Raw output chars";
 "ask.debug.rawOutput" = "Show raw output";
+"ask.debug.promptText" = "Show prompt";
 "ask.debug.filter" = "Filter";
 "ask.debug.claimsBefore" = "Claims before filter";
 "ask.debug.claimsAfter" = "Claims after filter";
