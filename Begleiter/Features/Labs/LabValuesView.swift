@@ -10,6 +10,7 @@ struct LabValuesView: View {
 
     @Environment(\.dismiss) private var dismiss
     @State private var presentingAsk = false
+    @State private var presentingPlotComposer = false
 
     @Query(sort: \JournalEntry.visitDate, order: .reverse)
     private var entries: [JournalEntry]
@@ -33,6 +34,9 @@ struct LabValuesView: View {
             }
             .sheet(isPresented: $presentingAsk) {
                 AskView(child: child, scope: .labs)
+            }
+            .sheet(isPresented: $presentingPlotComposer) {
+                LabPlotComposerView(child: child)
             }
         }
     }
@@ -79,6 +83,25 @@ struct LabValuesView: View {
                 .buttonStyle(.plain)
                 .listRowBackground(Color.accentColor.opacity(0.12))
                 .accessibilityLabel(L10n.t("labs.ask.cta"))
+
+                Button {
+                    presentingPlotComposer = true
+                } label: {
+                    HStack {
+                        Image(systemName: "chart.bar.xaxis")
+                        Text(L10n.key("labs.plotComposer.cta"))
+                            .fontWeight(.semibold)
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(.vertical, 6)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .listRowBackground(Color.purple.opacity(0.12))
+                .accessibilityLabel(L10n.t("labs.plotComposer.cta"))
             }
 
             Section {

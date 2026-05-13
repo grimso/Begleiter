@@ -181,6 +181,28 @@
 "labs.source.text" = "Text";
 "labs.source.manual" = "Manuell";
 
+// MARK: - Lab plot composer
+"labs.plotComposer.cta" = "Plot bauen";
+"labs.plotComposer.title" = "Plot bauen";
+"labs.plotComposer.placeholder" = "Was möchten Sie sehen?";
+"labs.plotComposer.parser.label" = "Parser";
+"labs.plotComposer.parser.heuristic" = "Heuristik";
+"labs.plotComposer.parser.gemma" = "Gemma";
+"labs.plotComposer.submit" = "Plotten";
+"labs.plotComposer.starters.heading" = "Beispiele";
+"labs.plotComposer.starter.1" = "Blutbild für die ersten zwei Wochen in Induktion und die letzte Woche nebeneinander";
+"labs.plotComposer.starter.2" = "Zeig HB im letzten Monat";
+"labs.plotComposer.starter.3" = "Leberwerte überlagern für die Reinduktion";
+"labs.plotComposer.starter.4" = "CRP und ANC nebeneinander für die ersten 7 Tage in Konsolidierung";
+"labs.plotComposer.cell.noPoints" = "Keine Werte";
+"labs.plotComposer.warning.noPointsInWindow" = "Für mindestens ein Zeitfenster gibt es keine Werte.";
+"labs.plotComposer.warning.phaseNotYetEntered" = "Mindestens ein Zeitfenster bezieht sich auf eine Phase, die noch nicht begonnen hat.";
+"labs.plotComposer.warning.parameterShorthandUnknown" = "Mindestens eine Sammelbezeichnung wurde nicht erkannt.";
+"labs.plotComposer.error.generic" = "Es ist ein Fehler aufgetreten.";
+"labs.plotComposer.debug.title" = "Diagnose";
+"labs.plotComposer.debug.specHeader" = "Geparste Spezifikation";
+"labs.plotComposer.debug.rangesHeader" = "Aufgelöste Zeitfenster";
+
 // MARK: - Async extraction pipeline
 "entry.status.pending" = "wartet";
 "entry.status.extracting" = "wird analysiert";

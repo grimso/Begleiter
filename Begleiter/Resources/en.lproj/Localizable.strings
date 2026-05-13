@@ -181,6 +181,28 @@
 "labs.source.text" = "Text";
 "labs.source.manual" = "Manual";
 
+// MARK: - Lab plot composer
+"labs.plotComposer.cta" = "Build a plot";
+"labs.plotComposer.title" = "Build a plot";
+"labs.plotComposer.placeholder" = "What would you like to see?";
+"labs.plotComposer.parser.label" = "Parser";
+"labs.plotComposer.parser.heuristic" = "Heuristic";
+"labs.plotComposer.parser.gemma" = "Gemma";
+"labs.plotComposer.submit" = "Plot";
+"labs.plotComposer.starters.heading" = "Examples";
+"labs.plotComposer.starter.1" = "CBC for the first two weeks of induction and last week side by side";
+"labs.plotComposer.starter.2" = "Show HB over the last month";
+"labs.plotComposer.starter.3" = "Overlay liver values for reinduction";
+"labs.plotComposer.starter.4" = "CRP and ANC side by side for the first 7 days of consolidation";
+"labs.plotComposer.cell.noPoints" = "No values";
+"labs.plotComposer.warning.noPointsInWindow" = "At least one time window has no values.";
+"labs.plotComposer.warning.phaseNotYetEntered" = "At least one window references a phase the child hasn't entered yet.";
+"labs.plotComposer.warning.parameterShorthandUnknown" = "At least one shorthand wasn't recognised.";
+"labs.plotComposer.error.generic" = "Something went wrong.";
+"labs.plotComposer.debug.title" = "Diagnostics";
+"labs.plotComposer.debug.specHeader" = "Parsed specification";
+"labs.plotComposer.debug.rangesHeader" = "Resolved time windows";
+
 // MARK: - Async extraction pipeline
 "entry.status.pending" = "queued";
 "entry.status.extracting" = "analysing";
