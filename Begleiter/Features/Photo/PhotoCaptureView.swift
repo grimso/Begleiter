@@ -24,7 +24,15 @@ struct PhotoCaptureView: View {
     @State private var presentingFileImporter = false
 
     var body: some View {
-        NavigationStack {
+        // SwiftUI passes the `PhotosPicker` label as a `@Sendable` closure
+        // under strict concurrency. Capturing the main-actor view model
+        // inside that closure trips the isolation check, so we resolve the
+        // label here in the main-actor body and pass it in by value.
+        let pickerLabelTitle = model.pickerItem == nil
+            ? L10n.t("photo.pick")
+            : L10n.t("photo.pickAnother")
+
+        return NavigationStack {
             Form {
                 Section {
                     PhotosPicker(
@@ -33,9 +41,7 @@ struct PhotoCaptureView: View {
                         photoLibrary: .shared()
                     ) {
                         Label(
-                            model.pickerItem == nil
-                                ? L10n.t("photo.pick")
-                                : L10n.t("photo.pickAnother"),
+                            pickerLabelTitle,
                             systemImage: "photo.on.rectangle"
                         )
                     }

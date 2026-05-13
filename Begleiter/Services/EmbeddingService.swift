@@ -180,7 +180,12 @@ actor EmbeddingService {
         _ texts: [String],
         container: EmbedderModelContainer
     ) async throws -> [[Float]] {
-        try await container.perform { context in
+        // `EmbedderModelContainer.perform` is declared `rethrows` and the
+        // closure body below never throws, so the `rethrows` resolves to
+        // non-throwing here and no `try` is needed. `throws` stays on
+        // this function's signature because callers expect it (and the
+        // closure could grow throws in the future).
+        await container.perform { context in
             let tokenizer = context.tokenizer
             let model = context.model
             let pooling = context.pooling

@@ -926,7 +926,6 @@ actor AskService {
         var warnings: [AnswerWarning] = []
         var droppedTotal = 0
         var anyClaimHadCitations = false
-        var anyClaimLostAllCitations = false
         var adviceFired = false
 
         let filtered: [AnswerClaim] = claims.map { claim in
@@ -940,7 +939,6 @@ actor AskService {
             droppedTotal += dropped
             if !claim.citations.isEmpty {
                 anyClaimHadCitations = true
-                if surviving.isEmpty { anyClaimLostAllCitations = true }
             }
             if RefusalService.containsClinicalAdvice(claim.text) {
                 adviceFired = true

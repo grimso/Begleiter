@@ -125,6 +125,12 @@ actor GemmaService {
     func loadModel() async throws -> ModelContainer {
         if let container { return container }
 
+        // Mutex with the multimodal sibling service. The VLM-loaded
+        // Gemma 4 carries the vision tower (~200–300 MB extra resident)
+        // and we cannot afford both copies in memory on iPhone 14 Pro.
+        // Symmetric call lives in ``GemmaVisionService.loadModel``.
+        await GemmaVisionService.shared.unload()
+
         Self.applyCacheLimitIfNeeded()
         state = .loading(progress: 0)
         MemoryDiagnostics.snapshot(label: "before-load")

@@ -291,8 +291,9 @@
 "settings.lab.picker" = "Verarbeitungsweg";
 "settings.lab.ocr" = "Apple Vision OCR → Gemma (empfohlen)";
 "settings.lab.multimodal" = "Direkt Gemma 4 (multimodal)";
-"settings.lab.comingSoon" = "Bald verfügbar";
-"settings.lab.footer" = "Aktuell läuft jeder Befund zuerst durch die on-device Texterkennung von Apple und dann durch Gemma. Der direkte multimodale Weg folgt, sobald die MLXVLM-Anbindung steht.";
+"settings.lab.experimentalBadge" = "Experimentell";
+"settings.lab.maxLongEdge" = "Max. Bildkante";
+"settings.lab.footer" = "OCR → Gemma ist der erprobte Weg. Der direkte multimodale Weg gibt das Befund-Foto unverändert an Gemma 4 — stärker bei handschriftlichen Notizen und mehrspaltigen Tabellen, kostet aber mehr Speicher und ist beim ersten Laden langsamer. Die Bilder werden vor der Übergabe auf die maximale Kantenlänge verkleinert, um den Speicher zu schonen; kleinere Werte helfen auf älteren Geräten.";
 
 "settings.diagnostics.section" = "Diagnose";
 "settings.diagnostics.model" = "Aktives Modell";

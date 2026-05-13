@@ -154,7 +154,7 @@ struct LabPlotComposerView: View {
     // MARK: - Error banner
 
     private func errorBanner(_ error: LabPlotComposerError) -> some View {
-        Label(error.localizedDescription ?? L10n.t("labs.plotComposer.error.generic"),
+        Label(error.errorDescription ?? L10n.t("labs.plotComposer.error.generic"),
               systemImage: "exclamationmark.triangle.fill")
             .font(.callout)
             .foregroundStyle(.orange)

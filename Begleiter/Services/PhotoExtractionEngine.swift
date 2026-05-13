@@ -69,10 +69,13 @@ actor AppleVisionPhotoEngine: PhotoExtractionEngine {
     func prepare() async throws {
         // Vision's German script is always available where the framework
         // exists; nothing to install. Confirm the locale is supported on
-        // this iOS revision for safety.
-        let supported = (try? VNRecognizeTextRequest.supportedRecognitionLanguages(
-            for: .accurate, revision: VNRecognizeTextRequestRevision3
-        )) ?? []
+        // this iOS revision for safety. The static
+        // `supportedRecognitionLanguages(for:revision:)` was deprecated in
+        // iOS 15 in favour of the instance method on a configured request.
+        let probe = VNRecognizeTextRequest()
+        probe.recognitionLevel = .accurate
+        probe.revision = VNRecognizeTextRequestRevision3
+        let supported = (try? probe.supportedRecognitionLanguages()) ?? []
         guard supported.contains(where: { $0.hasPrefix("de") }) else {
             throw PhotoExtractionError.engineUnavailable
         }

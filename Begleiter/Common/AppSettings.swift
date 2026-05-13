@@ -34,12 +34,22 @@ enum ModelVariant: String, CaseIterable, Identifiable, Sendable {
 
 /// How the app turns a lab-report attachment into structured fields.
 ///
-/// `.ocrThenGemma` is the only path that runs today (Apple Vision OCR
-/// builds a text block, then `ExtractionService` feeds it to Gemma).
-/// `.directMultimodal` is persisted for forward compatibility — when
-/// `MLXVLM` lands the same value flips the branch in `ExtractionService`.
-/// The Settings UI disables the multimodal row, but the persisted value
-/// is still defensively switched on at the call site.
+/// `.ocrThenGemma` (default) — Apple Vision OCR builds a text block,
+/// then `ExtractionService` feeds it to text-only Gemma 4 via
+/// ``GemmaService``. The proven path; ~150 MB lighter resident.
+///
+/// `.directMultimodal` — `ExtractionService` skips OCR for image
+/// attachments and feeds the photo directly to Gemma 4 via
+/// ``GemmaVisionService`` (MLXVLM). Better on handwritten margin notes
+/// and multi-column lab tables; costs the vision tower (~200–300 MB)
+/// resident on top of the LM body and triggers an unload/reload of the
+/// text-only sibling on first activation. Branch lives in
+/// `ExtractionService.extractWithVision`.
+///
+/// Per project convention every new AI behaviour ships behind a toggle;
+/// this enum IS the toggle. Default stays `.ocrThenGemma` so an update
+/// changes nothing until the user opts in via Settings →
+/// Befund-Verarbeitung.
 enum LabPipelineMode: String, CaseIterable, Identifiable, Sendable {
     case ocrThenGemma
     case directMultimodal
@@ -67,6 +77,7 @@ enum AppSettings {
     nonisolated static let askDenseRerankerEnabledKey = "askDenseRerankerEnabled"
     nonisolated static let askEventGuardEnabledKey = "askEventGuardEnabled"
     nonisolated static let labPipelineModeKey      = "labPipelineMode"
+    nonisolated static let visionMaxLongEdgeKey    = "visionMaxLongEdge"
 
     nonisolated static let defaultExtractionMaxTokens = 2500
     nonisolated static let defaultBriefingMaxTokens   = 640
@@ -76,6 +87,16 @@ enum AppSettings {
     nonisolated static let defaultAskThinkingEnabled    = false
     nonisolated static let defaultAskDenseRerankerEnabled = false
     nonisolated static let defaultAskEventGuardEnabled    = true
+    /// Long-edge pixel cap applied to Befund images before they reach
+    /// Gemma 4 vision. 1568 px matches the largest grid resolution
+    /// Gemma's vision processor maps onto its 1120-token budget without
+    /// upscaling, so dropping below it loses no useful detail. The
+    /// downscale runs in `GemmaVisionService.preprocess(imageURLs:)`
+    /// and uses Core Graphics so the resize happens out of the Swift
+    /// stack. Range 768–2048 px; users on iPhone 13 or older can dial
+    /// down if they hit the memory limit on Befunde with text near the
+    /// edges; users on iPhone 15 Pro+ can dial up.
+    nonisolated static let defaultVisionMaxLongEdge = 1568
 
     /// Plain-Swift read path for non-SwiftUI callers (services / actors).
     /// `@AppStorage` is a SwiftUI property wrapper and can't be read from
@@ -153,6 +174,17 @@ enum AppSettings {
     nonisolated static var labPipelineMode: LabPipelineMode {
         let raw = UserDefaults.standard.string(forKey: labPipelineModeKey) ?? LabPipelineMode.ocrThenGemma.rawValue
         return LabPipelineMode(rawValue: raw) ?? .ocrThenGemma
+    }
+
+    /// Pixel cap (long edge) for Befund images on the `.directMultimodal`
+    /// path. 0 / unset → use ``defaultVisionMaxLongEdge`` (1568 px).
+    /// Read by ``GemmaVisionService.preprocess(imageURLs:)`` before the
+    /// images are wrapped as `UserInput.Image.ciImage(_:)`. Adjust in
+    /// Settings → Befund-Verarbeitung if you hit the per-app memory
+    /// limit on a smaller device.
+    nonisolated static var visionMaxLongEdge: Int {
+        let v = UserDefaults.standard.integer(forKey: visionMaxLongEdgeKey)
+        return v > 0 ? v : defaultVisionMaxLongEdge
     }
 
     /// Write path used by `GemmaService` when E4B load fails and the

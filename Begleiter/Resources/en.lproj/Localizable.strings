@@ -291,8 +291,9 @@
 "settings.lab.picker" = "Pipeline";
 "settings.lab.ocr" = "Apple Vision OCR → Gemma (recommended)";
 "settings.lab.multimodal" = "Direct Gemma 4 (multimodal)";
-"settings.lab.comingSoon" = "Coming soon";
-"settings.lab.footer" = "Today every lab report runs through Apple's on-device text recognition first, then Gemma. The direct multimodal path arrives once the MLXVLM hookup ships.";
+"settings.lab.experimentalBadge" = "Experimental";
+"settings.lab.maxLongEdge" = "Max. image edge";
+"settings.lab.footer" = "OCR → Gemma is the proven path. The direct multimodal path hands the Befund photo to Gemma 4 unchanged — stronger on handwritten notes and multi-column tables, but it costs more memory and is slower on first load. Images are downscaled to the max edge before they reach the model to keep memory in check; lower values help on older devices.";
 
 "settings.diagnostics.section" = "Diagnostics";
 "settings.diagnostics.model" = "Active model";

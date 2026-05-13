@@ -70,18 +70,25 @@ actor ExtractionService {
     static let shared = ExtractionService()
 
     private let gemma: GemmaService
+    private let visionGemma: GemmaVisionService
 
-    /// Defaults to the app-wide shared GemmaService so we never load two
-    /// copies of the model. Per-call generation parameters are passed
-    /// into `gemma.generate(prompt:parameters:)` below.
-    init(gemma: GemmaService = .shared) {
+    /// Defaults to the app-wide shared services so we never load two
+    /// copies of the model. The text and vision services are mutually
+    /// exclusive in memory — see ``GemmaVisionService.loadModel`` and
+    /// the symmetric call in ``GemmaService.loadModel``.
+    init(
+        gemma: GemmaService = .shared,
+        visionGemma: GemmaVisionService = .shared
+    ) {
         self.gemma = gemma
+        self.visionGemma = visionGemma
     }
 
-    /// Pass-through to the underlying GemmaService so the memory-warning
-    /// handler can drop the model.
+    /// Pass-through to both underlying services so the memory-warning
+    /// handler can drop whichever model is currently resident.
     func unloadModel() async {
         await gemma.unload()
+        await visionGemma.unload()
     }
 
     /// Extract structured fields from a German text journal entry.
@@ -107,24 +114,39 @@ actor ExtractionService {
         phase: Phase,
         dayInPhase: Int,
         visitDate: Date,
-        ocrText: String? = nil
+        ocrText: String? = nil,
+        imageURLs: [URL] = []
     ) async throws -> ExtractionResult {
         let trimmedText = text.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedOCR = ocrText?.trimmingCharacters(in: .whitespacesAndNewlines)
-        // At least one input source must be non-empty.
-        if trimmedText.isEmpty && (trimmedOCR?.isEmpty ?? true) {
+        // At least one input source must be non-empty. Images alone are
+        // a valid source in `.directMultimodal` mode (parent attaches a
+        // Befund photo without typing anything).
+        if trimmedText.isEmpty
+            && (trimmedOCR?.isEmpty ?? true)
+            && imageURLs.isEmpty {
             throw ExtractionError.emptyInput
         }
 
-        // Lab-pipeline mode switch. Only `.ocrThenGemma` is wired today.
-        // `.directMultimodal` is the future MLXVLM seam — the Settings UI
-        // disables it, but if someone flips it via debugger / Settings.app
-        // we log and fall through to OCR so the entry still extracts.
-        switch AppSettings.labPipelineMode {
-        case .ocrThenGemma:
-            break
-        case .directMultimodal:
-            extractionLog.warning("labPipelineMode=directMultimodal not yet implemented; falling back to OCR→Gemma")
+        // Lab-pipeline mode switch. The toggle lives in
+        // `AppSettings.labPipelineMode` (Settings → Befund-Verarbeitung).
+        // `.directMultimodal` engages only when we actually have image
+        // URLs to pass in — if the user flipped the toggle but the
+        // current entry is text-only, the text path is the right fallback.
+        let mode = AppSettings.labPipelineMode
+        let useVisionPath = (mode == .directMultimodal) && !imageURLs.isEmpty
+        if mode == .directMultimodal && imageURLs.isEmpty {
+            extractionLog.info("mode=directMultimodal but no images on entry; using text-only path")
+        }
+
+        if useVisionPath {
+            return try await extractWithVision(
+                text: trimmedText,
+                phase: phase,
+                dayInPhase: dayInPhase,
+                visitDate: visitDate,
+                imageURLs: imageURLs
+            )
         }
 
         let prompt = Self.buildPrompt(
@@ -160,6 +182,66 @@ actor ExtractionService {
         let fields = try Self.parseExtractedFields(from: raw2)
         let labCount = fields.labValues?.value.count ?? 0
         extractionLog.info("attempt=2 parsed OK, labs=\(labCount, privacy: .public)")
+        return ExtractionResult(fields: fields, rawResponse: raw2, attempt: 2)
+    }
+
+    /// `.directMultimodal` extraction path. Feeds the Befund image(s)
+    /// straight to Gemma 4 via the multimodal sibling service instead
+    /// of pre-OCR-ing them. Mirrors the text path's two-attempt retry
+    /// (loose → strict) so failure modes match what the rest of the
+    /// app already understands.
+    ///
+    /// Returns the same `ExtractionResult` contract as the text path,
+    /// so callers (queue, view models) need not branch on mode.
+    private func extractWithVision(
+        text: String,
+        phase: Phase,
+        dayInPhase: Int,
+        visitDate: Date,
+        imageURLs: [URL]
+    ) async throws -> ExtractionResult {
+        extractionLog.info(
+            "extractWithVision: text=\(text.count, privacy: .public) chars, images=\(imageURLs.count, privacy: .public)"
+        )
+
+        let prompt1 = Self.buildVisionPrompt(
+            text: text,
+            phase: phase,
+            dayInPhase: dayInPhase,
+            visitDate: visitDate,
+            imageCount: imageURLs.count,
+            strictMode: false
+        )
+        let raw1 = try await visionGemma.generate(
+            prompt: prompt1,
+            imageURLs: imageURLs,
+            parameters: extractionParameters()
+        )
+        extractionLog.debug("vision.attempt=1 raw=\(raw1, privacy: .public)")
+        if let fields = try? Self.parseExtractedFields(from: raw1) {
+            let labCount = fields.labValues?.value.count ?? 0
+            extractionLog.info("vision.attempt=1 parsed OK, labs=\(labCount, privacy: .public)")
+            return ExtractionResult(fields: fields, rawResponse: raw1, attempt: 1)
+        }
+
+        extractionLog.warning("vision.attempt=1 parse failed, retrying in strict mode")
+        let prompt2 = Self.buildVisionPrompt(
+            text: text,
+            phase: phase,
+            dayInPhase: dayInPhase,
+            visitDate: visitDate,
+            imageCount: imageURLs.count,
+            strictMode: true
+        )
+        let raw2 = try await visionGemma.generate(
+            prompt: prompt2,
+            imageURLs: imageURLs,
+            parameters: extractionParameters()
+        )
+        extractionLog.debug("vision.attempt=2 raw=\(raw2, privacy: .public)")
+        let fields = try Self.parseExtractedFields(from: raw2)
+        let labCount = fields.labValues?.value.count ?? 0
+        extractionLog.info("vision.attempt=2 parsed OK, labs=\(labCount, privacy: .public)")
         return ExtractionResult(fields: fields, rawResponse: raw2, attempt: 2)
     }
 
@@ -235,6 +317,74 @@ actor ExtractionService {
 
         TEXT DER ELTERN:
         \(text.isEmpty ? "(kein eigener Text — Befund liegt unten bei)" : text)\(befundBlock)
+
+        JSON:
+        """
+    }
+
+    /// Prompt for the `.directMultimodal` path. Same JSON contract as
+    /// the text path but the Befund context comes from an attached
+    /// image (or images) rather than a pre-extracted OCR block.
+    ///
+    /// We do NOT inline the image inside the prompt string — mlx-swift's
+    /// `ChatSession.respond(to:images:)` attaches the image(s) to the
+    /// user turn via the model's chat template (`Gemma4MessageGenerator`
+    /// emits `{"type": "image"}` content parts). The prompt's job is to
+    /// (a) restate the schema and rules, and (b) tell the model to
+    /// consult the attached image(s) for lab values.
+    static func buildVisionPrompt(
+        text: String,
+        phase: Phase,
+        dayInPhase: Int,
+        visitDate: Date,
+        imageCount: Int,
+        strictMode: Bool
+    ) -> String {
+        let dateString = Self.dateFormatter.string(from: visitDate)
+        let phaseLabel = phase.germanLabel
+
+        let header = strictMode
+            ? "WICHTIG: Antworten Sie AUSSCHLIESSLICH mit gültigem JSON. Kein Markdown, kein Text vor oder nach dem JSON, keine Erklärungen. Beginnen Sie direkt mit { und enden Sie mit }."
+            : "Antworten Sie ausschließlich mit JSON nach dem unten gezeigten Schema."
+
+        let imagePhrase = imageCount == 1
+            ? "ein Befund-Foto"
+            : "\(imageCount) Befund-Fotos"
+
+        return """
+        Sie sind ein medizinischer Tagebuch-Assistent für Eltern eines Kindes in der AIEOP-BFM ALL 2017 Behandlung. Ihre einzige Aufgabe ist es, den freien Text der Eltern UND den/die angehängten Befund \(imageCount == 1 ? "" : "e") in strukturierte Felder zu überführen.
+
+        \(header)
+
+        REGELN:
+        - Im Anhang dieses Eintrags ist \(imagePhrase). Lesen Sie ALLE eindeutig erkennbaren Laborwerte direkt aus dem Bild ab (Parameter, Wert, Einheit). Mehrere Werte sind die Regel, nicht die Ausnahme.
+        - Erfinden Sie NIEMALS Werte. Wenn ein Wert im Bild unleserlich ist, **lassen Sie das Feld komplett weg**. NIEMALS "value": null oder "value": [] verwenden — einfach das Feld nicht in das JSON aufnehmen.
+        - Jedes Feld MUSS beide Schlüssel haben: "value" und "confidence" (eine Zahl zwischen 0.0 und 1.0).
+        - Konfidenz-Skala: 1.0 = explizit und klar lesbar, 0.5 = wahrscheinlich aber unsicher (z.B. teilweise verdeckt), < 0.3 = sehr unsicher (z.B. handschriftlich, verwackelt).
+        - Geben Sie KEINE medizinischen Einschätzungen, Empfehlungen oder Diagnosen ab. Sie strukturieren nur, was im Bild steht oder die Eltern gesagt haben.
+        - Schreiben Sie Eigennamen und medizinische Begriffe genau so wie im Befund (z.B. "Vincristin", "Methotrexat", "Hb", "ANC").
+
+        KONTEXT (zur Plausibilitätsprüfung, NICHT ins JSON kopieren):
+        - Aktuelle Phase: \(phaseLabel)
+        - Tag in dieser Phase: \(dayInPhase)
+        - Datum des Eintrags: \(dateString)
+
+        SCHEMA (alle Felder optional — weglassen wenn nicht erwähnt):
+        {
+          "visitType": { "value": "ambulant" | "stationaer" | "notfall" | "telefonisch" | "zuhause", "confidence": 0.0-1.0 },
+          "doctorName": { "value": "<Name>", "confidence": 0.0-1.0 },
+          "drugsMentioned": { "value": [{ "name": "<INN>", "germanLabel": "<wie genannt>", "doseDescription": "<frei>", "administeredAt": null }], "confidence": 0.0-1.0 },
+          "labValues": { "value": [{ "parameter": "<WBC, RBC, ANC, Hb, HGB, HCT, PLT, MCV, MCH, MCHC, CRP, ALT, AST, Quick, INR, Na, K, Ca, Glucose, ...>", "germanLabel": "<dt. Bezeichnung oder gleich wie parameter>", "value": <Zahl>, "unit": "<Einheit>", "measuredAt": "\(dateString)", "source": "befund_photo" }], "confidence": 0.0-1.0 },
+          "proceduresMentioned": { "value": ["<Prozedur 1>", "..."], "confidence": 0.0-1.0 },
+          "decisions": { "value": ["<Entscheidung des Teams 1>", "..."], "confidence": 0.0-1.0 },
+          "parentObservations": { "value": ["<Beobachtung der Eltern 1>", "..."], "confidence": 0.0-1.0 },
+          "openQuestions": { "value": ["<offene Frage 1>", "..."], "confidence": 0.0-1.0 },
+          "reactions": { "value": [{ "description": "<frei>", "suspectedCause": "<Medikament/Prozedur oder null>", "parentSeverity": "leicht" | "mittel" | "schwer" | null, "occurredAt": null }], "confidence": 0.0-1.0 },
+          "summary": { "value": "<ein Satz auf Deutsch>", "confidence": 0.0-1.0 }
+        }
+
+        TEXT DER ELTERN:
+        \(text.isEmpty ? "(kein eigener Text — siehe angehängtes Befund-Bild)" : text)
 
         JSON:
         """

@@ -51,6 +51,9 @@ struct SettingsView: View {
     @AppStorage(AppSettings.labPipelineModeKey)
     private var labPipelineModeRaw: String = LabPipelineMode.ocrThenGemma.rawValue
 
+    @AppStorage(AppSettings.visionMaxLongEdgeKey)
+    private var visionMaxLongEdge: Int = AppSettings.defaultVisionMaxLongEdge
+
     // MARK: - Transient state
 
     @State private var modelReloading: Bool = false
@@ -187,10 +190,12 @@ struct SettingsView: View {
         }
     }
 
-    /// Custom picker because SwiftUI's built-in `Picker` cannot disable
-    /// individual rows. We render two button rows ourselves with a
-    /// trailing checkmark and an explicit `.disabled` on the multimodal
-    /// row plus a "Bald verfügbar" tag.
+    /// Custom picker because SwiftUI's built-in `Picker` cannot decorate
+    /// individual rows. Both modes are functional today; the multimodal
+    /// row carries an "Experimentell" tag because it loads a second copy
+    /// of Gemma 4 (vision tower) and has had less testing on real Befund
+    /// photos. Default stays `.ocrThenGemma` so existing users see no
+    /// behavior change after the update.
     private var labSection: some View {
         Section {
             labRow(
@@ -202,9 +207,23 @@ struct SettingsView: View {
             labRow(
                 title: L10n.t("settings.lab.multimodal"),
                 mode: .directMultimodal,
-                badge: L10n.t("settings.lab.comingSoon"),
-                enabled: false
+                badge: L10n.t("settings.lab.experimentalBadge"),
+                enabled: true
             )
+            // Only show the long-edge slider when the multimodal path
+            // is actually selected — the OCR path doesn't pass images
+            // through to Gemma so the setting would be inert there.
+            if labPipelineMode.wrappedValue == .directMultimodal {
+                Stepper(value: $visionMaxLongEdge, in: 768...2048, step: 128) {
+                    HStack {
+                        Text(L10n.key("settings.lab.maxLongEdge"))
+                        Spacer()
+                        Text("\(visionMaxLongEdge) px")
+                            .monospacedDigit()
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
         } header: {
             Text(L10n.key("settings.lab.section"))
         } footer: {

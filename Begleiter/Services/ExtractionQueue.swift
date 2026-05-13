@@ -145,13 +145,31 @@ actor ExtractionQueue {
         let dayInPhase = entry.dayInPhase
         let visitDate = entry.visitDate
 
+        // Resolve persisted photo basenames back to file URLs so the
+        // `.directMultimodal` extraction path can feed them straight to
+        // Gemma 4 vision. Photos that no longer exist on disk are
+        // silently dropped — extraction falls back to the OCR text we
+        // already captured at capture time.
+        let imageURLs: [URL] = entry.rawPhotoFilenames.compactMap { name in
+            // Skip non-image attachments (e.g. PDFs) — the VLM path is
+            // image-only. The original OCR-text path still picked their
+            // text up because PDFKit ran inside the photo engine.
+            let isImage = name.lowercased().hasSuffix(".jpg")
+                || name.lowercased().hasSuffix(".jpeg")
+                || name.lowercased().hasSuffix(".png")
+                || name.lowercased().hasSuffix(".heic")
+            guard isImage else { return nil }
+            return PhotoStorage.storedURL(for: name)
+        }
+
         do {
             let result = try await ExtractionService.shared.extract(
                 text: text,
                 phase: phase,
                 dayInPhase: dayInPhase,
                 visitDate: visitDate,
-                ocrText: ocr
+                ocrText: ocr,
+                imageURLs: imageURLs
             )
             entry.extractedJSON = result.fields.encoded()
             entry.rawExtractionResponse = result.rawResponse
