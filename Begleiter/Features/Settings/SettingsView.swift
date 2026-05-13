@@ -1,3 +1,4 @@
+import SwiftData
 import SwiftUI
 
 /// User-facing settings for runtime configuration of the Gemma stack.
@@ -15,6 +16,8 @@ import SwiftUI
 ///    that forces the next call to reload weights from the local HF
 ///    cache (no network).
 struct SettingsView: View {
+
+    @Environment(\.modelContext) private var modelContext
 
     // MARK: - Persisted settings
 
@@ -38,6 +41,9 @@ struct SettingsView: View {
 
     @AppStorage(AppSettings.askThinkingEnabledKey)
     private var askThinkingEnabled: Bool = AppSettings.defaultAskThinkingEnabled
+
+    @AppStorage(AppSettings.askDenseRerankerEnabledKey)
+    private var askDenseRerankerEnabled: Bool = AppSettings.defaultAskDenseRerankerEnabled
 
     @AppStorage(AppSettings.labPipelineModeKey)
     private var labPipelineModeRaw: String = LabPipelineMode.ocrThenGemma.rawValue
@@ -301,10 +307,44 @@ struct SettingsView: View {
                     .font(.caption)
                     .foregroundStyle(.orange)
             }
+            Toggle(isOn: $askDenseRerankerEnabled) {
+                Label(L10n.key("settings.developer.askDenseReranker"),
+                      systemImage: "rectangle.stack.badge.plus")
+            }
+            if askDenseRerankerEnabled {
+                Label(L10n.key("settings.developer.askDenseReranker.firstLaunchHint"),
+                      systemImage: "info.circle")
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+            }
+            Button {
+                Task { await clearRerankerCache() }
+            } label: {
+                Label(L10n.key("settings.developer.askDenseReranker.clearCache"),
+                      systemImage: "trash")
+            }
+            .disabled(!askDenseRerankerEnabled)
         } header: {
             Text(L10n.key("settings.developer.section"))
         } footer: {
             Text(L10n.key("settings.developer.footer"))
+        }
+    }
+
+    /// Clear the corpus + journal embedding caches. Called from the
+    /// "Embedding-Cache leeren" button under the dense-rerank toggle.
+    /// On the next reranked question the embedder rebuilds all vectors.
+    @MainActor
+    private func clearRerankerCache() async {
+        CorpusService.shared.clearCachedVectors()
+        // Zero all journal entry embeddings via a single SwiftData
+        // transaction. The next rerank call repopulates lazily.
+        let descriptor = FetchDescriptor<JournalEntry>()
+        if let entries = try? modelContext.fetch(descriptor) {
+            for entry in entries where !entry.embedding.isEmpty {
+                entry.embedding = []
+            }
+            try? modelContext.save()
         }
     }
 

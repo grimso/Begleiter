@@ -348,6 +348,19 @@
 "ask.debug.warnings" = "Warnings";
 "ask.debug.thinkingEnabled" = "Reasoning on";
 "ask.debug.thinkingDisabled" = "Reasoning off";
+
+"settings.developer.askDenseReranker" = "Re-rank answers (embeddings)";
+"settings.developer.askDenseReranker.firstLaunchHint" = "Downloads a ~130 MB embedding model on first activation. First question is a few seconds slower.";
+"settings.developer.askDenseReranker.clearCache" = "Clear embedding cache";
+
+"ask.debug.reranker.title" = "Reranker";
+"ask.debug.reranker.active" = "Reranker active";
+"ask.debug.reranker.inactive" = "Reranker skipped";
+"ask.debug.reranker.candidatesBefore" = "Candidates before rerank (journal / corpus)";
+"ask.debug.reranker.reorderCount" = "Reorder steps";
+"ask.debug.reranker.embedderLoadMs" = "Embedder load";
+"ask.debug.reranker.queryEmbedMs" = "Query embed";
+"ask.debug.reranker.newVectors" = "New vectors (entries / corpus)";
 "ask.debug.refusalReason" = "Refusal reason";
 "ask.debug.refusalReason.footer" = "This answer was emitted as the canonical redirect because one of the conditions below fired before model generation or during parsing.";
 "ask.debug.refusalReason.emptyRetrieval" = "Retrieval was empty (no journal or corpus hits).";

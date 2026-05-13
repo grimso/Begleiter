@@ -240,6 +240,32 @@ enum EmbeddingError: Error, LocalizedError {
     }
 }
 
+/// Subset of `EmbeddingService` that `AskService` needs for the
+/// dense-rerank path. Exists so unit tests can inject a deterministic
+/// mock without booting MLX. The mlx-vs-mock split lets us keep the
+/// reranker-on tests in the Begleiter test target (which runs on the
+/// simulator) while the real embedder only ever runs on device.
+protocol AskEmbedder: Sendable {
+    func ensureLoaded() async throws
+    func unload() async
+    func embedQuery(_ text: String) async throws -> [Float]
+    func embedPassages(_ texts: [String]) async throws -> [[Float]]
+}
+
+extension EmbeddingService: AskEmbedder {
+    func ensureLoaded() async throws {
+        _ = try await loadModel()
+    }
+
+    func embedQuery(_ text: String) async throws -> [Float] {
+        try await embed(text, kind: .query)
+    }
+
+    func embedPassages(_ texts: [String]) async throws -> [[Float]] {
+        try await embed(texts, kind: .passage)
+    }
+}
+
 // MARK: - Array chunking helper
 
 private extension Array {

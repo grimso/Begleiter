@@ -21,6 +21,9 @@ struct AskDebugSheet: View {
         NavigationStack {
             Form {
                 retrievalSection
+                if rerankerVisible {
+                    rerankerSection
+                }
                 contextSection
                 modelSection
                 filterSection
@@ -55,6 +58,58 @@ struct AskDebugSheet: View {
             }
         } header: {
             Text(L10n.key("ask.debug.retrieval"))
+        }
+    }
+
+    private var rerankerVisible: Bool {
+        answer.debug.denseRerankerEnabled || answer.debug.rerankSkippedReason != nil
+    }
+
+    private var rerankerSection: some View {
+        Section {
+            Label(
+                answer.debug.denseRerankerEnabled
+                ? L10n.t("ask.debug.reranker.active")
+                : L10n.t("ask.debug.reranker.inactive"),
+                systemImage: answer.debug.denseRerankerEnabled
+                    ? "rectangle.stack.badge.plus"
+                    : "rectangle.stack"
+            )
+            .foregroundStyle(answer.debug.denseRerankerEnabled ? .purple : .secondary)
+
+            if answer.debug.denseRerankerEnabled {
+                LabeledContent(L10n.t("ask.debug.reranker.candidatesBefore")) {
+                    Text("\(answer.debug.candidatesBeforeRerankJournal) / \(answer.debug.candidatesBeforeRerankCorpus)")
+                        .monospacedDigit()
+                }
+                LabeledContent(L10n.t("ask.debug.reranker.reorderCount")) {
+                    Text("\(answer.debug.rerankReorderCount)")
+                        .monospacedDigit()
+                        .foregroundStyle(answer.debug.rerankReorderCount > 0 ? .purple : .secondary)
+                }
+                if let loadMs = answer.debug.embedderLoadMs {
+                    LabeledContent(L10n.t("ask.debug.reranker.embedderLoadMs")) {
+                        Text("\(loadMs) ms")
+                            .monospacedDigit()
+                    }
+                }
+                if let queryMs = answer.debug.queryEmbedMs {
+                    LabeledContent(L10n.t("ask.debug.reranker.queryEmbedMs")) {
+                        Text("\(queryMs) ms")
+                            .monospacedDigit()
+                    }
+                }
+                LabeledContent(L10n.t("ask.debug.reranker.newVectors")) {
+                    Text("\(answer.debug.entryEmbedCount) / \(answer.debug.corpusEmbedCount)")
+                        .monospacedDigit()
+                }
+            }
+            if let reason = answer.debug.rerankSkippedReason {
+                Label(reason, systemImage: "exclamationmark.triangle")
+                    .foregroundStyle(.orange)
+            }
+        } header: {
+            Text(L10n.key("ask.debug.reranker.title"))
         }
     }
 

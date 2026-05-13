@@ -19,6 +19,8 @@ struct AskView: View {
     @Query(sort: \JournalEntry.visitDate, order: .reverse)
     private var entries: [JournalEntry]
 
+    @Environment(\.modelContext) private var modelContext
+
     @State private var viewModel: AskViewModel?
     @State private var presentedChunk: CorpusChunk?
     @State private var pendingEntryDetailId: UUID?
@@ -75,12 +77,35 @@ struct AskView: View {
         }
         .task {
             if viewModel == nil {
-                viewModel = AskViewModel(scope: scope)
+                viewModel = AskViewModel(
+                    scope: scope,
+                    persistEntryEmbeddings: makeEmbeddingPersister()
+                )
             }
             viewModel?.updateEntries(entries)
         }
         .onChange(of: entries) { _, newValue in
             viewModel?.updateEntries(newValue)
+        }
+    }
+
+    /// Builds the SwiftData write-back closure that
+    /// `AskService.runRerank` calls when it computes fresh journal-
+    /// entry embeddings. Runs on the main actor so the `@Model`
+    /// mutation is on the right context.
+    @MainActor
+    private func makeEmbeddingPersister() -> AskService.EntryEmbeddingPersister {
+        let context = modelContext
+        return { embeddings in
+            for (entryId, vector) in embeddings {
+                let descriptor = FetchDescriptor<JournalEntry>(
+                    predicate: #Predicate<JournalEntry> { $0.entryId == entryId }
+                )
+                if let entry = try? context.fetch(descriptor).first {
+                    entry.embedding = vector
+                }
+            }
+            try? context.save()
         }
     }
 

@@ -141,8 +141,9 @@ struct CorpusService: Sendable {
 
     /// Compute and persist vectors for every chunk that doesn't have one
     /// yet. No-op when every retrieved candidate already has a cached
-    /// vector. The embedder must be loaded by the caller; vectors are
-    /// produced with `kind: .passage` (E5 convention for indexed text).
+    /// vector. Takes a closure rather than a concrete `EmbeddingService`
+    /// so this service stays free of MLX imports — `AskService` passes
+    /// `embedder.embedPassages` (E5 `.passage` prefix already baked in).
     ///
     /// Returns the chunk ids that were freshly embedded — `AskService`
     /// records this in `AskDebugInfo.corpusEmbedCount` for the Diagnose
@@ -150,7 +151,7 @@ struct CorpusService: Sendable {
     @discardableResult
     func backfillVectors(
         for ids: [String],
-        using embedder: EmbeddingService
+        embedPassages: (_ texts: [String]) async throws -> [[Float]]
     ) async throws -> [String] {
         _ = activeIndex  // hydrate _vectors if first call
         guard let index = activeIndex else { return [] }
@@ -169,8 +170,8 @@ struct CorpusService: Sendable {
         }
         guard !missing.isEmpty else { return [] }
 
-        let texts = missing.map(\.text)
-        let vectors = try await embedder.embed(texts, kind: .passage)
+        let texts = missing.map { $0.text }
+        let vectors = try await embedPassages(texts)
         guard vectors.count == missing.count else {
             corpusLog.error("embedder returned \(vectors.count, privacy: .public) vectors for \(missing.count, privacy: .public) inputs")
             return []

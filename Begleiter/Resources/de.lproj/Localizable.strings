@@ -348,6 +348,19 @@
 "ask.debug.warnings" = "Warnungen";
 "ask.debug.thinkingEnabled" = "Reasoning aktiv";
 "ask.debug.thinkingDisabled" = "Reasoning aus";
+
+"settings.developer.askDenseReranker" = "Antworten erneut sortieren (Embeddings)";
+"settings.developer.askDenseReranker.firstLaunchHint" = "Lädt beim ersten Aktivieren ein ca. 130 MB Embedding-Modell. Erste Frage dauert ein paar Sekunden länger.";
+"settings.developer.askDenseReranker.clearCache" = "Embedding-Cache leeren";
+
+"ask.debug.reranker.title" = "Reranker";
+"ask.debug.reranker.active" = "Reranker aktiv";
+"ask.debug.reranker.inactive" = "Reranker übersprungen";
+"ask.debug.reranker.candidatesBefore" = "Kandidaten vor Rerank (Journal / Korpus)";
+"ask.debug.reranker.reorderCount" = "Reorder-Schritte";
+"ask.debug.reranker.embedderLoadMs" = "Embedder-Laden";
+"ask.debug.reranker.queryEmbedMs" = "Query-Embed";
+"ask.debug.reranker.newVectors" = "Neue Vektoren (Einträge / Korpus)";
 "ask.debug.refusalReason" = "Refusal-Grund";
 "ask.debug.refusalReason.footer" = "Diese Antwort wurde als kanonische Weiterleitung emittiert, weil eine der unten genannten Bedingungen vor der Modell-Generierung oder beim Parsing eintrat.";
 "ask.debug.refusalReason.emptyRetrieval" = "Retrieval war leer (weder Journal- noch Korpus-Treffer).";

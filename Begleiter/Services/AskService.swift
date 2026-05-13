@@ -142,6 +142,31 @@ nonisolated struct AskDebugInfo: Sendable, Hashable {
     let droppedCitationCount: Int
     let refusalReason: RefusalReason?
 
+    // MARK: - Dense rerank diagnostics
+    /// True when `AppSettings.askDenseRerankerEnabled` was on for this
+    /// answer and the rerank path actually ran end-to-end (embedder
+    /// loaded, query+candidates embedded, RRF applied).
+    let denseRerankerEnabled: Bool
+    let candidatesBeforeRerankJournal: Int
+    let candidatesBeforeRerankCorpus: Int
+    /// Number of positions in the combined journal+corpus top-6 that
+    /// changed vs the BM25-only ordering. 0 means rerank was a no-op.
+    let rerankReorderCount: Int
+    /// Wall-clock milliseconds spent in `EmbeddingService.loadModel()`.
+    /// `nil` when the toggle is off; tiny when the embedder was already
+    /// loaded from a prior call this session.
+    let embedderLoadMs: Int?
+    let queryEmbedMs: Int?
+    /// How many journal entries / corpus chunks needed fresh embeddings
+    /// this call. After the first rerank in a session, these usually
+    /// drop to 0 because the on-disk cache hydrates everything.
+    let entryEmbedCount: Int
+    let corpusEmbedCount: Int
+    /// Populated when rerank was requested but skipped or failed,
+    /// e.g. `"toggle off"`, `"both candidate sets empty"`,
+    /// `"embedder load failed: <message>"`.
+    let rerankSkippedReason: String?
+
     /// Empty placeholder used when an answer is constructed outside the
     /// real pipeline (e.g., tests, the static `AskAnswer.refusal` helper).
     static let empty = AskDebugInfo(
@@ -158,7 +183,16 @@ nonisolated struct AskDebugInfo: Sendable, Hashable {
         claimsBeforeFilter: 0,
         claimsAfterFilter: 0,
         droppedCitationCount: 0,
-        refusalReason: nil
+        refusalReason: nil,
+        denseRerankerEnabled: false,
+        candidatesBeforeRerankJournal: 0,
+        candidatesBeforeRerankCorpus: 0,
+        rerankReorderCount: 0,
+        embedderLoadMs: nil,
+        queryEmbedMs: nil,
+        entryEmbedCount: 0,
+        corpusEmbedCount: 0,
+        rerankSkippedReason: nil
     )
 }
 
@@ -209,7 +243,16 @@ nonisolated struct AskAnswer: Sendable, Hashable, Identifiable {
                 claimsBeforeFilter: debug.claimsBeforeFilter,
                 claimsAfterFilter: debug.claimsAfterFilter,
                 droppedCitationCount: debug.droppedCitationCount,
-                refusalReason: reason
+                refusalReason: reason,
+                denseRerankerEnabled: debug.denseRerankerEnabled,
+                candidatesBeforeRerankJournal: debug.candidatesBeforeRerankJournal,
+                candidatesBeforeRerankCorpus: debug.candidatesBeforeRerankCorpus,
+                rerankReorderCount: debug.rerankReorderCount,
+                embedderLoadMs: debug.embedderLoadMs,
+                queryEmbedMs: debug.queryEmbedMs,
+                entryEmbedCount: debug.entryEmbedCount,
+                corpusEmbedCount: debug.corpusEmbedCount,
+                rerankSkippedReason: debug.rerankSkippedReason
             ),
             renderedAt: .now
         )
@@ -239,30 +282,48 @@ nonisolated struct AskAnswer: Sendable, Hashable, Identifiable {
 /// 7. Compute `AnswerBasis` from surviving citations.
 actor AskService {
 
+    /// Callback signature `AskService` uses to persist freshly computed
+    /// journal-entry embeddings back to SwiftData. Called from the
+    /// `@MainActor` so the `@Model` write happens on the right context.
+    /// `AskView` supplies this; tests pass `nil` and the rerank path
+    /// just doesn't persist the per-session vectors (which is fine for
+    /// the toggle-off default and for unit-test scope).
+    typealias EntryEmbeddingPersister = @MainActor @Sendable (
+        [UUID: [Float]]
+    ) async -> Void
+
     /// App-wide shared instance. One Gemma container, one corpus index.
     static let shared = AskService()
 
     private let gemma: GemmaService
     private let retrieval: RetrievalService
     private let corpus: CorpusService
+    private let embedder: any AskEmbedder
 
     init(
         gemma: GemmaService = .shared,
         retrieval: RetrievalService = RetrievalService(),
-        corpus: CorpusService = .shared
+        corpus: CorpusService = .shared,
+        embedder: any AskEmbedder = EmbeddingService.shared
     ) {
         self.gemma = gemma
         self.retrieval = retrieval
         self.corpus = corpus
+        self.embedder = embedder
     }
 
     /// Generate a grounded answer to `question`. `entries` is the full
     /// journal — `AskService` does the retrieval pass against it.
+    /// `persistEntryEmbeddings` is called from `@MainActor` when the
+    /// rerank path freshly embeds journal entries; pass `nil` (the
+    /// default) when running in tests or when persistence isn't needed.
     func answer(
         _ question: AskQuestion,
-        in entries: [JournalEntry]
+        in entries: [JournalEntry],
+        persistEntryEmbeddings: EntryEmbeddingPersister? = nil
     ) async -> AskAnswer {
         let thinkingEnabled = AppSettings.askThinkingEnabled
+        let rerankEnabled = AppSettings.askDenseRerankerEnabled
         var debug = AskDebugInfo(
             scope: question.scope,
             journalHits: 0,
@@ -277,27 +338,43 @@ actor AskService {
             claimsBeforeFilter: 0,
             claimsAfterFilter: 0,
             droppedCitationCount: 0,
-            refusalReason: nil
+            refusalReason: nil,
+            denseRerankerEnabled: false,  // flips to true only if rerank actually runs
+            candidatesBeforeRerankJournal: 0,
+            candidatesBeforeRerankCorpus: 0,
+            rerankReorderCount: 0,
+            embedderLoadMs: nil,
+            queryEmbedMs: nil,
+            entryEmbedCount: 0,
+            corpusEmbedCount: 0,
+            rerankSkippedReason: rerankEnabled ? nil : "toggle off"
         )
 
-        // 1. Retrieval
+        // 1. Retrieval. With rerank on, pull a wider candidate set
+        // (limit 20 instead of 6) so the second-stage RRF has room to
+        // promote semantic matches that BM25 ranks low.
+        let firstStageLimit = rerankEnabled ? 20 : 6
         let filters = Self.filters(for: question.scope)
         let journalHits = retrieval.search(
             query: question.text,
             in: entries,
             filters: filters,
-            limit: 6
+            limit: firstStageLimit
         )
         let corpusHits = corpus.search(
             query: question.text,
             scope: question.scope,
-            limit: 6
+            limit: firstStageLimit
         )
         debug = debug.with(journalHits: journalHits.count, corpusHits: corpusHits.count)
-        askLog.info("retrieval: journal=\(journalHits.count, privacy: .public) corpus=\(corpusHits.count, privacy: .public) scope=\(question.scope.rawValue, privacy: .public)")
+        askLog.info("retrieval: journal=\(journalHits.count, privacy: .public) corpus=\(corpusHits.count, privacy: .public) scope=\(question.scope.rawValue, privacy: .public) limit=\(firstStageLimit, privacy: .public)")
 
         if journalHits.isEmpty && corpusHits.isEmpty {
             askLog.info("empty retrieval — emitting refusal")
+            // Rerank doesn't run when there's nothing to rerank.
+            if rerankEnabled {
+                debug = debug.with(rerankSkippedReason: "both candidate sets empty")
+            }
             return AskAnswer.refusal(
                 question: question.text,
                 reason: .emptyRetrieval,
@@ -305,22 +382,61 @@ actor AskService {
             )
         }
 
-        // 2. Materialise hits → entries / chunks
+        // 2. Dense rerank (optional). Reorders BM25's top-K by RRF of
+        // BM25 rank + cosine rank, with E5-multilingual embeddings.
+        // Falls back to BM25 if the embedder fails to load.
+        var rerankedJournalIds: [UUID] = journalHits.map { $0.entryId }
+        var rerankedChunkIds: [String] = corpusHits.map { $0.chunkId }
+        if rerankEnabled, !journalHits.isEmpty || !corpusHits.isEmpty {
+            debug = debug.with(
+                candidatesBeforeRerankJournal: journalHits.count,
+                candidatesBeforeRerankCorpus: corpusHits.count
+            )
+            do {
+                let outcome = try await runRerank(
+                    question: question.text,
+                    journalHits: journalHits,
+                    corpusHits: corpusHits,
+                    entries: entries,
+                    persistEntryEmbeddings: persistEntryEmbeddings
+                )
+                rerankedJournalIds = outcome.journalIds
+                rerankedChunkIds = outcome.chunkIds
+                debug = debug.with(
+                    denseRerankerEnabled: true,
+                    rerankReorderCount: outcome.reorderCount,
+                    embedderLoadMs: outcome.embedderLoadMs,
+                    queryEmbedMs: outcome.queryEmbedMs,
+                    entryEmbedCount: outcome.entryEmbedCount,
+                    corpusEmbedCount: outcome.corpusEmbedCount,
+                    rerankSkippedReason: Optional<String>.none
+                )
+                askLog.info("rerank: reorder=\(outcome.reorderCount, privacy: .public) entryEmbed=\(outcome.entryEmbedCount, privacy: .public) corpusEmbed=\(outcome.corpusEmbedCount, privacy: .public) loadMs=\(outcome.embedderLoadMs ?? -1, privacy: .public) queryMs=\(outcome.queryEmbedMs ?? -1, privacy: .public)")
+            } catch {
+                let msg = "embedder load failed: \(error.localizedDescription)"
+                askLog.error("\(msg, privacy: .public)")
+                debug = debug.with(rerankSkippedReason: msg)
+                // Fall through with BM25 ordering. UI will show the
+                // skipped-reason in the Diagnose sheet.
+            }
+        }
+
+        // 3. Materialise: take top-4 from the (possibly reranked) lists.
         let entryById = Dictionary(
             uniqueKeysWithValues: entries.map { ($0.entryId, $0) }
         )
-        let topEntries: [JournalEntry] = journalHits
+        let topEntries: [JournalEntry] = rerankedJournalIds
             .prefix(4)
-            .compactMap { entryById[$0.entryId] }
-        let topChunks: [CorpusChunk] = corpusHits
+            .compactMap { entryById[$0] }
+        let topChunks: [CorpusChunk] = rerankedChunkIds
             .prefix(4)
-            .compactMap { corpus.chunk(id: $0.chunkId) }
+            .compactMap { corpus.chunk(id: $0) }
         debug = debug.with(
             promptedEntryIds: topEntries.map(\.entryId),
             promptedChunkIds: topChunks.map(\.id)
         )
 
-        // 3. Generate
+        // 4. Generate
         let prompt = Self.buildPrompt(
             question: question.text,
             entries: topEntries,
@@ -348,7 +464,7 @@ actor AskService {
         debug = debug.with(rawModelOutput: raw)
         askLog.debug("raw=\(raw, privacy: .public)")
 
-        // 4. Parse
+        // 5. Parse
         let parsed: ParsedAnswer
         do {
             parsed = try Self.parseAnswer(from: raw)
@@ -373,7 +489,7 @@ actor AskService {
             )
         }
 
-        // 5. Filter + warn (warn-don't-replace)
+        // 6. Filter + warn (warn-don't-replace)
         let validEntryIds = Set(topEntries.map(\.entryId))
         let validChunkIds = Set(topChunks.map(\.id))
         let outcome = Self.filterAndWarn(
@@ -387,7 +503,7 @@ actor AskService {
         )
         askLog.info("filter: claimsBefore=\(parsed.claims.count, privacy: .public) claimsAfter=\(outcome.claims.count, privacy: .public) droppedCitations=\(outcome.droppedCitations, privacy: .public) warnings=\(outcome.warnings.map(\.rawValue).joined(separator: ","), privacy: .public)")
 
-        // 6. Compute basis from surviving citations
+        // 7. Compute basis from surviving citations
         let basis = Self.computeBasis(for: outcome.claims)
 
         return AskAnswer(
@@ -399,6 +515,140 @@ actor AskService {
             warnings: outcome.warnings,
             debug: debug,
             renderedAt: .now
+        )
+    }
+
+    // MARK: - Dense rerank stage
+
+    /// Result of one rerank pass — the reordered candidate id lists
+    /// plus the timing / count signals AskDebugInfo carries to the
+    /// Diagnose sheet.
+    private struct RerankOutcome {
+        let journalIds: [UUID]
+        let chunkIds: [String]
+        let reorderCount: Int
+        let embedderLoadMs: Int?
+        let queryEmbedMs: Int?
+        let entryEmbedCount: Int
+        let corpusEmbedCount: Int
+    }
+
+    /// Drive the embedder through one rerank cycle:
+    /// 1. Load the embedder (timed).
+    /// 2. Embed the question with `kind: .query` (timed).
+    /// 3. Backfill any journal entries missing an embedding — read them
+    ///    out of the BM25 candidate list, embed in one batch with
+    ///    `kind: .passage`, persist via the caller-supplied callback.
+    /// 4. Backfill corpus chunks missing a vector via
+    ///    `CorpusService.backfillVectors(for:using:)`.
+    /// 5. Unload the embedder so Gemma has the memory it needs.
+    /// 6. Apply RRF over BM25 rank + cosine rank for both lists.
+    ///
+    /// Throws on embedder load / embedding errors. Caller catches and
+    /// surfaces `rerankSkippedReason` in the Diagnose sheet, falling
+    /// back to BM25 order.
+    private func runRerank(
+        question: String,
+        journalHits: [RetrievalService.Hit],
+        corpusHits: [CorpusService.Hit],
+        entries: [JournalEntry],
+        persistEntryEmbeddings: EntryEmbeddingPersister?
+    ) async throws -> RerankOutcome {
+        // Load.
+        let loadStart = DispatchTime.now()
+        try await embedder.ensureLoaded()
+        let loadMs = Int((Double(DispatchTime.now().uptimeNanoseconds
+                                 - loadStart.uptimeNanoseconds) / 1_000_000).rounded())
+
+        // Query embedding.
+        let queryStart = DispatchTime.now()
+        let queryVector = try await embedder.embedQuery(question)
+        let queryMs = Int((Double(DispatchTime.now().uptimeNanoseconds
+                                  - queryStart.uptimeNanoseconds) / 1_000_000).rounded())
+
+        // Journal backfill: find entries lacking an embedding among the
+        // top-K BM25 candidates and embed them in one batch.
+        let entryById = Dictionary(uniqueKeysWithValues: entries.map { ($0.entryId, $0) })
+        var freshEntryVectors: [UUID: [Float]] = [:]
+        let candidateEntries: [JournalEntry] = journalHits.compactMap { entryById[$0.entryId] }
+        let missingEntries: [JournalEntry] = candidateEntries.filter { $0.embedding.isEmpty }
+        if !missingEntries.isEmpty {
+            let texts = missingEntries.map { RetrievalService.searchableText(of: $0) }
+            let vectors = try await embedder.embedPassages(texts)
+            if vectors.count == missingEntries.count {
+                for (i, entry) in missingEntries.enumerated() {
+                    freshEntryVectors[entry.entryId] = vectors[i]
+                }
+                // Persist to SwiftData on the main actor so the next
+                // call doesn't re-embed. Best-effort; if the callback
+                // is nil (tests) we keep them in `freshEntryVectors`
+                // for this call only.
+                if let persistEntryEmbeddings {
+                    await persistEntryEmbeddings(freshEntryVectors)
+                }
+            } else {
+                askLog.error("entry embed batch size mismatch: got \(vectors.count, privacy: .public) for \(missingEntries.count, privacy: .public) texts")
+            }
+        }
+
+        // Corpus backfill. Pass `embedPassages` as a closure so
+        // `CorpusService` stays free of MLX imports.
+        let corpusIds = corpusHits.map { $0.chunkId }
+        let freshChunkIds = try await corpus.backfillVectors(
+            for: corpusIds,
+            embedPassages: { try await self.embedder.embedPassages($0) }
+        )
+
+        // Unload BEFORE rerank math + Gemma load.
+        await embedder.unload()
+
+        // Build vectorFor lookups.
+        let journalVectorFor: (UUID) -> [Float]? = { id in
+            if let fresh = freshEntryVectors[id] { return fresh }
+            if let stored = entryById[id]?.embedding, !stored.isEmpty { return stored }
+            return nil
+        }
+        let corpusVectorMap = corpus.vectors(for: corpusIds)
+        let corpusVectorFor: (String) -> [Float]? = { id in
+            corpusVectorMap[id]
+        }
+
+        // Rerank each list.
+        let journalBM25: [UUID] = journalHits.map(\.entryId)
+        let corpusBM25: [String] = corpusHits.map(\.chunkId)
+        let rerankedJournal = RerankerEngine.rerank(
+            bm25Ranking: journalBM25,
+            queryVector: queryVector,
+            vectorFor: journalVectorFor
+        )
+        let rerankedCorpus = RerankerEngine.rerank(
+            bm25Ranking: corpusBM25,
+            queryVector: queryVector,
+            vectorFor: corpusVectorFor
+        )
+
+        // Reorder count over the journal top-4 + corpus top-4 (what
+        // actually feeds the prompt). 0 means rerank was a no-op for
+        // what Gemma sees.
+        let journalReorder = RerankerEngine.reorderCount(
+            bm25Ranking: journalBM25,
+            reranked: rerankedJournal,
+            topN: 4
+        )
+        let corpusReorder = RerankerEngine.reorderCount(
+            bm25Ranking: corpusBM25,
+            reranked: rerankedCorpus,
+            topN: 4
+        )
+
+        return RerankOutcome(
+            journalIds: rerankedJournal.map(\.id),
+            chunkIds: rerankedCorpus.map(\.id),
+            reorderCount: journalReorder + corpusReorder,
+            embedderLoadMs: loadMs,
+            queryEmbedMs: queryMs,
+            entryEmbedCount: missingEntries.count,
+            corpusEmbedCount: freshChunkIds.count
         )
     }
 
@@ -685,7 +935,16 @@ extension AskDebugInfo {
         claimsBeforeFilter: Int? = nil,
         claimsAfterFilter: Int? = nil,
         droppedCitationCount: Int? = nil,
-        refusalReason: RefusalReason? = nil
+        refusalReason: RefusalReason? = nil,
+        denseRerankerEnabled: Bool? = nil,
+        candidatesBeforeRerankJournal: Int? = nil,
+        candidatesBeforeRerankCorpus: Int? = nil,
+        rerankReorderCount: Int? = nil,
+        embedderLoadMs: Int?? = nil,
+        queryEmbedMs: Int?? = nil,
+        entryEmbedCount: Int? = nil,
+        corpusEmbedCount: Int? = nil,
+        rerankSkippedReason: String?? = nil
     ) -> AskDebugInfo {
         AskDebugInfo(
             scope: self.scope,
@@ -701,7 +960,16 @@ extension AskDebugInfo {
             claimsBeforeFilter: claimsBeforeFilter ?? self.claimsBeforeFilter,
             claimsAfterFilter: claimsAfterFilter ?? self.claimsAfterFilter,
             droppedCitationCount: droppedCitationCount ?? self.droppedCitationCount,
-            refusalReason: refusalReason ?? self.refusalReason
+            refusalReason: refusalReason ?? self.refusalReason,
+            denseRerankerEnabled: denseRerankerEnabled ?? self.denseRerankerEnabled,
+            candidatesBeforeRerankJournal: candidatesBeforeRerankJournal ?? self.candidatesBeforeRerankJournal,
+            candidatesBeforeRerankCorpus: candidatesBeforeRerankCorpus ?? self.candidatesBeforeRerankCorpus,
+            rerankReorderCount: rerankReorderCount ?? self.rerankReorderCount,
+            embedderLoadMs: embedderLoadMs ?? self.embedderLoadMs,
+            queryEmbedMs: queryEmbedMs ?? self.queryEmbedMs,
+            entryEmbedCount: entryEmbedCount ?? self.entryEmbedCount,
+            corpusEmbedCount: corpusEmbedCount ?? self.corpusEmbedCount,
+            rerankSkippedReason: rerankSkippedReason ?? self.rerankSkippedReason
         )
     }
 }

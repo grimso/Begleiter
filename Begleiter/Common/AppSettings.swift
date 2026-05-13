@@ -64,6 +64,7 @@ enum AppSettings {
     nonisolated static let askMaxTokensKey         = "askMaxTokens"
     nonisolated static let askDiagnosticsEnabledKey = "askDiagnosticsEnabled"
     nonisolated static let askThinkingEnabledKey   = "askThinkingEnabled"
+    nonisolated static let askDenseRerankerEnabledKey = "askDenseRerankerEnabled"
     nonisolated static let labPipelineModeKey      = "labPipelineMode"
 
     nonisolated static let defaultExtractionMaxTokens = 2500
@@ -72,6 +73,7 @@ enum AppSettings {
     nonisolated static let defaultAskMaxTokens        = 512
     nonisolated static let defaultAskDiagnosticsEnabled = false
     nonisolated static let defaultAskThinkingEnabled    = false
+    nonisolated static let defaultAskDenseRerankerEnabled = false
 
     /// Plain-Swift read path for non-SwiftUI callers (services / actors).
     /// `@AppStorage` is a SwiftUI property wrapper and can't be read from
@@ -121,6 +123,15 @@ enum AppSettings {
     /// Off by default; the toggle lives in `SettingsView`→Entwicklung.
     nonisolated static var askThinkingEnabled: Bool {
         UserDefaults.standard.bool(forKey: askThinkingEnabledKey)
+    }
+
+    /// When `true`, `AskService` adds a second-stage dense rerank
+    /// (RRF over BM25 rank + cosine rank using
+    /// `intfloat/multilingual-e5-small`) on top of the BM25 first stage.
+    /// Loads the ~130 MB embedder on first activation. Off by default;
+    /// the toggle lives in `SettingsView`→Entwicklung.
+    nonisolated static var askDenseRerankerEnabled: Bool {
+        UserDefaults.standard.bool(forKey: askDenseRerankerEnabledKey)
     }
 
     nonisolated static var labPipelineMode: LabPipelineMode {

@@ -35,9 +35,21 @@ final class AskViewModel {
     /// rebuilding the viewmodel.
     private(set) var entries: [JournalEntry] = []
 
-    init(scope: AskScope, service: AskService = .shared) {
+    /// Callback used by the dense-rerank path in `AskService` to persist
+    /// freshly computed journal-entry embeddings back to SwiftData.
+    /// `AskView` supplies a closure that captures its `modelContext`;
+    /// `nil` is fine — the rerank still works for the current call,
+    /// just without persistence.
+    var persistEntryEmbeddings: AskService.EntryEmbeddingPersister?
+
+    init(
+        scope: AskScope,
+        service: AskService = .shared,
+        persistEntryEmbeddings: AskService.EntryEmbeddingPersister? = nil
+    ) {
         self.scope = scope
         self.service = service
+        self.persistEntryEmbeddings = persistEntryEmbeddings
     }
 
     /// SwiftUI calls this from `onAppear` and again whenever the
@@ -57,8 +69,13 @@ final class AskViewModel {
         draft = ""
         isAnswering = true
         let entriesSnapshot = entries
+        let persister = persistEntryEmbeddings
         Task {
-            let answer = await service.answer(question, in: entriesSnapshot)
+            let answer = await service.answer(
+                question,
+                in: entriesSnapshot,
+                persistEntryEmbeddings: persister
+            )
             self.cards.append(answer)
             self.isAnswering = false
         }
