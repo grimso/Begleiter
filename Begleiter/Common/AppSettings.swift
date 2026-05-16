@@ -101,6 +101,7 @@ enum AppSettings {
     nonisolated static let briefingMaxTokensKey    = "briefingMaxTokens"
     nonisolated static let handoffMaxTokensKey     = "handoffMaxTokens"
     nonisolated static let askMaxTokensKey         = "askMaxTokens"
+    nonisolated static let askAgentMaxTokensKey    = "askAgentMaxTokens"
     nonisolated static let askDiagnosticsEnabledKey = "askDiagnosticsEnabled"
     nonisolated static let askThinkingEnabledKey   = "askThinkingEnabled"
     nonisolated static let askDenseRerankerEnabledKey = "askDenseRerankerEnabled"
@@ -114,6 +115,13 @@ enum AppSettings {
     nonisolated static let defaultBriefingMaxTokens   = 640
     nonisolated static let defaultHandoffMaxTokens    = 512
     nonisolated static let defaultAskMaxTokens        = 512
+    /// Per-turn cap for the custom-agent path. Each turn spends a
+    /// thinking trace + a tool call OR the final JSON answer; 2048
+    /// gives the model headroom for up to 4 tool turns + the final
+    /// answer without truncation when `askMaxTokens` (512) is the
+    /// chat-mode default. Surfaced separately so users can dial chat
+    /// answers terse without starving the agent loop.
+    nonisolated static let defaultAskAgentMaxTokens   = 2048
     nonisolated static let defaultAskDiagnosticsEnabled = false
     nonisolated static let defaultAskThinkingEnabled    = false
     nonisolated static let defaultAskDenseRerankerEnabled = false
@@ -166,6 +174,16 @@ enum AppSettings {
     nonisolated static var askMaxTokens: Int {
         let v = UserDefaults.standard.integer(forKey: askMaxTokensKey)
         return v > 0 ? v : defaultAskMaxTokens
+    }
+
+    /// Per-turn output budget for the custom-agent path. Read by
+    /// ``AskService.answerCustomAgent`` so a multi-turn tool loop with
+    /// thinking enabled never gets clipped by the much tighter
+    /// `askMaxTokens` cap that fits single-shot Q&A. Settings slider
+    /// runs 1024–8192.
+    nonisolated static var askAgentMaxTokens: Int {
+        let v = UserDefaults.standard.integer(forKey: askAgentMaxTokensKey)
+        return v > 0 ? v : defaultAskAgentMaxTokens
     }
 
     /// When `true`, every Q&A card in `AskView` shows an "ⓘ" button that

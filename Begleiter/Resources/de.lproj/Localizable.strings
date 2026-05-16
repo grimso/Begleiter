@@ -285,7 +285,8 @@
 "settings.generation.briefing" = "Vorbereitung";
 "settings.generation.handoff" = "Übergabe";
 "settings.generation.ask" = "Fragen";
-"settings.generation.footer" = "Höhere Werte erlauben ausführlichere Antworten, brauchen aber mehr Zeit und Speicher. Die Voreinstellungen passen zu typischen Befundlängen.";
+"settings.generation.askAgent" = "Fragen (Agent-Modus)";
+"settings.generation.footer" = "Höhere Werte erlauben ausführlichere Antworten, brauchen aber mehr Zeit und Speicher. Die Voreinstellungen passen zu typischen Befundlängen. Der Agent-Wert greift im Werkzeug-Modus: Reasoning + bis zu vier Werkzeug-Aufrufe + finale Antwort pro Frage.";
 
 "settings.lab.section" = "Befund-Verarbeitung";
 "settings.lab.picker" = "Verarbeitungsweg";
@@ -404,4 +405,4 @@
 "settings.developer.askMode.customAgent" = "Eigener Agent (Werkzeug-Aufrufe)";
 "settings.developer.askMode.mlxToolCall.warning" = "Bekannte Einschränkung: mlx-swift-lm 3.31.3 erkennt das Werkzeug-Format von Gemma 4 nicht (siehe docs/upstream-issue-gemma4-toolcall.md). Werkzeug-Aufrufe werden NICHT ausgeführt — der einfache Chat-Modus oder „Eigener Agent“ liefern tatsächliche Antworten.";
 "settings.developer.askMode.customAgent.hint" = "Eigener Loop: parst Gemma 4s natives `call:name{…}` Format selbst und ruft die Werkzeuge (Journal-Suche, Korpus, Labor-Verlauf, Phaseninfo) auf. Mehrere Modell-Aufrufe pro Frage, dauert länger; aktiviert Reasoning intern.";
-"settings.developer.askMode.budgetHint" = "Werkzeug-Modi erzeugen Reasoning + Werkzeug-Aufrufe + finale Antwort. Empfehlung: Ask-Token-Budget auf 4096 oder höher stellen.";
+"settings.developer.askMode.budgetHint" = "Werkzeug-Modi erzeugen Reasoning + Werkzeug-Aufrufe + finale Antwort. Empfehlung: das Agent-Token-Budget (siehe „Generierungslänge“) auf 2048 oder höher belassen.";

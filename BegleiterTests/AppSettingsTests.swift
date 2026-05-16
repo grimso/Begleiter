@@ -29,6 +29,8 @@ final class AppSettingsTests: XCTestCase {
         AppSettings.extractionMaxTokensKey,
         AppSettings.briefingMaxTokensKey,
         AppSettings.handoffMaxTokensKey,
+        AppSettings.askMaxTokensKey,
+        AppSettings.askAgentMaxTokensKey,
         AppSettings.labPipelineModeKey,
     ]
 
@@ -57,8 +59,30 @@ final class AppSettingsTests: XCTestCase {
         XCTAssertEqual(AppSettings.extractionMaxTokens, 2500)
         XCTAssertEqual(AppSettings.briefingMaxTokens, 640)
         XCTAssertEqual(AppSettings.handoffMaxTokens, 512)
+        XCTAssertEqual(AppSettings.askMaxTokens, 512)
+        XCTAssertEqual(AppSettings.askAgentMaxTokens, 2048)
         XCTAssertEqual(AppSettings.modelVariant, .e2b)
         XCTAssertEqual(AppSettings.labPipelineMode, .ocrThenGemma)
+    }
+
+    /// The agent path runs up to five Gemma generations per question
+    /// (4 tool turns + 1 forced-final). The default budget must stay
+    /// well above the chat default so a thinking trace + a tool call
+    /// per turn doesn't get clipped mid-emit, which silently kills the
+    /// agent loop. 2048 is the documented floor in
+    /// `AppSettings.defaultAskAgentMaxTokens`.
+    func test_askAgentMaxTokens_defaultIsAtLeast2048() {
+        XCTAssertGreaterThanOrEqual(AppSettings.askAgentMaxTokens, 2048)
+    }
+
+    func test_askAgentMaxTokens_roundTripsThroughUserDefaults() {
+        UserDefaults.standard.set(4096, forKey: AppSettings.askAgentMaxTokensKey)
+        XCTAssertEqual(AppSettings.askAgentMaxTokens, 4096)
+    }
+
+    func test_askAgentMaxTokens_zeroFallsBackToDefault() {
+        UserDefaults.standard.set(0, forKey: AppSettings.askAgentMaxTokensKey)
+        XCTAssertEqual(AppSettings.askAgentMaxTokens, AppSettings.defaultAskAgentMaxTokens)
     }
 
     // MARK: - Round-trip

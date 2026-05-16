@@ -36,6 +36,9 @@ struct SettingsView: View {
     @AppStorage(AppSettings.askMaxTokensKey)
     private var askMaxTokens: Int = AppSettings.defaultAskMaxTokens
 
+    @AppStorage(AppSettings.askAgentMaxTokensKey)
+    private var askAgentMaxTokens: Int = AppSettings.defaultAskAgentMaxTokens
+
     @AppStorage(AppSettings.askDiagnosticsEnabledKey)
     private var askDiagnosticsEnabled: Bool = AppSettings.defaultAskDiagnosticsEnabled
 
@@ -175,6 +178,12 @@ struct SettingsView: View {
                 title: L10n.t("settings.generation.ask"),
                 value: $askMaxTokens,
                 range: 256...8192,
+                step: 256
+            )
+            tokenStepper(
+                title: L10n.t("settings.generation.askAgent"),
+                value: $askAgentMaxTokens,
+                range: 1024...8192,
                 step: 256
             )
         } header: {
@@ -404,7 +413,7 @@ struct SettingsView: View {
                     .font(.caption)
                     .foregroundStyle(.orange)
             }
-            if askMode.wrappedValue != .chat && askMaxTokens < 4096 {
+            if askMode.wrappedValue != .chat && askAgentMaxTokens < 2048 {
                 Label(L10n.key("settings.developer.askMode.budgetHint"),
                       systemImage: "info.circle")
                     .font(.caption)
