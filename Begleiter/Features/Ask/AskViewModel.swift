@@ -35,6 +35,12 @@ final class AskViewModel {
     /// rebuilding the viewmodel.
     private(set) var entries: [JournalEntry] = []
 
+    /// Snapshot of imported documents. Refreshed via
+    /// `updateImportedDocs(_:)` mirror of `updateEntries(_:)`. Only the
+    /// custom-agent path consumes these (the chat path stays on
+    /// journal + corpus); `[]` is the safe default for older callers.
+    private(set) var importedDocs: [ImportedDocument] = []
+
     /// Callback used by the dense-rerank path in `AskService` to persist
     /// freshly computed journal-entry embeddings back to SwiftData.
     /// `AskView` supplies a closure that captures its `modelContext`;
@@ -59,6 +65,12 @@ final class AskViewModel {
         self.entries = entries
     }
 
+    /// Mirror for `ImportedDocument` — the custom-agent path reads
+    /// `importedDocs` when constructing `AgentTools`.
+    func updateImportedDocs(_ docs: [ImportedDocument]) {
+        self.importedDocs = docs
+    }
+
     // MARK: - Intents
 
     /// Submit the current draft. No-op if blank or already answering.
@@ -69,11 +81,13 @@ final class AskViewModel {
         draft = ""
         isAnswering = true
         let entriesSnapshot = entries
+        let docsSnapshot = importedDocs
         let persister = persistEntryEmbeddings
         Task {
             let answer = await service.answer(
                 question,
                 in: entriesSnapshot,
+                importedDocs: docsSnapshot,
                 persistEntryEmbeddings: persister
             )
             self.cards.append(answer)

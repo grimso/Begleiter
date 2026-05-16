@@ -31,22 +31,25 @@ struct CitationChip: View {
 
     private var icon: String {
         switch citation {
-        case .entry:  return "doc.text"
-        case .corpus: return "book.closed"
+        case .entry:    return "doc.text"
+        case .corpus:   return "book.closed"
+        case .document: return "tray.full"
         }
     }
 
     private var background: Color {
         switch citation {
-        case .entry:  return Color.blue.opacity(0.15)
-        case .corpus: return Color.purple.opacity(0.15)
+        case .entry:    return Color.blue.opacity(0.15)
+        case .corpus:   return Color.purple.opacity(0.15)
+        case .document: return Color.green.opacity(0.15)
         }
     }
 
     private var foreground: Color {
         switch citation {
-        case .entry:  return .blue
-        case .corpus: return .purple
+        case .entry:    return .blue
+        case .corpus:   return .purple
+        case .document: return .green
         }
     }
 }

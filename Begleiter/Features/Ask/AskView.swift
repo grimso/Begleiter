@@ -19,6 +19,9 @@ struct AskView: View {
     @Query(sort: \JournalEntry.visitDate, order: .reverse)
     private var entries: [JournalEntry]
 
+    @Query(sort: \ImportedDocument.importedAt, order: .reverse)
+    private var importedDocs: [ImportedDocument]
+
     @Environment(\.modelContext) private var modelContext
 
     @State private var viewModel: AskViewModel?
@@ -83,9 +86,13 @@ struct AskView: View {
                 )
             }
             viewModel?.updateEntries(entries)
+            viewModel?.updateImportedDocs(importedDocs)
         }
         .onChange(of: entries) { _, newValue in
             viewModel?.updateEntries(newValue)
+        }
+        .onChange(of: importedDocs) { _, newValue in
+            viewModel?.updateImportedDocs(newValue)
         }
     }
 
@@ -275,6 +282,24 @@ struct AskView: View {
             pendingEntryDetailId = id
         case .corpus(let chunkId):
             presentedChunk = corpus.chunk(id: chunkId)
+        case .document(let docId, let chunkIndex):
+            // Open the document store at the chunk. Inline routing
+            // is a follow-up — for now, surface the imported doc's
+            // chunk via the same sheet plumbing we already have by
+            // synthesising a one-off CorpusChunk wrapper.
+            guard let doc = importedDocs.first(where: { $0.docId == docId }),
+                  let chunk = doc.chunks.first(where: { $0.index == chunkIndex }) else {
+                return
+            }
+            presentedChunk = CorpusChunk(
+                id: "D:\(docId.uuidString)#\(chunkIndex)",
+                source: .kinderkrebsinfo,
+                topicTags: [chunk.kind],
+                title: doc.title,
+                text: chunk.text,
+                referenceURL: nil,
+                updatedAt: ""
+            )
         }
     }
 }

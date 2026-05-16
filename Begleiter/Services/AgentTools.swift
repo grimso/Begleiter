@@ -45,6 +45,7 @@ struct AgentTools: @unchecked Sendable {
     let retrieval: RetrievalService
     let corpus: CorpusService
     let entries: [JournalEntry]
+    let importedDocs: [ImportedDocument]
 
     // MARK: - Tools
 
@@ -52,17 +53,20 @@ struct AgentTools: @unchecked Sendable {
     let searchCorpus: Tool<SearchCorpusInput, String>
     let getLabTrend: Tool<GetLabTrendInput, String>
     let getPhaseMetadataTool: Tool<GetPhaseMetadataInput, String>
+    let searchDocuments: Tool<SearchDocumentsInput, String>
 
     // MARK: - Init
 
     init(
         retrieval: RetrievalService,
         corpus: CorpusService,
-        entries: [JournalEntry]
+        entries: [JournalEntry],
+        importedDocs: [ImportedDocument] = []
     ) {
         self.retrieval = retrieval
         self.corpus = corpus
         self.entries = entries
+        self.importedDocs = importedDocs
 
         // Capture-by-value into each handler so the closures stay
         // `@Sendable`. The deps are all value-typed (`struct: Sendable`).
@@ -76,6 +80,7 @@ struct AgentTools: @unchecked Sendable {
         let capturedRetrieval = retrieval
         let capturedCorpus = corpus
         let capturedEntries = EntrySnapshotBox(entries: entries)
+        let capturedDocs = DocumentSnapshotBox(documents: importedDocs)
 
         let phaseValues = Phase.allCases.map(\.rawValue)
 
@@ -210,6 +215,32 @@ struct AgentTools: @unchecked Sendable {
         ) { input in
             AgentTools.handleGetPhaseMetadata(input)
         }
+
+        self.searchDocuments = Tool(
+            name: "search_documents",
+            description:
+                "Sucht den persönlichen Dokument-Speicher (importierte " +
+                "Entlassungsberichte, Laborbefunde, Protokoll-Auszüge). " +
+                "Liefert thematische Abschnitte mit " +
+                "`[D:<docId>#<chunkIdx>]`-Marker zur Zitation.",
+            parameters: [
+                .required(
+                    "query",
+                    type: .string,
+                    description: "Deutsche Anfrage; Stichwörter genügen."
+                ),
+                .optional(
+                    "limit",
+                    type: .int,
+                    description: "Max. Treffer (Standard 4, Maximum 10)."
+                ),
+            ]
+        ) { input in
+            await AgentTools.handleSearchDocuments(
+                input,
+                documents: capturedDocs.documents
+            )
+        }
     }
 
     // MARK: - Schemas + dispatch
@@ -222,6 +253,7 @@ struct AgentTools: @unchecked Sendable {
             searchCorpus.schema,
             getLabTrend.schema,
             getPhaseMetadataTool.schema,
+            searchDocuments.schema,
         ]
     }
 
@@ -243,6 +275,8 @@ struct AgentTools: @unchecked Sendable {
             return try await call.execute(with: getLabTrend)
         case getPhaseMetadataTool.name:
             return try await call.execute(with: getPhaseMetadataTool)
+        case searchDocuments.name:
+            return try await call.execute(with: searchDocuments)
         default:
             agentLog.warning("dispatch: unknown tool \(name, privacy: .public)")
             throw AgentToolError.unknownTool(name)
@@ -312,6 +346,16 @@ struct AgentTools: @unchecked Sendable {
                 phase: stringArg(args["phase"]) ?? ""
             )
             return await Self.handleGetPhaseMetadata(input)
+
+        case searchDocuments.name:
+            let input = SearchDocumentsInput(
+                query: stringArg(args["query"]) ?? "",
+                limit: intArg(args["limit"])
+            )
+            return await Self.handleSearchDocuments(
+                input,
+                documents: importedDocs
+            )
 
         default:
             agentLog.warning("dispatch.custom: unknown tool \(name, privacy: .public)")
@@ -502,6 +546,88 @@ struct AgentTools: @unchecked Sendable {
         ] + lines).joined(separator: "\n")
     }
 
+    /// Token-overlap scorer over every chunk of every imported
+    /// document. Deliberately simpler than the `RetrievalService` /
+    /// `CorpusService` BM25 implementations — the corpus here is
+    /// small (handful of user-imported documents, ~5–20 chunks each)
+    /// and adding a third BM25 path is more surface than this needs.
+    /// Score = number of distinct lowercased query tokens that appear
+    /// anywhere in the chunk text. Ties broken by chunk index so
+    /// output is deterministic across runs with identical content.
+    static func handleSearchDocuments(
+        _ input: SearchDocumentsInput,
+        documents: [ImportedDocument]
+    ) async -> String {
+        let limit = min(max(input.limit ?? 4, 1), 10)
+        let queryTokens = Self.tokenize(input.query)
+        guard !queryTokens.isEmpty else {
+            return "Keine Suchanfrage übergeben."
+        }
+        guard !documents.isEmpty else {
+            return "Kein Dokument im Dokument-Speicher importiert."
+        }
+
+        struct Scored {
+            let docId: UUID
+            let docTitle: String
+            let chunkIndex: Int
+            let kind: String
+            let text: String
+            let score: Int
+        }
+
+        var scored: [Scored] = []
+        for doc in documents {
+            for chunk in doc.chunks {
+                let chunkTokens = Set(Self.tokenize(chunk.text))
+                let hits = queryTokens.reduce(into: 0) { acc, qt in
+                    if chunkTokens.contains(qt) { acc += 1 }
+                }
+                guard hits > 0 else { continue }
+                scored.append(Scored(
+                    docId: doc.docId,
+                    docTitle: doc.title,
+                    chunkIndex: chunk.index,
+                    kind: chunk.kind,
+                    text: chunk.text,
+                    score: hits
+                ))
+            }
+        }
+        guard !scored.isEmpty else {
+            return "Keine passenden Dokument-Auszüge gefunden."
+        }
+        // Sort by score desc; ties by docId then chunkIndex for stable output.
+        scored.sort {
+            if $0.score != $1.score { return $0.score > $1.score }
+            if $0.docId.uuidString != $1.docId.uuidString {
+                return $0.docId.uuidString < $1.docId.uuidString
+            }
+            return $0.chunkIndex < $1.chunkIndex
+        }
+        let top = scored.prefix(limit)
+        let lines = top.map { s in
+            "[D:\(s.docId.uuidString)#\(s.chunkIndex)] \(s.docTitle) · \(s.kind): \(s.text.truncatedForTool())"
+        }
+        return ([
+            "Treffer (\(lines.count)) — jeder Auszug muss mit `[D:<docId>#<chunkIdx>]` zitiert werden:",
+        ] + lines).joined(separator: "\n")
+    }
+
+    /// Lowercased word tokens with diacritic folding so "Hämatologie"
+    /// matches the parent's "haematologie". Drops < 3-letter tokens to
+    /// avoid spurious matches on `der`, `und`, etc.
+    private static func tokenize(_ text: String) -> [String] {
+        let folded = text
+            .folding(options: [.diacriticInsensitive, .caseInsensitive],
+                     locale: Locale(identifier: "de"))
+            .replacingOccurrences(of: "ß", with: "ss")
+        return folded
+            .split(whereSeparator: { !$0.isLetter && !$0.isNumber })
+            .map(String.init)
+            .filter { $0.count >= 3 }
+    }
+
     static func handleGetPhaseMetadata(
         _ input: GetPhaseMetadataInput
     ) -> String {
@@ -581,6 +707,11 @@ nonisolated struct GetPhaseMetadataInput: Codable, Sendable {
     let phase: String
 }
 
+nonisolated struct SearchDocumentsInput: Codable, Sendable {
+    let query: String
+    let limit: Int?
+}
+
 // MARK: - Capture shim
 
 /// `@unchecked Sendable` box around an entry snapshot so that the tool
@@ -592,6 +723,15 @@ nonisolated struct GetPhaseMetadataInput: Codable, Sendable {
 /// happy without weakening guarantees elsewhere.
 private struct EntrySnapshotBox: @unchecked Sendable {
     let entries: [JournalEntry]
+}
+
+/// Sibling shim for `ImportedDocument` snapshots. Mirrors
+/// `EntrySnapshotBox`: SwiftData `@Model` arrays aren't auto-Sendable,
+/// so we wrap the read-only snapshot the agent loop captures into an
+/// `@unchecked Sendable` box that lets `Tool<>`'s `@Sendable` closures
+/// hold it without the project-wide concurrency warning.
+private struct DocumentSnapshotBox: @unchecked Sendable {
+    let documents: [ImportedDocument]
 }
 
 // MARK: - Errors

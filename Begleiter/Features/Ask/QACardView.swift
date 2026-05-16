@@ -153,6 +153,8 @@ struct QACardView: View {
             return L10n.t("ask.citation.entry")
         case .corpus(let id):
             return chunkLabel(id)
+        case .document:
+            return L10n.t("ask.citation.document")
         }
     }
 
@@ -162,10 +164,11 @@ struct QACardView: View {
     private var basisFooter: some View {
         let key: String? = {
             switch answer.basis {
-            case .journal: return "ask.basis.journal"
-            case .corpus:  return "ask.basis.corpus"
-            case .both:    return "ask.basis.both"
-            case .refusal: return nil
+            case .journal:  return "ask.basis.journal"
+            case .corpus:   return "ask.basis.corpus"
+            case .document: return "ask.basis.document"
+            case .both:     return "ask.basis.both"
+            case .refusal:  return nil
             }
         }()
         if let key {

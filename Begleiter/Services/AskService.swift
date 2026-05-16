@@ -49,10 +49,15 @@ nonisolated struct AskQuestion: Sendable, Hashable {
 
 /// Where the surviving claims of an answer were grounded. Surfaced as a
 /// small footer chip ("Aus deinem Journal" / "Aus dem Korpus" / "Aus
-/// beidem") so the parent isn't misled about the source.
+/// deinem Dokument-Speicher" / "Aus mehreren Quellen") so the parent
+/// isn't misled about the source.
 nonisolated enum AnswerBasis: String, Sendable, Hashable {
     case journal
     case corpus
+    case document
+    /// Two or more of journal / corpus / document contributed at least
+    /// one surviving citation. The UI renders a neutral multi-source
+    /// label rather than picking one.
     case both
     /// No surviving citations OR true refusal. UI hides the footer in this
     /// case; the `warnings` list explains the situation if there is one.
@@ -60,14 +65,17 @@ nonisolated enum AnswerBasis: String, Sendable, Hashable {
 }
 
 /// A single citation reference within an answer claim. `entry(...)`
-/// points at a `JournalEntry.entryId`, `corpus(...)` at a `CorpusChunk.id`.
-/// Tappable in the UI via `CitationChip`.
+/// points at a `JournalEntry.entryId`, `corpus(...)` at a `CorpusChunk.id`,
+/// `document(...)` at one chunk inside an `ImportedDocument`. Tappable
+/// in the UI via `CitationChip`.
 nonisolated enum Citation: Sendable, Hashable {
     case entry(UUID)
     case corpus(chunkId: String)
+    case document(docId: UUID, chunkIndex: Int)
 
     /// Parse the inline marker form Gemma emits. Examples:
-    /// `"E:0F3A8E6E-..."` → `.entry`; `"K:glossary_labs/anc"` → `.corpus`.
+    /// `"E:0F3A8E6E-..."` → `.entry`; `"K:glossary_labs/anc"` → `.corpus`;
+    /// `"D:abc-def-...#3"` → `.document(docId, chunkIndex: 3)`.
     /// Returns `nil` for malformed tokens.
     static func parse(_ token: String) -> Citation? {
         let parts = token.split(separator: ":", maxSplits: 1).map(String.init)
@@ -79,6 +87,16 @@ nonisolated enum Citation: Sendable, Hashable {
         case "K":
             let id = parts[1]
             return id.isEmpty ? nil : .corpus(chunkId: id)
+        case "D":
+            // Body is `<uuid>#<int>`. Split on the first `#`.
+            let body = parts[1]
+            guard let hashIdx = body.firstIndex(of: "#") else { return nil }
+            let uuidPart = String(body[..<hashIdx])
+            let indexPart = String(body[body.index(after: hashIdx)...])
+            guard let uuid = UUID(uuidString: uuidPart),
+                  let chunkIdx = Int(indexPart),
+                  chunkIdx >= 0 else { return nil }
+            return .document(docId: uuid, chunkIndex: chunkIdx)
         default:
             return nil
         }
@@ -411,6 +429,7 @@ actor AskService {
     func answer(
         _ question: AskQuestion,
         in entries: [JournalEntry],
+        importedDocs: [ImportedDocument] = [],
         persistEntryEmbeddings: EntryEmbeddingPersister? = nil
     ) async -> AskAnswer {
         // Mode picker (Settings → Entwicklung → Antwort-Modus).
@@ -421,9 +440,9 @@ actor AskService {
         case .chat:
             break  // fall through to the existing single-shot pipeline
         case .mlxToolCall:
-            return await answerAgent(question, in: entries)
+            return await answerAgent(question, in: entries, importedDocs: importedDocs)
         case .customAgent:
-            return await answerCustomAgent(question, in: entries)
+            return await answerCustomAgent(question, in: entries, importedDocs: importedDocs)
         }
 
         let thinkingEnabled = AppSettings.askThinkingEnabled
@@ -705,7 +724,8 @@ actor AskService {
     /// the chat UI stays usable.
     func answerAgent(
         _ question: AskQuestion,
-        in entries: [JournalEntry]
+        in entries: [JournalEntry],
+        importedDocs: [ImportedDocument] = []
     ) async -> AskAnswer {
         // AskDebugInfo's `scope` field is set at init, so we build the
         // starting struct directly with the requested scope rather than
@@ -742,7 +762,8 @@ actor AskService {
         let tools = AgentTools(
             retrieval: retrieval,
             corpus: corpus,
-            entries: entries
+            entries: entries,
+            importedDocs: importedDocs
         )
         let instructions = Self.buildAgentSystemPrompt(scope: question.scope)
         debug = debug.with(promptCharCount: instructions.count, promptText: instructions)
@@ -773,7 +794,8 @@ actor AskService {
                     let surfaced = Self.extractSurfacedIds(from: result)
                     await accumulator.union(
                         entries: surfaced.entries,
-                        chunks: surfaced.chunks
+                        chunks: surfaced.chunks,
+                        documents: surfaced.documents
                     )
                     return result
                 }
@@ -812,7 +834,8 @@ actor AskService {
         let outcome = Self.filterAndWarn(
             claims: parsed.claims,
             validEntryIds: surfaced.entries,
-            validChunkIds: surfaced.chunks
+            validChunkIds: surfaced.chunks,
+            validDocumentRefs: surfaced.documents
         )
         debug = debug.with(
             claimsAfterFilter: outcome.claims.count,
@@ -903,7 +926,8 @@ actor AskService {
     /// so the chat UI stays usable.
     func answerCustomAgent(
         _ question: AskQuestion,
-        in entries: [JournalEntry]
+        in entries: [JournalEntry],
+        importedDocs: [ImportedDocument] = []
     ) async -> AskAnswer {
         var debug = AskDebugInfo(
             scope: question.scope,
@@ -937,9 +961,13 @@ actor AskService {
         let tools = AgentTools(
             retrieval: retrieval,
             corpus: corpus,
-            entries: entries
+            entries: entries,
+            importedDocs: importedDocs
         )
-        let baseInstructions = Self.buildCustomAgentSystemPrompt(scope: question.scope)
+        let baseInstructions = Self.buildCustomAgentSystemPrompt(
+            scope: question.scope,
+            schemas: tools.schemas
+        )
         askLog.info("custom-agent: starting question=\(question.text, privacy: .private)")
 
         // Running transcript of tool turns. Re-injected into the
@@ -960,6 +988,7 @@ actor AskService {
         // strip it because the ID isn't in this set.
         var surfacedEntryIds: Set<UUID> = []
         var surfacedChunkIds: Set<String> = []
+        var surfacedDocumentRefs: Set<DocumentChunkRef> = []
 
         // 4 tool turns + 1 forced-final turn = 5 generations max.
         let maxToolTurns = 4
@@ -1029,6 +1058,7 @@ actor AskService {
             let surfaced = Self.extractSurfacedIds(from: result)
             surfacedEntryIds.formUnion(surfaced.entries)
             surfacedChunkIds.formUnion(surfaced.chunks)
+            surfacedDocumentRefs.formUnion(surfaced.documents)
 
             // Re-inject the call + result wrapped in Gemma 4's native
             // tool-loop framing instead of the previous prose form.
@@ -1076,7 +1106,8 @@ actor AskService {
         let outcome = Self.filterAndWarn(
             claims: parsed.claims,
             validEntryIds: surfacedEntryIds,
-            validChunkIds: surfacedChunkIds
+            validChunkIds: surfacedChunkIds,
+            validDocumentRefs: surfacedDocumentRefs
         )
         debug = debug.with(
             claimsAfterFilter: outcome.claims.count,
@@ -1105,23 +1136,30 @@ actor AskService {
 
     // MARK: - Citation surfaced-IDs scan
 
-    /// Find every `[E:<UUID>]` and `[K:<chunkId>]` marker in `text` and
-    /// return them as two sets. Used by the custom-agent loop to grow
-    /// the validation universe per turn instead of validating against
-    /// the entire bundled corpus.
+    /// Find every `[E:<UUID>]`, `[K:<chunkId>]`, and
+    /// `[D:<UUID>#<chunkIndex>]` marker in `text` and return them as
+    /// three sets. Used by the custom-agent loop to grow the
+    /// validation universe per turn instead of validating against the
+    /// entire bundled corpus.
     ///
     /// Implementation note: parses with a forgiving regex rather than
     /// a strict one — tool outputs are German prose and the model may
     /// not space markers consistently. UUID parsing is strict
-    /// (`UUID(uuidString:)`) so malformed `[E:...]` tokens drop cleanly.
+    /// (`UUID(uuidString:)`) so malformed `[E:...]` / `[D:...]` tokens
+    /// drop cleanly.
     static func extractSurfacedIds(
         from text: String
-    ) -> (entries: Set<UUID>, chunks: Set<String>) {
+    ) -> (
+        entries: Set<UUID>,
+        chunks: Set<String>,
+        documents: Set<DocumentChunkRef>
+    ) {
         var entries: Set<UUID> = []
         var chunks: Set<String> = []
-        let pattern = #"\[(E|K):([^\]]+)\]"#
+        var documents: Set<DocumentChunkRef> = []
+        let pattern = #"\[(E|K|D):([^\]]+)\]"#
         guard let regex = try? NSRegularExpression(pattern: pattern) else {
-            return (entries, chunks)
+            return (entries, chunks, documents)
         }
         let range = NSRange(text.startIndex..., in: text)
         regex.enumerateMatches(in: text, range: range) { match, _, _ in
@@ -1138,11 +1176,20 @@ actor AskService {
                 if let uuid = UUID(uuidString: value) { entries.insert(uuid) }
             case "K":
                 if !value.isEmpty { chunks.insert(value) }
+            case "D":
+                // `<uuid>#<int>`
+                guard let hashIdx = value.firstIndex(of: "#") else { return }
+                let uuidPart = String(value[..<hashIdx])
+                let idxPart = String(value[value.index(after: hashIdx)...])
+                guard let uuid = UUID(uuidString: uuidPart),
+                      let idx = Int(idxPart),
+                      idx >= 0 else { return }
+                documents.insert(DocumentChunkRef(docId: uuid, chunkIndex: idx))
             default:
                 return
             }
         }
-        return (entries, chunks)
+        return (entries, chunks, documents)
     }
 
     /// Base system prompt for the custom agent.
@@ -1157,7 +1204,10 @@ actor AskService {
     /// rule. The parser also tolerates `(...)` and `None`/`null`
     /// strings as a belt-and-braces defence, but a precise prompt
     /// keeps the dispatched arguments clean.
-    static func buildCustomAgentSystemPrompt(scope: AskScope) -> String {
+    static func buildCustomAgentSystemPrompt(
+        scope: AskScope,
+        schemas: [ToolSpec]
+    ) -> String {
         let scopeHint: String
         switch scope {
         case .all:
@@ -1165,10 +1215,13 @@ actor AskService {
         case .labs:
             scopeHint = "Frage betrifft Laborwerte; bevorzuge `get_lab_trend` und `search_corpus` mit scope:<|\"|>labs<|\"|>."
         }
+        let declarationBlock = Self.formatDeclarationBlock(schemas)
         return """
         Sie sind ein Tagebuch-Assistent für Eltern eines Kindes in der AIEOP-BFM ALL 2017 Behandlung.
 
         AUFGABE: Beantworten Sie die Frage der Eltern, indem Sie die zur Verfügung gestellten Werkzeuge nutzen, um Fakten zu finden. \(scopeHint)
+
+        \(declarationBlock)
 
         AUFRUF-FORMAT (BUCHSTABENGETREU):
             call:NAME{KEY1:<|"|>WERT1<|"|>,KEY2:<|"|>WERT2<|"|>}
@@ -1185,11 +1238,12 @@ actor AskService {
         - OPTIONALE Argumente einfach WEGLASSEN. Niemals `phase:<|"|>None<|"|>` oder ähnliches schreiben — wenn Sie es nicht brauchen, listen Sie es gar nicht.
         - EIN Werkzeug-Aufruf pro Antwort. Höchstens 4 Aufrufe insgesamt.
 
-        WERKZEUGE:
-        - `search_journal{query, phase?, drug?, since?, until?, labs_only?, limit?}` — Volltext-Suche im Journal. Treffer mit `[E:<UUID>]`.
-        - `search_corpus{query, scope?, limit?}` — Wissens-Korpus (Medikamente, Labor-Glossar, Phaseninfo). `scope` ist `<|"|>drugs<|"|>`, `<|"|>labs<|"|>` oder `<|"|>all<|"|>`. Treffer mit `[K:<chunkId>]`.
-        - `get_lab_trend{parameter, since?, until?}` — Zeitreihe eines Laborparameters; jeder Punkt mit `[E:<UUID>]`.
-        - `get_phase_metadata{phase}` — Deterministische Phasen-Daten (Dauer, Medikamente, Prozeduren).
+        WERKZEUGE (Kurzform — siehe Schema oben für die exakten Argumente):
+        - `search_journal` — Volltext-Suche im Journal. Treffer mit `[E:<UUID>]`.
+        - `search_corpus` — Wissens-Korpus (Medikamente, Labor-Glossar, Phaseninfo). Treffer mit `[K:<chunkId>]`.
+        - `get_lab_trend` — Zeitreihe eines Laborparameters; jeder Punkt mit `[E:<UUID>]`.
+        - `get_phase_metadata` — Deterministische Phasen-Daten (Dauer, Medikamente, Prozeduren).
+        - `search_documents` — Persönlicher Dokument-Speicher (importierte Entlassungsberichte, Laborbefunde). Treffer mit `[D:<docId>#<chunkIdx>]`.
 
         ABLAUF:
         - Nach jedem Aufruf zeigen wir Ihnen Ihren eigenen Werkzeug-Aufruf zusammen mit dem Ergebnis im Gemma-Format, eingerahmt mit `<|tool_call>…<tool_call|>` und `<|tool_response>…<tool_response|>`. Nutzen Sie das Ergebnis und entscheiden Sie über den nächsten Schritt.
@@ -1197,17 +1251,53 @@ actor AskService {
 
         INHALTLICHE REGELN:
         - Bei Fragen nach Ereignissen oder Werten aus dem Leben des Kindes IMMER zuerst `search_journal` / `get_lab_trend` aufrufen — NIEMALS aus dem Korpus paraphrasieren, als wäre es ein Tagebuch-Eintrag.
-        - Jede Aussage in Ihrer Antwort braucht eine Quelle: `[E:<UUID>]` für Journal-Einträge, `[K:<chunkId>]` für Korpus-Auszüge. Verwenden Sie nur Marker, die die Werkzeuge geliefert haben — keine UUIDs aus dem Gedächtnis.
+        - Bei Fragen, die sich auf importierte Dokumente (Entlassungsberichte, Befund-PDFs) beziehen, `search_documents` aufrufen.
+        - Jede Aussage in Ihrer Antwort braucht eine Quelle: `[E:<UUID>]` für Journal-Einträge, `[K:<chunkId>]` für Korpus-Auszüge, `[D:<UUID>#<idx>]` für importierte Dokumente. Verwenden Sie nur Marker, die die Werkzeuge geliefert haben — keine UUIDs aus dem Gedächtnis.
         - Wenn keine Quelle vorliegt, sagen Sie das ehrlich und geben Sie keine Antwort.
         - Geben Sie KEINE medizinischen Empfehlungen, Dosen oder Diagnosen ab.
 
         JSON-SCHEMA (für die finale Antwort):
         {
           "claims": [
-            { "text": "<deutscher Satz mit Citations am Ende, z.B. … [E:UUID]>", "citations": ["E:<UUID>", "K:<chunkId>", …] }
+            { "text": "<deutscher Satz mit Citations am Ende, z.B. … [E:UUID]>", "citations": ["E:<UUID>", "K:<chunkId>", "D:<UUID>#<idx>", …] }
           ],
           "followUps": ["<Folgefrage 1>", "<Folgefrage 2>"]
         }
+        """
+    }
+
+    /// Serialise the OpenAI-shaped tool schemas as a labelled JSON
+    /// block at the top of the agent system prompt. Reviewer's
+    /// recommendation: "manually inject Gemma's tool declaration
+    /// structure rather than only German instructions." JSON is the
+    /// canonical declaration format any modern function-calling LLM
+    /// has seen in training — and unlike a speculative `<|tools|>`
+    /// tag wrapper, it carries no risk of pushing Gemma 4 to emit a
+    /// call format our parser can't recover (no verified declaration-
+    /// tag spec exists; see `docs/upstream-issue-gemma4-toolcall.md`).
+    ///
+    /// `sortedKeys` + `prettyPrinted` so the same input produces
+    /// byte-equal output — tests can compare strings directly, and a
+    /// diff on the rendered prompt is human-readable.
+    static func formatDeclarationBlock(_ schemas: [ToolSpec]) -> String {
+        let payload: Any = schemas
+        let opts: JSONSerialization.WritingOptions = [.prettyPrinted, .sortedKeys]
+        let data: Data
+        do {
+            data = try JSONSerialization.data(withJSONObject: payload, options: opts)
+        } catch {
+            // Fall back to a tiny diagnostic that still labels the
+            // section so a serialise failure doesn't break the whole
+            // prompt. JSONSerialization on a `[String: Any]` payload
+            // shouldn't realistically fail for our schemas.
+            return "VERFÜGBARE WERKZEUGE (Schema): []"
+        }
+        let json = String(data: data, encoding: .utf8) ?? "[]"
+        return """
+        VERFÜGBARE WERKZEUGE (Schema im OpenAI-Function-Calling-Format):
+        ```json
+        \(json)
+        ```
         """
     }
 
@@ -1500,8 +1590,8 @@ actor AskService {
     }
 
     /// Verifiable-generation filter. **Warn-don't-replace** semantics:
-    /// - Drops citations whose entry UUID / corpus chunkId is not in the
-    ///   retrieved subset (model fabrications).
+    /// - Drops citations whose entry UUID / corpus chunkId / document
+    ///   chunk-ref is not in the surfaced subset (model fabrications).
     /// - **Keeps the claim text intact** even when all citations dropped
     ///   or when `RefusalService.containsClinicalAdvice` matches a clue
     ///   phrase. Both surface as `AnswerWarning`s instead.
@@ -1511,7 +1601,8 @@ actor AskService {
     static func filterAndWarn(
         claims: [AnswerClaim],
         validEntryIds: Set<UUID>,
-        validChunkIds: Set<String>
+        validChunkIds: Set<String>,
+        validDocumentRefs: Set<DocumentChunkRef> = []
     ) -> FilterOutcome {
         var warnings: [AnswerWarning] = []
         var droppedTotal = 0
@@ -1523,6 +1614,10 @@ actor AskService {
                 switch citation {
                 case .entry(let id):  return validEntryIds.contains(id)
                 case .corpus(let id): return validChunkIds.contains(id)
+                case .document(let docId, let chunkIndex):
+                    return validDocumentRefs.contains(
+                        DocumentChunkRef(docId: docId, chunkIndex: chunkIndex)
+                    )
                 }
             }
             let dropped = claim.citations.count - surviving.count
@@ -1581,20 +1676,22 @@ actor AskService {
     static func computeBasis(for claims: [AnswerClaim]) -> AnswerBasis {
         var hasEntry = false
         var hasCorpus = false
+        var hasDocument = false
         for c in claims {
             for cit in c.citations {
                 switch cit {
                 case .entry: hasEntry = true
                 case .corpus: hasCorpus = true
+                case .document: hasDocument = true
                 }
             }
         }
-        switch (hasEntry, hasCorpus) {
-        case (true, true):  return .both
-        case (true, false): return .journal
-        case (false, true): return .corpus
-        case (false, false): return .refusal
-        }
+        let count = (hasEntry ? 1 : 0) + (hasCorpus ? 1 : 0) + (hasDocument ? 1 : 0)
+        if count >= 2 { return .both }
+        if hasEntry { return .journal }
+        if hasCorpus { return .corpus }
+        if hasDocument { return .document }
+        return .refusal
     }
 
     // MARK: - Filters
@@ -1630,14 +1727,24 @@ actor AskService {
 actor SurfacedIdAccumulator {
     private var entries: Set<UUID> = []
     private var chunks: Set<String> = []
+    private var documents: Set<DocumentChunkRef> = []
 
-    func union(entries newEntries: Set<UUID>, chunks newChunks: Set<String>) {
+    func union(
+        entries newEntries: Set<UUID>,
+        chunks newChunks: Set<String>,
+        documents newDocs: Set<DocumentChunkRef> = []
+    ) {
         entries.formUnion(newEntries)
         chunks.formUnion(newChunks)
+        documents.formUnion(newDocs)
     }
 
-    func snapshot() -> (entries: Set<UUID>, chunks: Set<String>) {
-        (entries, chunks)
+    func snapshot() -> (
+        entries: Set<UUID>,
+        chunks: Set<String>,
+        documents: Set<DocumentChunkRef>
+    ) {
+        (entries, chunks, documents)
     }
 }
 
