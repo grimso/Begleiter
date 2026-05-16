@@ -24,7 +24,7 @@ A native iOS app (Swift / SwiftUI) for parents of children in AIEOP-BFM ALL 2017
 | Native multimodal (image + text) | Lab-report photos go straight to the model — table columns and handwritten margin notes survive | Settings → Befund-Verarbeitung → "Direkt multimodal" | `Services/GemmaVisionService.swift`, `ExtractionService.extractWithVision` |
 | Native function calling (custom loop) | The model picks read-only tools over the parent's journal — no chat memorisation | Settings → Entwicklung → Antwort-Modus → "Eigener Agent" | `Services/GemmaToolCallExtractor.swift`, `AskService.answerCustomAgent` |
 | Thinking mode (`<\|channel\|>thought`) | Reasoning-before-tool-call for harder agent questions | Always on in agent mode; opt-in for single-shot Ask | `GemmaService.generate(enableThinking:)` |
-| 128 K context window | Long Befund text + tool transcripts fit one conversation | KV cache config on E2B | `Services/GemmaService.swift` |
+| Long-context document memory (128 K) | Import a discharge letter / lab PDF; Gemma builds a cited document memory the agent can search alongside the journal | Settings → Entwicklung → "Dokument-Speicher" → "PDF importieren" | `Models/ImportedDocument.swift`, `Services/DocumentImportService.swift`, `AgentTools.searchDocuments` |
 
 See `docs/WRITEUP.md` for the engineering deep-dive — why two factories, how the mutex works, how we walked the iPhone 14 Pro's memory ceiling, how we worked around the upstream tool-call gap.
 
