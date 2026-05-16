@@ -1,10 +1,10 @@
 # Begleiter
 
-**Multimodal on-device medical journal for parents of children in AIEOP-BFM ALL 2017 treatment.** Submission to the [Gemma 4 Good Hackathon](https://www.kaggle.com/competitions/gemma-4-good-hackathon) (Kaggle, hosted by Google DeepMind, Health track).
+**An offline iPhone memory layer that helps parents carry the treatment story when doctors rotate.** Submission to the [Gemma 4 Good Hackathon](https://www.kaggle.com/competitions/gemma-4-good-hackathon) (Kaggle, hosted by Google DeepMind, Health track).
 
 > _"In a two-year leukemia protocol, the doctors rotate. Parents are the only constant. We give them the tools to carry that weight."_
 
-A native iOS app (Swift / SwiftUI). Runs entirely on the iPhone — no network, no telemetry, no cloud. Gemma 4 E2B 4-bit (~2 GB resident) handles every model call via MLX-Swift.
+A native iOS app (Swift / SwiftUI) for parents of children in AIEOP-BFM ALL 2017 treatment. Runs entirely on the iPhone — no network, no telemetry, no cloud. Gemma 4 E2B 4-bit (~2 GB resident) handles every model call via MLX-Swift. The architectural principle: **hard-code the protocol, use Gemma 4 for the soft work.** Every claim Gemma generates is cited back to a specific journal entry or corpus chunk; a post-hoc filter drops fabricated IDs before they reach the UI.
 
 ## What it does
 
@@ -18,13 +18,13 @@ A native iOS app (Swift / SwiftUI). Runs entirely on the iPhone — no network, 
 
 ## Gemma 4 capabilities exercised
 
-| Capability | Where in the code | Behind a toggle |
-|---|---|---|
-| Native text inference (E2B 4-bit) | `Services/GemmaService.swift` | n/a — always on |
-| Native multimodal (image + text) | `Services/GemmaVisionService.swift`, `ExtractionService.extractWithVision` | `labPipelineMode = .directMultimodal` |
-| Native function calling (custom loop) | `Services/GemmaToolCallExtractor.swift`, `AskService.answerCustomAgent` | `askMode = .customAgent` |
-| Thinking mode (`<\|channel\|>thought`) | `GemmaService.generate(enableThinking:)` | `askThinkingEnabled` + always on in agent mode |
-| 128 K context | KV cache config on E2B | n/a |
+| Capability | Parent value | Proof in app | Code path |
+|---|---|---|---|
+| Native text inference (E2B 4-bit) | Every model call stays on the iPhone — no operator can see the journal | Capture / Briefing / Handoff / Ask all run through one shared actor | `Services/GemmaService.swift` |
+| Native multimodal (image + text) | Lab-report photos go straight to the model — table columns and handwritten margin notes survive | Settings → Befund-Verarbeitung → "Direkt multimodal" | `Services/GemmaVisionService.swift`, `ExtractionService.extractWithVision` |
+| Native function calling (custom loop) | The model picks read-only tools over the parent's journal — no chat memorisation | Settings → Entwicklung → Antwort-Modus → "Eigener Agent" | `Services/GemmaToolCallExtractor.swift`, `AskService.answerCustomAgent` |
+| Thinking mode (`<\|channel\|>thought`) | Reasoning-before-tool-call for harder agent questions | Always on in agent mode; opt-in for single-shot Ask | `GemmaService.generate(enableThinking:)` |
+| 128 K context window | Long Befund text + tool transcripts fit one conversation | KV cache config on E2B | `Services/GemmaService.swift` |
 
 See `docs/WRITEUP.md` for the engineering deep-dive — why two factories, how the mutex works, how we walked the iPhone 14 Pro's memory ceiling, how we worked around the upstream tool-call gap.
 
@@ -105,11 +105,11 @@ CHAT_README.md                  # Q&A pipeline design notes
 ## Privacy & data
 
 - **Nothing leaves the device.** No network code is wired into any inference path. The only network call in the app is the one-time Hugging Face model download at first launch (gated by the Hub client).
-- The clinical corpus the Ask path grounds on is restricted to open-access AIEOP-BFM publications, kinderkrebsinfo.de parent-education content, and EMA SmPCs. Lives at `Begleiter/Resources/corpus/`.
+- The clinical corpus the Ask path grounds on is restricted to open-access AIEOP-BFM publications, kinderkrebsinfo.de parent-education content, and EMA SmPCs. Bundled as `Begleiter/Resources/corpus.json`.
 - The BFM 2017 protocol PDF is **not licensable** and **not** in this repo.
 
 ## License
 
 Source code: MIT (see `LICENSE`).
 
-The clinical corpus retains its sources' licences — see the per-document headers in `Begleiter/Resources/corpus/`.
+The clinical corpus retains its sources' licences — see the per-document headers inside `Begleiter/Resources/corpus.json`.
