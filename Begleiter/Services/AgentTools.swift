@@ -452,7 +452,13 @@ struct AgentTools: @unchecked Sendable {
         _ input: GetLabTrendInput,
         entries: [JournalEntry]
     ) async -> String {
-        let normalizedParam = input.parameter.lowercased()
+        // Canonicalise the model's input via the shared synonym table
+        // so `"Hb"` / `"Hemoglobin"` / `"HGB"` / `"Hämoglobin"` /
+        // `"Leukozyten"` all resolve to the same series the user stored.
+        // Without this, the previous exact-lowercased match silently
+        // returned "no values" on a synonym the parent didn't think
+        // would matter.
+        let queryCanonical = LabParameterCanonicalizer.canonical(for: input.parameter)
         let since = input.since.flatMap(parseISODate)
         let until = input.until.flatMap(parseISODate)
 
@@ -468,7 +474,7 @@ struct AgentTools: @unchecked Sendable {
         for entry in entries {
             guard let labs = entry.extractedFields.labValues?.value else { continue }
             for lab in labs {
-                guard lab.parameter.lowercased() == normalizedParam else { continue }
+                guard LabParameterCanonicalizer.canonical(for: lab.parameter) == queryCanonical else { continue }
                 if let since, lab.measuredAt < since { continue }
                 if let until, lab.measuredAt > until { continue }
                 points.append(Point(
@@ -486,8 +492,7 @@ struct AgentTools: @unchecked Sendable {
         points.sort { $0.measuredAt < $1.measuredAt }
         // Use the canonical parameter name from the data (the lab's own
         // `parameter` field), not whatever casing the model passed in,
-        // so the output is deterministic across "ANC" / "anc" / "Anc"
-        // — the handler is case-insensitive by design.
+        // so the output is deterministic across "ANC" / "anc" / "Anc".
         let canonicalParameter = points.first?.parameter ?? input.parameter
         let lines = points.map { p in
             "\(isoDateFormatter.string(from: p.measuredAt)) \(p.value) \(p.unit) [E:\(p.entryId.uuidString)]"

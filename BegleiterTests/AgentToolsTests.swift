@@ -258,6 +258,107 @@ final class AgentToolsTests: XCTestCase {
         XCTAssertEqual(lower, upper)
     }
 
+    /// Parents (and the LLM speaking back to them) call hemoglobin
+    /// every which way: `Hb`, `HB`, `Hgb`, `Hemoglobin`, `Hämoglobin`,
+    /// `Haemoglobin`. All of these have to resolve to the same series
+    /// stored on the entry (here: `"HB"`). The previous exact-
+    /// lowercased match silently returned "no values" on every
+    /// non-`HB` synonym, which made the agent useless on a parent
+    /// question that used clinical English ("Wie war Lillys
+    /// Hemoglobin in IA?").
+    func test_handleGetLabTrend_resolvesHemoglobinSynonyms() async {
+        let entries = makeHemoglobinEntries()
+        let synonyms = ["Hb", "HB", "Hgb", "HGB", "Hemoglobin", "Hämoglobin", "Haemoglobin"]
+        for synonym in synonyms {
+            let out = await AgentTools.handleGetLabTrend(
+                GetLabTrendInput(parameter: synonym, since: nil, until: nil),
+                entries: entries
+            )
+            XCTAssertFalse(out.contains("Keine Werte"),
+                           "agent must resolve hemoglobin synonym '\(synonym)' to the stored HB series")
+            XCTAssertTrue(out.contains("11.4"),
+                          "result must surface the stored HB value (synonym=\(synonym))")
+        }
+    }
+
+    /// Same canonicalization for WBC. Parents/clinicians may pass
+    /// `"Leukozyten"`, `"Leukos"`, `"WBC"`, `"Leukocytes"` — all map to
+    /// the same series stored as `"WBC"`.
+    func test_handleGetLabTrend_resolvesLeukocyteSynonyms() async {
+        let entries = makeWBCEntries()
+        for synonym in ["WBC", "wbc", "Leukozyten", "Leukos", "Leukocytes"] {
+            let out = await AgentTools.handleGetLabTrend(
+                GetLabTrendInput(parameter: synonym, since: nil, until: nil),
+                entries: entries
+            )
+            XCTAssertFalse(out.contains("Keine Werte"),
+                           "agent must resolve leukocyte synonym '\(synonym)' to the stored WBC series")
+            XCTAssertTrue(out.contains("3.2"),
+                          "result must surface the stored WBC value (synonym=\(synonym))")
+        }
+    }
+
+    /// Single-parameter entry helpers for the synonym tests — kept
+    /// separate from `makeEntries()` so the existing ANC tests don't
+    /// fight over the entry list.
+    private func makeHemoglobinEntries() -> [JournalEntry] {
+        let entryId = UUID()
+        let date = ISO8601DateFormatter().date(from: "2026-04-10T09:00:00Z")!
+        let lab = LabValue(
+            parameter: "HB",
+            germanLabel: "Hb",
+            value: 11.4,
+            unit: "g/dL",
+            measuredAt: date,
+            source: .text
+        )
+        return [
+            JournalEntry(
+                entryId: entryId,
+                childId: UUID(),
+                visitDate: date,
+                phase: .inductionIA,
+                dayInPhase: 7,
+                riskGroup: .standardRisk,
+                arm: .standard,
+                inputModalities: ["text"],
+                rawText: "Hb 11.4 g/dL",
+                extractedFields: ExtractedFields(
+                    labValues: ConfidenceField(value: [lab], confidence: 0.95)
+                )
+            ),
+        ]
+    }
+
+    private func makeWBCEntries() -> [JournalEntry] {
+        let entryId = UUID()
+        let date = ISO8601DateFormatter().date(from: "2026-04-10T09:00:00Z")!
+        let lab = LabValue(
+            parameter: "WBC",
+            germanLabel: "Leukozyten",
+            value: 3.2,
+            unit: "G/L",
+            measuredAt: date,
+            source: .text
+        )
+        return [
+            JournalEntry(
+                entryId: entryId,
+                childId: UUID(),
+                visitDate: date,
+                phase: .inductionIA,
+                dayInPhase: 7,
+                riskGroup: .standardRisk,
+                arm: .standard,
+                inputModalities: ["text"],
+                rawText: "Leukozyten 3.2 G/L",
+                extractedFields: ExtractedFields(
+                    labValues: ConfidenceField(value: [lab], confidence: 0.95)
+                )
+            ),
+        ]
+    }
+
     func test_handleGetLabTrend_noMatches_emitsCanonicalMessage() async {
         let out = await AgentTools.handleGetLabTrend(
             GetLabTrendInput(parameter: "CRP", since: nil, until: nil),
