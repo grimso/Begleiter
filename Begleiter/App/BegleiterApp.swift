@@ -13,7 +13,7 @@ struct BegleiterApp: App {
     /// Shared SwiftData container for the app. Defined as a stored property
     /// so the `.modelContainer(...)` modifier can attach it to the scene.
     private let modelContainer: ModelContainer = {
-        let schema = Schema([ChildState.self, JournalEntry.self])
+        let schema = Schema([ChildState.self, JournalEntry.self, ImportedDocument.self])
         let configuration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
         do {
             return try ModelContainer(for: schema, configurations: [configuration])
