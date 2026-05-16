@@ -79,7 +79,7 @@ actor BriefingService {
             entries: extractedEntries
         )
         let raw = try await gemma.generate(prompt: prompt, parameters: briefingParameters())
-        briefingLog.debug("raw=\(raw, privacy: .public)")
+        briefingLog.debug("raw=\(raw, privacy: .private)")
         let parsed = try Self.parseBriefing(from: raw, visitDate: visitDate)
 
         // If the tolerant decoder fell back on the targetDate sentinel,

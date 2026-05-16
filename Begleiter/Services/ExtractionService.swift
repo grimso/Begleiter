@@ -161,7 +161,7 @@ actor ExtractionService {
         extractionLog.info("extract: text=\(trimmedText.count, privacy: .public) chars, ocrText=\(trimmedOCR?.count ?? 0, privacy: .public) chars")
 
         let raw1 = try await gemma.generate(prompt: prompt, parameters: extractionParameters())
-        extractionLog.debug("attempt=1 raw=\(raw1, privacy: .public)")
+        extractionLog.debug("attempt=1 raw=\(raw1, privacy: .private)")
         if let fields = try? Self.parseExtractedFields(from: raw1) {
             let labCount = fields.labValues?.value.count ?? 0
             extractionLog.info("attempt=1 parsed OK, labs=\(labCount, privacy: .public)")
@@ -178,7 +178,7 @@ actor ExtractionService {
             strictMode: true
         )
         let raw2 = try await gemma.generate(prompt: retryPrompt, parameters: extractionParameters())
-        extractionLog.debug("attempt=2 raw=\(raw2, privacy: .public)")
+        extractionLog.debug("attempt=2 raw=\(raw2, privacy: .private)")
         let fields = try Self.parseExtractedFields(from: raw2)
         let labCount = fields.labValues?.value.count ?? 0
         extractionLog.info("attempt=2 parsed OK, labs=\(labCount, privacy: .public)")
@@ -217,7 +217,7 @@ actor ExtractionService {
             imageURLs: imageURLs,
             parameters: extractionParameters()
         )
-        extractionLog.debug("vision.attempt=1 raw=\(raw1, privacy: .public)")
+        extractionLog.debug("vision.attempt=1 raw=\(raw1, privacy: .private)")
         if let fields = try? Self.parseExtractedFields(from: raw1) {
             let labCount = fields.labValues?.value.count ?? 0
             extractionLog.info("vision.attempt=1 parsed OK, labs=\(labCount, privacy: .public)")
@@ -238,7 +238,7 @@ actor ExtractionService {
             imageURLs: imageURLs,
             parameters: extractionParameters()
         )
-        extractionLog.debug("vision.attempt=2 raw=\(raw2, privacy: .public)")
+        extractionLog.debug("vision.attempt=2 raw=\(raw2, privacy: .private)")
         let fields = try Self.parseExtractedFields(from: raw2)
         let labCount = fields.labValues?.value.count ?? 0
         extractionLog.info("vision.attempt=2 parsed OK, labs=\(labCount, privacy: .public)")

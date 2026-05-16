@@ -152,7 +152,6 @@ final class PhotoCaptureViewModel {
                     let result = try await engine.extract(imageData: data)
                     try Task.checkCancellation()
                     photoCaptureLog.info("image OCR via \(result.engineLabel, privacy: .public): \(result.recognisedText.count, privacy: .public) chars, confidence=\(Int(result.averageConfidence * 100), privacy: .public)%")
-                    photoCaptureLog.debug("OCR text preview: \(result.recognisedText.prefix(800), privacy: .public)")
                     await MainActor.run {
                         self.phase = .done(text: result.recognisedText, confidence: result.averageConfidence)
                     }
@@ -213,7 +212,6 @@ final class PhotoCaptureViewModel {
         if !cleanedEmbedded.isEmpty {
             // High-quality path: PDF had digital text. No OCR needed.
             photoCaptureLog.info("PDF embedded-text extraction: \(cleanedEmbedded.count, privacy: .public) chars over \(document.pageCount, privacy: .public) pages (layout-aware)")
-            photoCaptureLog.debug("PDF text preview: \(cleanedEmbedded.prefix(800), privacy: .public)")
             await MainActor.run {
                 self.phase = .done(text: cleanedEmbedded, confidence: 1.0)
             }
