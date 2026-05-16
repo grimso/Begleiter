@@ -322,4 +322,93 @@ final class AskServiceTests: XCTestCase {
                        "Empty journal context should omit the journal section header")
         XCTAssertTrue(prompt.contains("REFERENZKORPUS"))
     }
+
+    // MARK: - Surfaced-IDs scan (custom-agent citation universe)
+
+    /// Tool outputs always emit `[E:<UUID>]` for journal hits and
+    /// `[K:<chunkId>]` for corpus hits. The custom-agent loop scans
+    /// each tool result for those markers so the verifiable-generation
+    /// filter validates against IDs *actually surfaced this
+    /// conversation* — not the static universe of every entry +
+    /// every bundled corpus chunk.
+    func test_extractSurfacedIds_pullsBothMarkerKinds() {
+        let entryA = UUID()
+        let entryB = UUID()
+        let toolResult = """
+        Treffer (2):
+        [E:\(entryA.uuidString)] 2026-04-12 · Induktion IA · ANC 0.4
+        [E:\(entryB.uuidString)] 2026-04-15 · Induktion IA · Methotrexat
+        [K:glossary_drugs/methotrexate] Methotrexat: Standard.
+        """
+        let out = AskService.extractSurfacedIds(from: toolResult)
+        XCTAssertEqual(out.entries, [entryA, entryB])
+        XCTAssertEqual(out.chunks, ["glossary_drugs/methotrexate"])
+    }
+
+    func test_extractSurfacedIds_dropsMalformedUUID() {
+        let toolResult = "[E:not-a-uuid] junk [K:glossary_labs/anc] ok"
+        let out = AskService.extractSurfacedIds(from: toolResult)
+        XCTAssertTrue(out.entries.isEmpty,
+                      "malformed UUID payload must not pollute the surfaced set")
+        XCTAssertEqual(out.chunks, ["glossary_labs/anc"])
+    }
+
+    func test_extractSurfacedIds_emptyTextReturnsEmptySets() {
+        let out = AskService.extractSurfacedIds(from: "")
+        XCTAssertTrue(out.entries.isEmpty)
+        XCTAssertTrue(out.chunks.isEmpty)
+    }
+
+    func test_extractSurfacedIds_dedupsRepeatedMarkers() {
+        let uuid = UUID()
+        let toolResult = """
+        [E:\(uuid.uuidString)] erste Erwähnung
+        [E:\(uuid.uuidString)] zweite Erwähnung
+        [K:foo] [K:foo]
+        """
+        let out = AskService.extractSurfacedIds(from: toolResult)
+        XCTAssertEqual(out.entries.count, 1)
+        XCTAssertEqual(out.chunks, ["foo"])
+    }
+
+    // MARK: - Custom-agent transcript framing
+
+    /// When the loop has already dispatched tools, each completed turn
+    /// is re-injected wrapped in Gemma 4's native
+    /// `<|tool_call>…<tool_call|>` / `<|tool_response>…<tool_response|>`
+    /// framing so the model sees its own emit format reflected back
+    /// instead of the previous prose form. The extractor strips the
+    /// wrappers on input (see `GemmaToolCallExtractorTests`), so the
+    /// round-trip is safe.
+    func test_buildCustomAgentInstructions_includesNativeFraming() {
+        let call = GemmaToolCallExtractor.Call(
+            name: "search_journal",
+            arguments: ["query": .string("Asparaginase-Reaktion")]
+        )
+        let toolCallWrapped = GemmaToolCallExtractor.format(call)
+        let toolResponseWrapped = GemmaToolCallExtractor.formatResponse(
+            "Keine Treffer."
+        )
+        let transcript = ["\(toolCallWrapped)\n\(toolResponseWrapped)"]
+        let instructions = AskService.buildCustomAgentInstructions(
+            base: "BASE",
+            transcript: transcript,
+            forceFinal: false
+        )
+        XCTAssertTrue(instructions.contains("<|tool_call>"),
+                      "transcript turn must surface the native tool-call wrapper")
+        XCTAssertTrue(instructions.contains("<|tool_response>"),
+                      "transcript turn must surface the native tool-response wrapper")
+        XCTAssertTrue(instructions.contains("call:search_journal"))
+    }
+
+    func test_buildCustomAgentInstructions_forceFinalAddsBudgetWarning() {
+        let instructions = AskService.buildCustomAgentInstructions(
+            base: "BASE",
+            transcript: [],
+            forceFinal: true
+        )
+        XCTAssertTrue(instructions.contains("Werkzeug-Budget"),
+                      "force-final turn must tell the model to stop calling tools")
+    }
 }

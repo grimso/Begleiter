@@ -256,4 +256,64 @@ enum GemmaToolCallExtractor {
         }
         return s
     }
+
+    // MARK: - Inverse: format a Call back into Gemma's native syntax
+
+    /// Tool-response wrapper tags we re-emit when re-injecting prior
+    /// turns into the prompt. The opening / closing pair mirrors
+    /// Gemma 4's `<|tool_call>…<tool_call|>` framing — we use the same
+    /// `<|…|>` convention so the model sees a consistent tool loop in
+    /// its context window.
+    static let toolResponseOpen  = "<|tool_response>"
+    static let toolResponseClose = "<tool_response|>"
+
+    /// The canonical tool-call wrapper Gemma 4 emits and that
+    /// ``extract(from:)`` strips on input. Used by ``format(_:)`` so
+    /// the transcript re-injected into each turn matches the format
+    /// Gemma's own output uses.
+    static let toolCallOpen  = "<|tool_call>"
+    static let toolCallClose = "<tool_call|>"
+
+    /// Render a ``Call`` back into Gemma 4's native `call:name{…}`
+    /// syntax wrapped in `<|tool_call>…<tool_call|>` so the agent
+    /// transcript that gets re-injected into the prompt each turn
+    /// uses the same format the model itself emits. Strings get the
+    /// `<|"|>…<|"|>` escape marker; numbers / bools / null are bare.
+    static func format(_ call: Call) -> String {
+        let pairs = call.arguments.map { key, value in
+            "\(key):\(formatValue(value))"
+        }
+        // Stable iteration order would be nice for tests; arguments is
+        // a dictionary so keys come back in hash order. Tests that
+        // depend on argument order should use `extract(...)` to round-
+        // trip, not exact string match.
+        let body = pairs.joined(separator: ",")
+        return "\(toolCallOpen)call:\(call.name){\(body)}\(toolCallClose)"
+    }
+
+    /// Wrap a tool-result body in Gemma's tool-response framing.
+    /// Re-injected verbatim into the per-turn prompt so the model sees
+    /// the result inside its own native tool loop format.
+    static func formatResponse(_ result: String) -> String {
+        "\(toolResponseOpen)\(result)\(toolResponseClose)"
+    }
+
+    /// Serialise one ``ArgValue`` back to its native source form.
+    /// String values get the `<|"|>` escape wrapper because the parser
+    /// strips that pair when reading; other literals are bare so the
+    /// model sees them as bare tokens, matching its own emit style.
+    private static func formatValue(_ value: ArgValue) -> String {
+        switch value {
+        case .string(let s):
+            return "\(escapeMarkers[0])\(s)\(escapeMarkers[0])"
+        case .int(let i):
+            return String(i)
+        case .double(let d):
+            return String(d)
+        case .bool(let b):
+            return b ? "true" : "false"
+        case .null:
+            return "null"
+        }
+    }
 }

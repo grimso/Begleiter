@@ -13,6 +13,16 @@ private func askParameters() -> GenerateParameters {
     GenerateParameters(maxTokens: AppSettings.askMaxTokens, temperature: 0.4)
 }
 
+/// Per-turn parameters for the custom-agent path. Higher max-token cap
+/// than the single-shot path because each turn combines a thinking
+/// trace + a tool call OR the final JSON answer — the 512-token
+/// chat-mode cap clips both. Driven by ``AppSettings/askAgentMaxTokens``
+/// (default 2048) so users can dial chat answers terse without
+/// starving the agent loop.
+private func askAgentParameters() -> GenerateParameters {
+    GenerateParameters(maxTokens: AppSettings.askAgentMaxTokens, temperature: 0.4)
+}
+
 /// Errors surfaced internally by `AskService`. End-users never see these —
 /// failure paths swap the answer for the canonical refusal so the chat UI
 /// stays usable.
@@ -582,7 +592,7 @@ actor AskService {
             )
         }
         debug = debug.with(rawModelOutput: raw)
-        askLog.debug("raw=\(raw, privacy: .public)")
+        askLog.debug("raw=\(raw, privacy: .private)")
 
         // 5. Parse
         let parsed: ParsedAnswer
@@ -736,18 +746,36 @@ actor AskService {
         )
         let instructions = Self.buildAgentSystemPrompt(scope: question.scope)
         debug = debug.with(promptCharCount: instructions.count, promptText: instructions)
-        askLog.info("agent: starting question=\(question.text, privacy: .public)")
+        askLog.info("agent: starting question=\(question.text, privacy: .private)")
+
+        // Mirror the custom-agent path's surfaced-IDs accumulator. The
+        // `tools:` toolDispatch closure has to be `@Sendable`, so the
+        // accumulator lives in a reference box and gets mutated from
+        // inside the dispatch closure as each tool returns. When the
+        // upstream tool-call layer doesn't fire (see
+        // `docs/upstream-issue-gemma4-toolcall.md`) the accumulator
+        // stays empty — and every citation the model emits gets
+        // dropped by `filterAndWarn`. That's the right outcome:
+        // hallucinated citations against a broken tool loop become
+        // visible refusals instead of silent passes.
+        let accumulator = SurfacedIdAccumulator()
 
         let raw: String
         do {
             raw = try await gemma.generate(
                 prompt: question.text,
-                parameters: askParameters(),
+                parameters: askAgentParameters(),
                 enableThinking: true,
                 instructions: instructions,
                 tools: tools.schemas,
                 toolDispatch: { call in
-                    try await tools.dispatch(call)
+                    let result = try await tools.dispatch(call)
+                    let surfaced = Self.extractSurfacedIds(from: result)
+                    await accumulator.union(
+                        entries: surfaced.entries,
+                        chunks: surfaced.chunks
+                    )
+                    return result
                 }
             )
         } catch {
@@ -776,17 +804,15 @@ actor AskService {
         }
         debug = debug.with(claimsBeforeFilter: parsed.claims.count)
 
-        // Verifiable-generation filter. Same contract as the single-shot
-        // path: drop fabricated citations, keep claim text, warn instead
-        // of replacing. The agent could in principle cite any entry or
-        // chunk the tools surfaced, so the valid sets are the universe
-        // of UUIDs / chunk ids the tools could have returned.
-        let validEntryIds = Set(entries.map(\.entryId))
-        let validChunkIds = Set(corpus.allChunkIds())
+        // Verifiable-generation filter against IDs the tools actually
+        // surfaced this conversation. Same policy as
+        // ``answerCustomAgent`` so the citation contract is consistent
+        // regardless of which agent mode the user picked.
+        let surfaced = await accumulator.snapshot()
         let outcome = Self.filterAndWarn(
             claims: parsed.claims,
-            validEntryIds: validEntryIds,
-            validChunkIds: validChunkIds
+            validEntryIds: surfaced.entries,
+            validChunkIds: surfaced.chunks
         )
         debug = debug.with(
             claimsAfterFilter: outcome.claims.count,
@@ -914,12 +940,26 @@ actor AskService {
             entries: entries
         )
         let baseInstructions = Self.buildCustomAgentSystemPrompt(scope: question.scope)
-        askLog.info("custom-agent: starting question=\(question.text, privacy: .public)")
+        askLog.info("custom-agent: starting question=\(question.text, privacy: .private)")
 
         // Running transcript of tool turns. Re-injected into the
         // prompt on every iteration so the model has full context.
+        // Each entry uses Gemma 4's native
+        // `<|tool_call>…<tool_call|>` / `<|tool_response>…<tool_response|>`
+        // framing so the model sees its own tool loop format on
+        // re-injection (see `docs/upstream-issue-gemma4-toolcall.md`
+        // for why we still keep the prose declaration block).
         var transcript: [String] = []
         var finalRaw = ""
+
+        // Citation universe for the verifiable-generation filter. We
+        // accumulate ONLY the entry/chunk IDs that tools actually
+        // surfaced in this conversation — not the static universe of
+        // every entry + every corpus chunk in the app. The model can
+        // still hallucinate a UUID it never saw, but the filter will
+        // strip it because the ID isn't in this set.
+        var surfacedEntryIds: Set<UUID> = []
+        var surfacedChunkIds: Set<String> = []
 
         // 4 tool turns + 1 forced-final turn = 5 generations max.
         let maxToolTurns = 4
@@ -937,7 +977,7 @@ actor AskService {
             do {
                 raw = try await gemma.generate(
                     prompt: question.text,
-                    parameters: askParameters(),
+                    parameters: askAgentParameters(),
                     enableThinking: true,
                     instructions: instructions,
                     tools: nil,
@@ -954,7 +994,7 @@ actor AskService {
             }
 
             finalRaw = raw
-            askLog.debug("custom-agent.turn=\(turn, privacy: .public) raw=\(raw, privacy: .public)")
+            askLog.debug("custom-agent.turn=\(turn, privacy: .public) raw=\(raw, privacy: .private)")
 
             // If we forced a final turn, don't try to parse another
             // tool call — go straight to JSON parsing.
@@ -982,7 +1022,23 @@ actor AskService {
             }
 
             askLog.info("custom-agent.turn=\(turn, privacy: .public) dispatched \(call.name, privacy: .public) → \(result.count, privacy: .public) chars")
-            transcript.append("Werkzeug-Aufruf #\(turn + 1): \(call.name)\nErgebnis: \(result)")
+
+            // Record citation IDs surfaced by this tool result so the
+            // post-hoc filter validates against what the agent
+            // actually saw — not the entire static corpus.
+            let surfaced = Self.extractSurfacedIds(from: result)
+            surfacedEntryIds.formUnion(surfaced.entries)
+            surfacedChunkIds.formUnion(surfaced.chunks)
+
+            // Re-inject the call + result wrapped in Gemma 4's native
+            // tool-loop framing instead of the previous prose form.
+            // The model sees its own emit format reflected back, and
+            // `GemmaToolCallExtractor` already tolerates the wrappers
+            // on input so we don't risk parser breakage on the next
+            // turn.
+            let wrappedCall = GemmaToolCallExtractor.format(call)
+            let wrappedResponse = GemmaToolCallExtractor.formatResponse(result)
+            transcript.append("\(wrappedCall)\n\(wrappedResponse)")
             turn += 1
         }
 
@@ -1010,14 +1066,17 @@ actor AskService {
         }
         debug = debug.with(claimsBeforeFilter: parsed.claims.count)
 
-        // Verifiable-generation filter against the full universe of
-        // entry / chunk ids the tools could have surfaced.
-        let validEntryIds = Set(entries.map(\.entryId))
-        let validChunkIds = Set(corpus.allChunkIds())
+        // Verifiable-generation filter against the IDs the agent's
+        // tools *actually surfaced* in this conversation. Previously
+        // we validated against the full corpus universe
+        // (`corpus.allChunkIds()`); that let the model cite a chunk
+        // that exists in the bundled corpus but was never returned
+        // by a tool call this turn. Now a fabricated `[K:...]` that
+        // happens to name a real chunk is also dropped.
         let outcome = Self.filterAndWarn(
             claims: parsed.claims,
-            validEntryIds: validEntryIds,
-            validChunkIds: validChunkIds
+            validEntryIds: surfacedEntryIds,
+            validChunkIds: surfacedChunkIds
         )
         debug = debug.with(
             claimsAfterFilter: outcome.claims.count,
@@ -1042,6 +1101,48 @@ actor AskService {
             debug: debug,
             renderedAt: .now
         )
+    }
+
+    // MARK: - Citation surfaced-IDs scan
+
+    /// Find every `[E:<UUID>]` and `[K:<chunkId>]` marker in `text` and
+    /// return them as two sets. Used by the custom-agent loop to grow
+    /// the validation universe per turn instead of validating against
+    /// the entire bundled corpus.
+    ///
+    /// Implementation note: parses with a forgiving regex rather than
+    /// a strict one — tool outputs are German prose and the model may
+    /// not space markers consistently. UUID parsing is strict
+    /// (`UUID(uuidString:)`) so malformed `[E:...]` tokens drop cleanly.
+    static func extractSurfacedIds(
+        from text: String
+    ) -> (entries: Set<UUID>, chunks: Set<String>) {
+        var entries: Set<UUID> = []
+        var chunks: Set<String> = []
+        let pattern = #"\[(E|K):([^\]]+)\]"#
+        guard let regex = try? NSRegularExpression(pattern: pattern) else {
+            return (entries, chunks)
+        }
+        let range = NSRange(text.startIndex..., in: text)
+        regex.enumerateMatches(in: text, range: range) { match, _, _ in
+            guard let match,
+                  let kindRange = Range(match.range(at: 1), in: text),
+                  let valueRange = Range(match.range(at: 2), in: text) else {
+                return
+            }
+            let kind = String(text[kindRange])
+            let value = String(text[valueRange])
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            switch kind {
+            case "E":
+                if let uuid = UUID(uuidString: value) { entries.insert(uuid) }
+            case "K":
+                if !value.isEmpty { chunks.insert(value) }
+            default:
+                return
+            }
+        }
+        return (entries, chunks)
     }
 
     /// Base system prompt for the custom agent.
@@ -1091,7 +1192,7 @@ actor AskService {
         - `get_phase_metadata{phase}` — Deterministische Phasen-Daten (Dauer, Medikamente, Prozeduren).
 
         ABLAUF:
-        - Nach jedem Aufruf zeigen wir Ihnen das Ergebnis als Block „Werkzeug-Aufruf #n: name / Ergebnis: …". Nutzen Sie das Ergebnis und entscheiden Sie über den nächsten Schritt.
+        - Nach jedem Aufruf zeigen wir Ihnen Ihren eigenen Werkzeug-Aufruf zusammen mit dem Ergebnis im Gemma-Format, eingerahmt mit `<|tool_call>…<tool_call|>` und `<|tool_response>…<tool_response|>`. Nutzen Sie das Ergebnis und entscheiden Sie über den nächsten Schritt.
         - Sobald Sie genug Information haben, antworten Sie ausschließlich mit dem JSON-Schema unten — KEIN weiterer Werkzeug-Aufruf.
 
         INHALTLICHE REGELN:
@@ -1111,7 +1212,9 @@ actor AskService {
     }
 
     /// Per-turn instructions: base prompt + accumulated transcript
-    /// (one block per completed tool call). When `forceFinal` is true,
+    /// (one block per completed tool call, already wrapped in Gemma's
+    /// native `<|tool_call>…<tool_call|>` / `<|tool_response>…<tool_response|>`
+    /// framing by ``answerCustomAgent``). When `forceFinal` is true,
     /// we add a closing directive that bans further tool calls — used
     /// for the 5th turn when the model has used its 4-call budget.
     static func buildCustomAgentInstructions(
@@ -1513,6 +1616,29 @@ actor AskService {
         f.locale = Locale(identifier: "de_DE")
         return f
     }()
+}
+
+// MARK: - Surfaced-ID accumulator
+
+/// Thread-safe accumulator for the citation universe of the
+/// `mlxToolCall` agent path. The `toolDispatch:` closure on
+/// `ChatSession` is `@Sendable`, so the accumulator can't be a
+/// mutable struct captured by reference; an actor gives us serial
+/// updates without the `@unchecked Sendable` workaround used
+/// elsewhere in this file. The custom-agent path doesn't need this —
+/// its loop is on the single AskService actor.
+actor SurfacedIdAccumulator {
+    private var entries: Set<UUID> = []
+    private var chunks: Set<String> = []
+
+    func union(entries newEntries: Set<UUID>, chunks newChunks: Set<String>) {
+        entries.formUnion(newEntries)
+        chunks.formUnion(newChunks)
+    }
+
+    func snapshot() -> (entries: Set<UUID>, chunks: Set<String>) {
+        (entries, chunks)
+    }
 }
 
 // MARK: - AskDebugInfo builder helpers

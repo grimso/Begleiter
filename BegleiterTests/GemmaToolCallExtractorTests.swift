@@ -173,4 +173,66 @@ final class GemmaToolCallExtractorTests: XCTestCase {
         XCTAssertEqual(call?.arguments["query"], .string("Methotrexat"))
         XCTAssertEqual(call?.arguments["limit"], .int(5))
     }
+
+    // MARK: - Format (inverse of extract)
+
+    /// `format` is the inverse used to re-emit a parsed call into the
+    /// per-turn transcript so the agent loop shows Gemma its own
+    /// native tool-call framing on re-injection. Round-tripping a
+    /// minimal single-arg call must produce a string that the same
+    /// parser can read back to the same `Call`.
+    func test_format_singleStringArgument_roundTrips() {
+        let call = GemmaToolCallExtractor.Call(
+            name: "search_journal",
+            arguments: ["query": .string("Asparaginase-Reaktion")]
+        )
+        let formatted = GemmaToolCallExtractor.format(call)
+        XCTAssertTrue(formatted.contains("<|tool_call>"),
+                      "formatted call must include the opening wrapper")
+        XCTAssertTrue(formatted.contains("<tool_call|>"),
+                      "formatted call must include the closing wrapper")
+        XCTAssertTrue(formatted.contains("call:search_journal"),
+                      "formatted call must include the call: prefix")
+        // Round-trip back through the parser.
+        let parsed = GemmaToolCallExtractor.extract(from: formatted)
+        XCTAssertEqual(parsed, call,
+                       "format → extract must round-trip to an identical Call")
+    }
+
+    func test_format_mixedArgumentTypes_roundTrips() {
+        let call = GemmaToolCallExtractor.Call(
+            name: "get_lab_trend",
+            arguments: [
+                "parameter": .string("ANC"),
+                "limit": .int(5),
+                "scale": .double(1.5),
+                "verbose": .bool(true),
+                "phase": .null,
+            ]
+        )
+        let formatted = GemmaToolCallExtractor.format(call)
+        let parsed = GemmaToolCallExtractor.extract(from: formatted)
+        XCTAssertEqual(parsed, call)
+    }
+
+    /// The agent transcript is the prompt the model sees on its next
+    /// turn. Tool responses wrap via `formatResponse(...)`. The string
+    /// the model then receives contains the `<|tool_call>` /
+    /// `<|tool_response>` pair AND the literal call body, so the
+    /// extractor still finds the embedded call when scanning that
+    /// transcript block. Validates that wrapping doesn't break the
+    /// parser's recovery path.
+    func test_extract_recoversCallFromWrappedTranscriptTurn() {
+        let call = GemmaToolCallExtractor.Call(
+            name: "search_corpus",
+            arguments: ["query": .string("Vincristin")]
+        )
+        let transcript = """
+        \(GemmaToolCallExtractor.format(call))
+        \(GemmaToolCallExtractor.formatResponse("Keine Treffer."))
+        """
+        let parsed = GemmaToolCallExtractor.extract(from: transcript)
+        XCTAssertEqual(parsed, call,
+                       "extractor must still find the wrapped call inside a transcript turn")
+    }
 }
