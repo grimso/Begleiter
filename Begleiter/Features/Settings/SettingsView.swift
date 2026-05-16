@@ -39,6 +39,12 @@ struct SettingsView: View {
     @AppStorage(AppSettings.askAgentMaxTokensKey)
     private var askAgentMaxTokens: Int = AppSettings.defaultAskAgentMaxTokens
 
+    @AppStorage(AppSettings.importedDocsEnabledKey)
+    private var importedDocsEnabled: Bool = AppSettings.defaultImportedDocsEnabled
+
+    @AppStorage(AppSettings.docImportMaxCharsKey)
+    private var docImportMaxChars: Int = AppSettings.defaultDocImportMaxChars
+
     @AppStorage(AppSettings.askDiagnosticsEnabledKey)
     private var askDiagnosticsEnabled: Bool = AppSettings.defaultAskDiagnosticsEnabled
 
@@ -418,6 +424,27 @@ struct SettingsView: View {
                       systemImage: "info.circle")
                     .font(.caption)
                     .foregroundStyle(.orange)
+            }
+            Toggle(isOn: $importedDocsEnabled) {
+                Label(L10n.key("settings.developer.importedDocs"),
+                      systemImage: "doc.text.magnifyingglass")
+            }
+            if importedDocsEnabled {
+                Stepper(value: $docImportMaxChars, in: 4000...64000, step: 2000) {
+                    HStack {
+                        Text(L10n.key("settings.developer.docImportMaxChars"))
+                        Spacer()
+                        Text("\(docImportMaxChars)")
+                            .monospacedDigit()
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                NavigationLink {
+                    DocumentImportView()
+                } label: {
+                    Label(L10n.key("settings.developer.documentStore"),
+                          systemImage: "tray.full")
+                }
             }
         } header: {
             Text(L10n.key("settings.developer.section"))

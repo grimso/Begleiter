@@ -333,9 +333,11 @@
 
 "ask.basis.journal" = "Aus Ihrem Journal";
 "ask.basis.corpus" = "Aus dem Referenzkorpus";
-"ask.basis.both" = "Aus Journal und Korpus";
+"ask.basis.document" = "Aus Ihrem Dokument-Speicher";
+"ask.basis.both" = "Aus mehreren Quellen";
 
 "ask.citation.entry" = "Eintrag";
+"ask.citation.document" = "Dokument";
 "ask.citation.hint" = "Quelle öffnen";
 
 "labs.ask.cta" = "Frag deine Werte";
@@ -405,4 +407,19 @@
 "settings.developer.askMode.customAgent" = "Eigener Agent (Werkzeug-Aufrufe)";
 "settings.developer.askMode.mlxToolCall.warning" = "Bekannte Einschränkung: mlx-swift-lm 3.31.3 erkennt das Werkzeug-Format von Gemma 4 nicht (siehe docs/upstream-issue-gemma4-toolcall.md). Werkzeug-Aufrufe werden NICHT ausgeführt — der einfache Chat-Modus oder „Eigener Agent“ liefern tatsächliche Antworten.";
 "settings.developer.askMode.customAgent.hint" = "Eigener Loop: parst Gemma 4s natives `call:name{…}` Format selbst und ruft die Werkzeuge (Journal-Suche, Korpus, Labor-Verlauf, Phaseninfo) auf. Mehrere Modell-Aufrufe pro Frage, dauert länger; aktiviert Reasoning intern.";
-"settings.developer.askMode.budgetHint" = "Werkzeug-Modi erzeugen Reasoning + Werkzeug-Aufrufe + finale Antwort. Empfehlung: das Agent-Token-Budget (siehe „Generierungslänge“) auf 2048 oder höher belassen.";
+“settings.developer.askMode.budgetHint” = “Werkzeug-Modi erzeugen Reasoning + Werkzeug-Aufrufe + finale Antwort. Empfehlung: das Agent-Token-Budget (siehe „Generierungslänge”) auf 2048 oder höher belassen.”;
+
+“settings.developer.importedDocs” = “Dokument-Speicher (Experimentell)”;
+“settings.developer.documentStore” = “Dokumente verwalten”;
+“settings.developer.docImportMaxChars” = “Doc-Import Max-Zeichen”;
+
+“docImport.title” = “Dokument-Speicher”;
+“docImport.import” = “PDF importieren”;
+“docImport.empty” = “Noch keine Dokumente importiert. Tippe auf „PDF importieren”, um einen Entlassungsbericht oder Laborbefund hinzuzufügen.”;
+“docImport.row.chunks” = “%d Abschnitte”;
+“docImport.row.tapToOpen” = “Quelltext anzeigen”;
+“docImport.error.empty” = “Kein lesbarer Text im PDF gefunden. Vermutlich ein eingescanntes Bild.”;
+“docImport.error.tooLong” = “Dokument zu lang (Limit %d Zeichen). Limit in Einstellungen anpassen oder einen Auszug importieren.”;
+“docImport.error.modelFailed” = “Gemma konnte das Dokument nicht in Abschnitte zerlegen. Bitte erneut versuchen.”;
+“docImport.delete” = “Löschen”;
+“docImport.importing” = “Importiere und analysiere mit Gemma 4 …”;

@@ -110,6 +110,8 @@ enum AppSettings {
     nonisolated static let askModeKey              = "askMode"
     nonisolated static let labPipelineModeKey      = "labPipelineMode"
     nonisolated static let visionMaxLongEdgeKey    = "visionMaxLongEdge"
+    nonisolated static let importedDocsEnabledKey  = "importedDocsEnabled"
+    nonisolated static let docImportMaxCharsKey    = "docImportMaxChars"
 
     nonisolated static let defaultExtractionMaxTokens = 2500
     nonisolated static let defaultBriefingMaxTokens   = 640
@@ -137,6 +139,23 @@ enum AppSettings {
     /// down if they hit the memory limit on Befunde with text near the
     /// edges; users on iPhone 15 Pro+ can dial up.
     nonisolated static let defaultVisionMaxLongEdge = 1568
+
+    /// Default-on for the Kaggle demo: the parent (or judge) sees the
+    /// "Dokument-Speicher" surface under Settings → Entwicklung without
+    /// having to flip a toggle first. The toggle still exists so a
+    /// parent on a smaller device can disable it; the project-wide
+    /// "every new AI surface ships off by default" convention is
+    /// explicitly overridden here for the submission window.
+    nonisolated static let defaultImportedDocsEnabled = true
+
+    /// Hard cap on the number of characters from one imported PDF that
+    /// reach Gemma 4 in a single long-context call. 12 000 chars is
+    /// ~3 000 tokens — well inside the per-app memory ceiling on an
+    /// iPhone 14 Pro after model load. The Settings stepper ranges
+    /// 4 000…64 000 so users on 8 GB devices (iPhone 15 Pro+ / 16 Pro)
+    /// can dial up to demonstrate the long-context story without the
+    /// 14 Pro default risking OOM mid-import.
+    nonisolated static let defaultDocImportMaxChars = 12000
 
     /// Plain-Swift read path for non-SwiftUI callers (services / actors).
     /// `@AppStorage` is a SwiftUI property wrapper and can't be read from
@@ -274,6 +293,23 @@ enum AppSettings {
     nonisolated static var visionMaxLongEdge: Int {
         let v = UserDefaults.standard.integer(forKey: visionMaxLongEdgeKey)
         return v > 0 ? v : defaultVisionMaxLongEdge
+    }
+
+    /// When `true`, the "Dokument-Speicher" surface is reachable from
+    /// Settings → Entwicklung and the custom-agent advertises a 5th
+    /// tool (`search_documents`). Default `true` for the submission
+    /// demo (see ``defaultImportedDocsEnabled``).
+    nonisolated static var importedDocsEnabled: Bool {
+        UserDefaults.standard.object(forKey: importedDocsEnabledKey) as? Bool
+            ?? defaultImportedDocsEnabled
+    }
+
+    /// Max characters of extracted PDF text that may reach Gemma 4 in
+    /// a single ``DocumentImportService.importDocument`` call. 0 / unset
+    /// → use ``defaultDocImportMaxChars`` (12 000).
+    nonisolated static var docImportMaxChars: Int {
+        let v = UserDefaults.standard.integer(forKey: docImportMaxCharsKey)
+        return v > 0 ? v : defaultDocImportMaxChars
     }
 
     /// Write path used by `GemmaService` when E4B load fails and the

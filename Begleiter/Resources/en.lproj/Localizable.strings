@@ -333,9 +333,11 @@
 
 "ask.basis.journal" = "From your journal";
 "ask.basis.corpus" = "From the reference corpus";
-"ask.basis.both" = "From journal and corpus";
+"ask.basis.document" = "From your document store";
+"ask.basis.both" = "From multiple sources";
 
 "ask.citation.entry" = "Entry";
+"ask.citation.document" = "Document";
 "ask.citation.hint" = "Open source";
 
 "labs.ask.cta" = "Ask your labs";
@@ -406,3 +408,18 @@
 "settings.developer.askMode.mlxToolCall.warning" = "Known limitation: mlx-swift-lm 3.31.3 doesn't recognise Gemma 4's tool-call format (see docs/upstream-issue-gemma4-toolcall.md). Tool calls aren't dispatched — use Chat or Custom Agent for real answers.";
 "settings.developer.askMode.customAgent.hint" = "Custom loop: parses Gemma 4's native `call:name{…}` format ourselves and invokes the tools (journal search, corpus, lab trend, phase metadata). Multiple model calls per question, runs slower; enables reasoning internally.";
 "settings.developer.askMode.budgetHint" = "Tool-call modes emit reasoning + tool calls + final answer. Recommendation: keep the agent token budget (see Generation length) at 2048 or higher.";
+
+"settings.developer.importedDocs" = "Document Store (Experimental)";
+"settings.developer.documentStore" = "Manage Documents";
+"settings.developer.docImportMaxChars" = "Doc Import Max Chars";
+
+"docImport.title" = "Document Store";
+"docImport.import" = "Import PDF";
+"docImport.empty" = "No documents yet. Tap \"Import PDF\" to add a discharge letter or lab report.";
+"docImport.row.chunks" = "%d sections";
+"docImport.row.tapToOpen" = "View source text";
+"docImport.error.empty" = "No readable text found in the PDF. Probably a scanned image.";
+"docImport.error.tooLong" = "Document too long (limit %d chars). Adjust the limit in Settings or import an excerpt.";
+"docImport.error.modelFailed" = "Gemma couldn't structure the document into sections. Please try again.";
+"docImport.delete" = "Delete";
+"docImport.importing" = "Importing and analysing with Gemma 4 …";
