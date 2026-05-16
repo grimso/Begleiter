@@ -31,6 +31,8 @@ final class AppSettingsTests: XCTestCase {
         AppSettings.handoffMaxTokensKey,
         AppSettings.askMaxTokensKey,
         AppSettings.askAgentMaxTokensKey,
+        AppSettings.importedDocsEnabledKey,
+        AppSettings.docImportMaxCharsKey,
         AppSettings.labPipelineModeKey,
     ]
 
@@ -83,6 +85,38 @@ final class AppSettingsTests: XCTestCase {
     func test_askAgentMaxTokens_zeroFallsBackToDefault() {
         UserDefaults.standard.set(0, forKey: AppSettings.askAgentMaxTokensKey)
         XCTAssertEqual(AppSettings.askAgentMaxTokens, AppSettings.defaultAskAgentMaxTokens)
+    }
+
+    // MARK: - Imported-documents feature toggle + size cap
+
+    /// Default is intentionally ON for the submission demo so judges
+    /// see the surface without flipping a Settings toggle. Auto-memory
+    /// convention `feedback_toggle_new_features.md` is explicitly
+    /// overridden here; the toggle still exists for parents who want
+    /// to disable.
+    func test_importedDocsEnabled_defaultsToOn() {
+        XCTAssertTrue(AppSettings.importedDocsEnabled)
+    }
+
+    func test_importedDocsEnabled_roundTripsThroughUserDefaults() {
+        UserDefaults.standard.set(false, forKey: AppSettings.importedDocsEnabledKey)
+        XCTAssertFalse(AppSettings.importedDocsEnabled)
+        UserDefaults.standard.set(true, forKey: AppSettings.importedDocsEnabledKey)
+        XCTAssertTrue(AppSettings.importedDocsEnabled)
+    }
+
+    func test_docImportMaxChars_defaultsTo12000() {
+        XCTAssertEqual(AppSettings.docImportMaxChars, 12000)
+    }
+
+    func test_docImportMaxChars_roundTripsThroughUserDefaults() {
+        UserDefaults.standard.set(32000, forKey: AppSettings.docImportMaxCharsKey)
+        XCTAssertEqual(AppSettings.docImportMaxChars, 32000)
+    }
+
+    func test_docImportMaxChars_zeroFallsBackToDefault() {
+        UserDefaults.standard.set(0, forKey: AppSettings.docImportMaxCharsKey)
+        XCTAssertEqual(AppSettings.docImportMaxChars, AppSettings.defaultDocImportMaxChars)
     }
 
     // MARK: - Round-trip

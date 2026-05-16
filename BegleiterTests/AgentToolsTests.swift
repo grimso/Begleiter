@@ -130,15 +130,21 @@ final class AgentToolsTests: XCTestCase {
 
     // MARK: - Schema
 
-    func test_schemas_advertiseAllFourTools() {
+    func test_schemas_advertiseAllAgentTools() {
         let tools = makeTools()
         let names = tools.schemas.compactMap { schema -> String? in
             (schema["function"] as? [String: Any])?["name"] as? String
         }
         XCTAssertEqual(
             Set(names),
-            ["search_journal", "search_corpus", "get_lab_trend", "get_phase_metadata"],
-            "All four agent tools must be exposed to Gemma."
+            [
+                "search_journal",
+                "search_corpus",
+                "get_lab_trend",
+                "get_phase_metadata",
+                "search_documents",
+            ],
+            "All five agent tools must be exposed to Gemma."
         )
     }
 
@@ -297,6 +303,105 @@ final class AgentToolsTests: XCTestCase {
                           "result must surface the stored WBC value (synonym=\(synonym))")
         }
     }
+
+    // MARK: - search_documents
+
+    /// Token-overlap scorer over imported documents. Verifies the
+    /// agent surfaces the right chunk in the result string with the
+    /// `[D:<docId>#<chunkIdx>]` marker the citation pipeline expects.
+    func test_handleSearchDocuments_returnsBM25Hits() async {
+        let documents = Self.makeDocuments()
+        let out = await AgentTools.handleSearchDocuments(
+            SearchDocumentsInput(query: "Methotrexat Reaktion", limit: nil),
+            documents: documents
+        )
+        XCTAssertTrue(out.contains("[D:\(Self.docB.uuidString)#1]"),
+                      "must surface the medikation chunk in doc B that mentions Methotrexat. Got: \(out)")
+        XCTAssertTrue(out.contains("[D:<docId>#<chunkIdx>]"),
+                      "result header must remind the model to cite using the canonical marker")
+    }
+
+    func test_handleSearchDocuments_emptyQueryReturnsCanonicalMessage() async {
+        let out = await AgentTools.handleSearchDocuments(
+            SearchDocumentsInput(query: "", limit: nil),
+            documents: Self.makeDocuments()
+        )
+        XCTAssertTrue(out.contains("Keine Suchanfrage"),
+                      "empty query short-circuits to a usable message rather than hallucinating a search")
+    }
+
+    func test_handleSearchDocuments_noDocumentsImported() async {
+        let out = await AgentTools.handleSearchDocuments(
+            SearchDocumentsInput(query: "Methotrexat", limit: nil),
+            documents: []
+        )
+        XCTAssertTrue(out.contains("Kein Dokument"),
+                      "agent must report the empty-store case clearly")
+    }
+
+    func test_handleSearchDocuments_noMatchesCanonicalMessage() async {
+        let out = await AgentTools.handleSearchDocuments(
+            SearchDocumentsInput(query: "Quantenphysik", limit: nil),
+            documents: Self.makeDocuments()
+        )
+        XCTAssertTrue(out.contains("Keine passenden"),
+                      "no-overlap case must surface the canonical no-match message")
+    }
+
+    func test_handleSearchDocuments_dispatchViaCustomAgentPath() async throws {
+        let tools = AgentTools(
+            retrieval: RetrievalService(),
+            corpus: Self.makeCorpus(),
+            entries: makeEntries(),
+            importedDocs: Self.makeDocuments()
+        )
+        let out = try await tools.dispatch(
+            name: "search_documents",
+            args: ["query": .string("Methotrexat")]
+        )
+        XCTAssertTrue(out.contains("[D:"),
+                      "custom-agent dispatch path must include doc markers")
+    }
+
+    // Fixture: two short documents, each with a few topical chunks.
+    private static let docA: UUID = UUID()
+    private static let docB: UUID = UUID()
+    private static func makeDocuments() -> [ImportedDocument] {
+        return [
+            ImportedDocument(
+                docId: docA,
+                title: "Entlassungsbericht UKE 2026-04-12",
+                originalFilename: "uke-entlassung.pdf",
+                importedAt: Date(timeIntervalSince1970: 1_712_880_000),
+                sourceText: "...",
+                summary: "Entlassung nach Induktion IA.",
+                chunks: [
+                    DocumentChunk(index: 0, kind: "befund",
+                                  text: "ANC am Tag 8 bei 0.4 G/L; klinisch stabil."),
+                    DocumentChunk(index: 1, kind: "naechste_schritte",
+                                  text: "Wiedervorstellung am Folgetag zur Blutkontrolle."),
+                ]
+            ),
+            ImportedDocument(
+                docId: docB,
+                title: "Onkologie-Brief 2026-03-22",
+                originalFilename: "onko-brief.pdf",
+                importedAt: Date(timeIntervalSince1970: 1_710_460_800),
+                sourceText: "...",
+                summary: "Methotrexat-Hochdosis-Block.",
+                chunks: [
+                    DocumentChunk(index: 0, kind: "befund",
+                                  text: "Leberwerte initial unauffällig."),
+                    DocumentChunk(index: 1, kind: "medikation",
+                                  text: "Methotrexat 5 g/m² als 24-Stunden-Infusion; keine akute Reaktion."),
+                    DocumentChunk(index: 2, kind: "entscheidung",
+                                  text: "Fortsetzung des Protokoll-M-Blocks plangemäß."),
+                ]
+            ),
+        ]
+    }
+
+    // MARK: - Lab synonym helpers
 
     /// Single-parameter entry helpers for the synonym tests — kept
     /// separate from `makeEntries()` so the existing ANC tests don't

@@ -16,6 +16,12 @@ final class AskServiceTests: XCTestCase {
         XCTAssertEqual(parsed, .corpus(chunkId: "glossary_labs/anc"))
     }
 
+    func test_citation_parsesDocumentRef() {
+        let uuid = UUID()
+        let parsed = Citation.parse("D:\(uuid.uuidString)#3")
+        XCTAssertEqual(parsed, .document(docId: uuid, chunkIndex: 3))
+    }
+
     func test_citation_rejectsMalformedTokens() {
         XCTAssertNil(Citation.parse(""))
         XCTAssertNil(Citation.parse("not-a-token"))
@@ -23,6 +29,12 @@ final class AskServiceTests: XCTestCase {
         XCTAssertNil(Citation.parse("E:not-a-uuid"))
         XCTAssertNil(Citation.parse("X:glossary_labs/anc"))
         XCTAssertNil(Citation.parse("K:"))
+        // Document-specific malformed cases
+        XCTAssertNil(Citation.parse("D:"))
+        XCTAssertNil(Citation.parse("D:not-a-uuid#0"))
+        XCTAssertNil(Citation.parse("D:\(UUID().uuidString)"))      // missing #
+        XCTAssertNil(Citation.parse("D:\(UUID().uuidString)#abc"))  // non-int index
+        XCTAssertNil(Citation.parse("D:\(UUID().uuidString)#-1"))   // negative index
     }
 
     // MARK: - JSON parsing
@@ -357,6 +369,36 @@ final class AskServiceTests: XCTestCase {
         let out = AskService.extractSurfacedIds(from: "")
         XCTAssertTrue(out.entries.isEmpty)
         XCTAssertTrue(out.chunks.isEmpty)
+        XCTAssertTrue(out.documents.isEmpty)
+    }
+
+    func test_extractSurfacedIds_pullsDocumentRefs() {
+        let docA = UUID()
+        let docB = UUID()
+        let toolResult = """
+        Treffer (2):
+        [D:\(docA.uuidString)#0] Entlassungsbericht UKE · befund: ANC 0.4 …
+        [D:\(docB.uuidString)#7] Onkologie 2026-03-22 · medikation: Methotrexat 5 g/m²
+        """
+        let out = AskService.extractSurfacedIds(from: toolResult)
+        XCTAssertEqual(out.documents, [
+            DocumentChunkRef(docId: docA, chunkIndex: 0),
+            DocumentChunkRef(docId: docB, chunkIndex: 7),
+        ])
+    }
+
+    func test_extractSurfacedIds_dropsMalformedDocumentRef() {
+        let goodDoc = UUID()
+        let toolResult = """
+        [D:not-a-uuid#0] junk
+        [D:\(goodDoc.uuidString)] missing-hash junk
+        [D:\(goodDoc.uuidString)#abc] non-int junk
+        [D:\(goodDoc.uuidString)#5] ok
+        """
+        let out = AskService.extractSurfacedIds(from: toolResult)
+        XCTAssertEqual(out.documents, [
+            DocumentChunkRef(docId: goodDoc, chunkIndex: 5),
+        ])
     }
 
     func test_extractSurfacedIds_dedupsRepeatedMarkers() {
@@ -410,5 +452,90 @@ final class AskServiceTests: XCTestCase {
         )
         XCTAssertTrue(instructions.contains("Werkzeug-Budget"),
                       "force-final turn must tell the model to stop calling tools")
+    }
+
+    // MARK: - Filter extension for documents
+
+    func test_filterAndWarn_dropsUnknownDocumentRefsKeepsClaim() {
+        let validDoc = UUID()
+        let fabricatedDoc = UUID()
+        let claims = [
+            AnswerClaim(text: "ok",        citations: [.document(docId: validDoc, chunkIndex: 1)]),
+            AnswerClaim(text: "erfunden",  citations: [.document(docId: fabricatedDoc, chunkIndex: 0)]),
+        ]
+        let outcome = AskService.filterAndWarn(
+            claims: claims,
+            validEntryIds: [],
+            validChunkIds: [],
+            validDocumentRefs: [DocumentChunkRef(docId: validDoc, chunkIndex: 1)]
+        )
+        XCTAssertEqual(outcome.claims.count, 2)
+        XCTAssertEqual(outcome.claims[0].citations,
+                       [.document(docId: validDoc, chunkIndex: 1)])
+        XCTAssertTrue(outcome.claims[1].citations.isEmpty)
+        XCTAssertEqual(outcome.droppedCitations, 1)
+    }
+
+    func test_computeBasis_documentOnly() {
+        let claims = [
+            AnswerClaim(text: "x", citations: [.document(docId: UUID(), chunkIndex: 0)]),
+        ]
+        XCTAssertEqual(AskService.computeBasis(for: claims), .document)
+    }
+
+    func test_computeBasis_journalPlusDocument_returnsBoth() {
+        let claims = [
+            AnswerClaim(text: "a", citations: [.entry(UUID())]),
+            AnswerClaim(text: "b", citations: [.document(docId: UUID(), chunkIndex: 0)]),
+        ]
+        XCTAssertEqual(AskService.computeBasis(for: claims), .both)
+    }
+
+    // MARK: - Stretch A: JSON tool declaration block
+
+    /// Reviewer's recommendation: inject Gemma's tool declaration as a
+    /// machine-readable block. We use OpenAI-shaped JSON (no
+    /// speculative tag invention) because the model has seen this
+    /// format in training. The output must be deterministic so a diff
+    /// on the rendered prompt is human-readable, and so test fixtures
+    /// can compare strings.
+    func test_formatDeclarationBlock_isDeterministic() {
+        let agentTools = AgentTools(
+            retrieval: RetrievalService(),
+            corpus: CorpusService.shared,
+            entries: [],
+            importedDocs: []
+        )
+        let first = AskService.formatDeclarationBlock(agentTools.schemas)
+        let second = AskService.formatDeclarationBlock(agentTools.schemas)
+        XCTAssertEqual(first, second,
+                       "JSON declaration block must be byte-equal across renders")
+        XCTAssertTrue(first.contains("\"type\""),
+                      "block must include the OpenAI function-schema marker")
+        XCTAssertTrue(first.contains("search_journal"),
+                      "block must include each tool's name")
+        XCTAssertTrue(first.contains("search_documents"),
+                      "block must include the new search_documents tool")
+        XCTAssertTrue(first.contains("```json"),
+                      "block must be fenced as a JSON code block")
+    }
+
+    func test_buildCustomAgentSystemPrompt_carriesJSONDeclarationBlock() {
+        let schemas = AgentTools(
+            retrieval: RetrievalService(),
+            corpus: CorpusService.shared,
+            entries: [],
+            importedDocs: []
+        ).schemas
+        let prompt = AskService.buildCustomAgentSystemPrompt(
+            scope: .all,
+            schemas: schemas
+        )
+        XCTAssertTrue(prompt.contains("VERFÜGBARE WERKZEUGE (Schema"),
+                      "system prompt must label the declaration block")
+        XCTAssertTrue(prompt.contains("search_documents"),
+                      "5th tool must be advertised in the system prompt")
+        XCTAssertTrue(prompt.contains("[D:<UUID>#<idx>]"),
+                      "citation format for documents must be specified")
     }
 }
