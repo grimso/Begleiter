@@ -93,9 +93,16 @@
 "tab.insights" = "Insights";
 "tab.profile" = "Profile";
 
-// MARK: - Insights (placeholder tab — future home for trends and progress views)
+// MARK: - Insights (lab status pill + 4-parameter trend charts)
 "insights.title" = "Insights";
-"insights.description" = "Trends and visualizations will arrive in a future iteration.";
+"insights.windowLabel" = "Time range";
+"insights.window.oneWeek" = "1 week";
+"insights.window.fourWeeks" = "4 weeks";
+"insights.window.twelveWeeks" = "12 weeks";
+"insights.window.all" = "All";
+"insights.empty.title" = "No lab values yet";
+"insights.empty.description" = "Once a journal entry with lab values has been processed, you'll see the latest values and trends here.";
+"insights.noPointsInWindow" = "No values in this time range.";
 
 // MARK: - Briefing (pre-visit preparation)
 "briefing.title" = "Briefing";

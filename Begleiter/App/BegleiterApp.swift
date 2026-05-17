@@ -82,7 +82,7 @@ struct RootView: View {
                     }
                     .tag(HomeTab.timeline)
 
-                    InsightsView()
+                    InsightsView(child: child)
                         .tabItem {
                             Label(L10n.t("tab.insights"), systemImage: "chart.line.uptrend.xyaxis")
                         }

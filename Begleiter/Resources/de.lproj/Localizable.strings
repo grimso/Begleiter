@@ -93,9 +93,16 @@
 "tab.insights" = "Auswertungen";
 "tab.profile" = "Profil";
 
-// MARK: - Insights (placeholder tab — future home for trends and progress views)
+// MARK: - Insights (lab status pill + 4-parameter trend charts)
 "insights.title" = "Auswertungen";
-"insights.description" = "Verläufe und Trends folgen in einer der nächsten Versionen.";
+"insights.windowLabel" = "Zeitraum";
+"insights.window.oneWeek" = "1 Woche";
+"insights.window.fourWeeks" = "4 Wochen";
+"insights.window.twelveWeeks" = "12 Wochen";
+"insights.window.all" = "Alle";
+"insights.empty.title" = "Noch keine Blutwerte";
+"insights.empty.description" = "Sobald ein Eintrag mit Laborwerten verarbeitet wurde, erscheinen hier die aktuellen Werte und die Verläufe.";
+"insights.noPointsInWindow" = "Keine Werte in diesem Zeitraum.";
 
 // MARK: - Briefing (pre-visit preparation)
 "briefing.title" = "Vorbereitung";
