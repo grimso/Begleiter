@@ -41,8 +41,12 @@ struct AskDebugSheet: View {
                     Button(L10n.t("app.done")) { dismiss() }
                 }
             }
+            .scrollContentBackground(.hidden)
+            .background(Color("BegleiterBackground").ignoresSafeArea())
         }
     }
+
+    private var rowBackground: Color { Color("BegleiterCardSurface") }
 
     private var retrievalSection: some View {
         Section {
@@ -72,6 +76,7 @@ struct AskDebugSheet: View {
         } header: {
             Text(L10n.key("ask.debug.retrieval"))
         }
+        .listRowBackground(rowBackground)
     }
 
     private var rerankerVisible: Bool {
@@ -124,6 +129,7 @@ struct AskDebugSheet: View {
         } header: {
             Text(L10n.key("ask.debug.reranker.title"))
         }
+        .listRowBackground(rowBackground)
     }
 
     private var contextSection: some View {
@@ -158,6 +164,7 @@ struct AskDebugSheet: View {
         } header: {
             Text(L10n.key("ask.debug.promptContext"))
         }
+        .listRowBackground(rowBackground)
     }
 
     private var modelSection: some View {
@@ -201,6 +208,7 @@ struct AskDebugSheet: View {
         } header: {
             Text(L10n.key("ask.debug.model"))
         }
+        .listRowBackground(rowBackground)
     }
 
     private var filterSection: some View {
@@ -218,6 +226,7 @@ struct AskDebugSheet: View {
         } header: {
             Text(L10n.key("ask.debug.filter"))
         }
+        .listRowBackground(rowBackground)
     }
 
     private var warningsSection: some View {
@@ -229,6 +238,7 @@ struct AskDebugSheet: View {
         } header: {
             Text(L10n.key("ask.debug.warnings"))
         }
+        .listRowBackground(rowBackground)
     }
 
     private func refusalSection(reason: RefusalReason) -> some View {
@@ -240,6 +250,7 @@ struct AskDebugSheet: View {
         } footer: {
             Text(L10n.key("ask.debug.refusalReason.footer"))
         }
+        .listRowBackground(rowBackground)
     }
 
     // MARK: - Label helpers

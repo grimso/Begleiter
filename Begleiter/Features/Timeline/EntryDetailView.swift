@@ -27,6 +27,7 @@ struct EntryDetailView: View {
                 } header: {
                     Text(L10n.key("entryDetail.recording"))
                 }
+                .listRowBackground(Color("BegleiterCardSurface"))
             }
 
             if !entry.rawPhotoFilenames.isEmpty {
@@ -35,6 +36,7 @@ struct EntryDetailView: View {
                 } header: {
                     Text(L10n.key("entryDetail.photos"))
                 }
+                .listRowBackground(Color("BegleiterCardSurface"))
             }
 
             if let raw = entry.rawText,
@@ -46,6 +48,7 @@ struct EntryDetailView: View {
                 } header: {
                     Text(L10n.key("entryDetail.rawText"))
                 }
+                .listRowBackground(Color("BegleiterCardSurface"))
             }
 
             if let ocr = entry.rawPhotoOCRText, !ocr.isEmpty {
@@ -59,6 +62,7 @@ struct EntryDetailView: View {
                 } footer: {
                     Text(L10n.key("entryDetail.ocrFooter"))
                 }
+                .listRowBackground(Color("BegleiterCardSurface"))
             }
 
             if showExtracted, let summary = fields.summary {
@@ -67,6 +71,7 @@ struct EntryDetailView: View {
                 } header: {
                     Text(L10n.key("entryDetail.summary"))
                 }
+                .listRowBackground(Color("BegleiterCardSurface"))
             }
 
             if showExtracted, let drugs = fields.drugsMentioned, !drugs.value.isEmpty {
@@ -85,6 +90,7 @@ struct EntryDetailView: View {
                 } header: {
                     Text(L10n.key("entryDetail.drugs"))
                 }
+                .listRowBackground(Color("BegleiterCardSurface"))
             }
 
             if showExtracted, let labs = fields.labValues, !labs.value.isEmpty {
@@ -96,6 +102,7 @@ struct EntryDetailView: View {
                 } header: {
                     Text(L10n.key("entryDetail.labs"))
                 }
+                .listRowBackground(Color("BegleiterCardSurface"))
 
                 Section {
                     LabTrendSection(currentEntry: entry)
@@ -104,6 +111,7 @@ struct EntryDetailView: View {
                 } footer: {
                     Text(L10n.key("entryDetail.trendsFooter"))
                 }
+                .listRowBackground(Color("BegleiterCardSurface"))
             }
 
             if showExtracted, let procs = fields.proceduresMentioned, !procs.value.isEmpty {
@@ -113,6 +121,7 @@ struct EntryDetailView: View {
                 } header: {
                     Text(L10n.key("entryDetail.procedures"))
                 }
+                .listRowBackground(Color("BegleiterCardSurface"))
             }
 
             if showExtracted, let decisions = fields.decisions, !decisions.value.isEmpty {
@@ -122,6 +131,7 @@ struct EntryDetailView: View {
                 } header: {
                     Text(L10n.key("entryDetail.decisions"))
                 }
+                .listRowBackground(Color("BegleiterCardSurface"))
             }
 
             if showExtracted, let obs = fields.parentObservations, !obs.value.isEmpty {
@@ -131,6 +141,7 @@ struct EntryDetailView: View {
                 } header: {
                     Text(L10n.key("entryDetail.observations"))
                 }
+                .listRowBackground(Color("BegleiterCardSurface"))
             }
 
             if showExtracted, let reactions = fields.reactions, !reactions.value.isEmpty {
@@ -159,6 +170,7 @@ struct EntryDetailView: View {
                 } header: {
                     Text(L10n.key("entryDetail.reactions"))
                 }
+                .listRowBackground(Color("BegleiterCardSurface"))
             }
 
             if showExtracted, let qs = fields.openQuestions, !qs.value.isEmpty {
@@ -168,6 +180,7 @@ struct EntryDetailView: View {
                 } header: {
                     Text(L10n.key("entryDetail.questions"))
                 }
+                .listRowBackground(Color("BegleiterCardSurface"))
             }
 
             if showExtracted, let raw = entry.rawExtractionResponse, !raw.isEmpty {
@@ -181,6 +194,7 @@ struct EntryDetailView: View {
                 } footer: {
                     Text(L10n.key("entryDetail.rawResponseFooter"))
                 }
+                .listRowBackground(Color("BegleiterCardSurface"))
             }
 
             // Always-available re-extraction trigger. Even on .extracted
@@ -194,9 +208,12 @@ struct EntryDetailView: View {
                     Label(L10n.t("entry.action.reanalyze"), systemImage: "arrow.clockwise")
                 }
             }
+            .listRowBackground(Color("BegleiterCardSurface"))
         }
         .navigationTitle(entry.visitDate.formatted(date: .abbreviated, time: .omitted))
         .navigationBarTitleDisplayMode(.inline)
+        .scrollContentBackground(.hidden)
+        .background(Color("BegleiterBackground").ignoresSafeArea())
     }
 
     private var metadataSection: some View {
@@ -218,6 +235,7 @@ struct EntryDetailView: View {
         } header: {
             Text(L10n.key("entryDetail.context"))
         }
+        .listRowBackground(Color("BegleiterCardSurface"))
     }
 
     @ViewBuilder
@@ -284,6 +302,7 @@ private struct ProcessingStatusBanner: View {
                 }
                 .padding(.vertical, 4)
             }
+            .listRowBackground(Color("BegleiterCardSurface"))
         case .failed(let message):
             Section {
                 VStack(alignment: .leading, spacing: 8) {
@@ -313,6 +332,7 @@ private struct ProcessingStatusBanner: View {
                 }
                 .padding(.vertical, 4)
             }
+            .listRowBackground(Color("BegleiterCardSurface"))
         case .extracted:
             EmptyView()
         }

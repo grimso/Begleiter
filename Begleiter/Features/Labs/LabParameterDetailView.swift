@@ -32,6 +32,7 @@ struct LabParameterDetailView: View {
                                 formatted(refMin), formatted(refMax), series.unit))
                 }
             }
+            .listRowBackground(Color("BegleiterCardSurface"))
 
             Section {
                 ForEach(series.points.reversed()) { point in
@@ -42,9 +43,12 @@ struct LabParameterDetailView: View {
             } footer: {
                 Text(L10n.key("labs.detail.measurements.footer"))
             }
+            .listRowBackground(Color("BegleiterCardSurface"))
         }
         .navigationTitle(series.germanLabel)
         .navigationBarTitleDisplayMode(.inline)
+        .scrollContentBackground(.hidden)
+        .background(Color("BegleiterBackground").ignoresSafeArea())
     }
 
     // MARK: - Rendering helpers

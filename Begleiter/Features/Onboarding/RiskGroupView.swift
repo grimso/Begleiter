@@ -19,6 +19,7 @@ struct RiskGroupView: View {
             } footer: {
                 Text(L10n.key("onboarding.riskGroup.caption"))
             }
+            .listRowBackground(Color("BegleiterCardSurface"))
 
             Section {
                 Button {
@@ -29,8 +30,11 @@ struct RiskGroupView: View {
                 }
                 .disabled(model.riskGroup == nil)
             }
+            .listRowBackground(Color("BegleiterCardSurface"))
         }
         .navigationTitle(L10n.key("onboarding.riskGroup.title"))
+        .scrollContentBackground(.hidden)
+        .background(Color("BegleiterBackground").ignoresSafeArea())
     }
 
     /// Selecting a different risk group invalidates an arm choice that may

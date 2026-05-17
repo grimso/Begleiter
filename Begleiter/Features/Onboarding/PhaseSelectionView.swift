@@ -21,6 +21,7 @@ struct PhaseSelectionView: View {
             } footer: {
                 Text(L10n.key("onboarding.phase.caption"))
             }
+            .listRowBackground(Color("BegleiterCardSurface"))
 
             Section {
                 DatePicker(
@@ -31,6 +32,7 @@ struct PhaseSelectionView: View {
                     Text(L10n.key("onboarding.phase.startDateLabel"))
                 }
             }
+            .listRowBackground(Color("BegleiterCardSurface"))
 
             if !model.selectedPhaseIsReachable {
                 Section {
@@ -41,6 +43,7 @@ struct PhaseSelectionView: View {
                             .foregroundStyle(.orange)
                     }
                 }
+                .listRowBackground(Color("BegleiterCardSurface"))
             }
 
             Section {
@@ -53,8 +56,11 @@ struct PhaseSelectionView: View {
                 }
                 .disabled(model.currentPhase == nil)
             }
+            .listRowBackground(Color("BegleiterCardSurface"))
         }
         .navigationTitle(L10n.key("onboarding.phase.title"))
+        .scrollContentBackground(.hidden)
+        .background(Color("BegleiterBackground").ignoresSafeArea())
         .onAppear {
             // Default the phase start to the diagnosis date if the parent
             // hasn't picked one yet; this is usually a reasonable starting

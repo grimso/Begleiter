@@ -56,6 +56,7 @@ struct DocumentImportView: View {
                                     .foregroundStyle(.secondary)
                             }
                         }
+                        .listRowBackground(Color("BegleiterCardSurface"))
                     }
                     if let errorMessage {
                         Section {
@@ -63,6 +64,7 @@ struct DocumentImportView: View {
                                 .font(.caption)
                                 .foregroundStyle(.red)
                         }
+                        .listRowBackground(Color("BegleiterCardSurface"))
                     }
                     Section {
                         ForEach(documents) { doc in
@@ -70,6 +72,7 @@ struct DocumentImportView: View {
                         }
                         .onDelete(perform: deleteDocuments)
                     }
+                    .listRowBackground(Color("BegleiterCardSurface"))
                 }
             }
         }
@@ -97,6 +100,8 @@ struct DocumentImportView: View {
                 errorMessage = error.localizedDescription
             }
         }
+        .scrollContentBackground(.hidden)
+        .background(Color("BegleiterBackground").ignoresSafeArea())
     }
 
     // MARK: - Row

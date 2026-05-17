@@ -29,6 +29,8 @@ struct HandoffDocumentView: View {
                 .sheet(isPresented: $presentingShare) {
                     ShareSheet(items: [shareableText])
                 }
+                .scrollContentBackground(.hidden)
+                .background(Color("BegleiterBackground").ignoresSafeArea())
         }
     }
 
@@ -83,6 +85,7 @@ struct HandoffDocumentView: View {
             } footer: {
                 Text(L10n.key("handoff.footer"))
             }
+            .listRowBackground(Color("BegleiterCardSurface"))
 
             Section {
                 Button {
@@ -93,6 +96,7 @@ struct HandoffDocumentView: View {
                 }
                 .disabled(entries.isEmpty)
             }
+            .listRowBackground(Color("BegleiterCardSurface"))
         }
     }
 
@@ -125,6 +129,7 @@ struct HandoffDocumentView: View {
             } header: {
                 Text(L10n.key("handoff.section.identification"))
             }
+            .listRowBackground(Color("BegleiterCardSurface"))
 
             if !doc.behandlungsverlauf.isEmpty {
                 Section {
@@ -134,6 +139,7 @@ struct HandoffDocumentView: View {
                 } header: {
                     Text(L10n.key("handoff.section.history"))
                 }
+                .listRowBackground(Color("BegleiterCardSurface"))
             }
 
             if !doc.aktuelleLabore.isEmpty {
@@ -148,6 +154,7 @@ struct HandoffDocumentView: View {
                 } header: {
                     Text(L10n.key("handoff.section.labs"))
                 }
+                .listRowBackground(Color("BegleiterCardSurface"))
             }
 
             if !doc.reaktionen.isEmpty {
@@ -158,6 +165,7 @@ struct HandoffDocumentView: View {
                 } header: {
                     Text(L10n.key("handoff.section.reactions"))
                 }
+                .listRowBackground(Color("BegleiterCardSurface"))
             }
 
             if !doc.aktuelleMedikation.isEmpty {
@@ -166,6 +174,7 @@ struct HandoffDocumentView: View {
                 } header: {
                     Text(L10n.key("handoff.section.medication"))
                 }
+                .listRowBackground(Color("BegleiterCardSurface"))
             }
 
             if !doc.familienanliegen.isEmpty {
@@ -176,6 +185,7 @@ struct HandoffDocumentView: View {
                 } header: {
                     Text(L10n.key("handoff.section.familyConcerns"))
                 }
+                .listRowBackground(Color("BegleiterCardSurface"))
             }
         }
     }

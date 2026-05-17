@@ -58,6 +58,7 @@ struct CorpusChunkSheet: View {
                     Button(L10n.t("app.done")) { dismiss() }
                 }
             }
+            .background(Color("BegleiterBackground").ignoresSafeArea())
         }
     }
 

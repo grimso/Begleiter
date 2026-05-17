@@ -38,6 +38,8 @@ struct LabValuesView: View {
             .sheet(isPresented: $presentingPlotComposer) {
                 LabPlotComposerView(child: child)
             }
+            .scrollContentBackground(.hidden)
+            .background(Color("BegleiterBackground").ignoresSafeArea())
         }
     }
 
@@ -63,6 +65,7 @@ struct LabValuesView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
+            .listRowBackground(Color("BegleiterCardSurface"))
 
             Section {
                 Button {
@@ -111,6 +114,7 @@ struct LabValuesView: View {
                     } label: {
                         LabSeriesCard(series: series)
                     }
+                    .listRowBackground(Color("BegleiterCardSurface"))
                 }
             }
         }

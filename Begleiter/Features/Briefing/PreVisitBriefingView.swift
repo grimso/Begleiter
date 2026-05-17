@@ -32,6 +32,7 @@ struct PreVisitBriefingView: View {
                 } header: {
                     Text(L10n.key("briefing.targetSection"))
                 }
+                .listRowBackground(Color("BegleiterCardSurface"))
 
                 if !model.isBusy && model.state == .idle {
                     Section {
@@ -49,6 +50,7 @@ struct PreVisitBriefingView: View {
                             Text(L10n.key("briefing.uses8EntriesFooter"))
                         }
                     }
+                    .listRowBackground(Color("BegleiterCardSurface"))
                 }
 
                 if model.isBusy {
@@ -58,6 +60,7 @@ struct PreVisitBriefingView: View {
                             Text(L10n.key("briefing.generating"))
                         }
                     }
+                    .listRowBackground(Color("BegleiterCardSurface"))
                 }
 
                 if case .failed(let message) = model.state {
@@ -70,6 +73,7 @@ struct PreVisitBriefingView: View {
                                 .foregroundStyle(.red)
                         }
                     }
+                    .listRowBackground(Color("BegleiterCardSurface"))
                 }
 
                 if case .done(let briefing) = model.state {
@@ -80,6 +84,8 @@ struct PreVisitBriefingView: View {
             .navigationDestination(item: $routeEntry) { entry in
                 EntryDetailView(entry: entry)
             }
+            .scrollContentBackground(.hidden)
+            .background(Color("BegleiterBackground").ignoresSafeArea())
         }
     }
 
@@ -108,6 +114,7 @@ struct PreVisitBriefingView: View {
         } header: {
             Text(L10n.key("briefing.section.stand"))
         }
+        .listRowBackground(Color("BegleiterCardSurface"))
 
         if !briefing.seitDemLetztenTermin.isEmpty {
             Section {
@@ -117,6 +124,7 @@ struct PreVisitBriefingView: View {
             } header: {
                 Text(L10n.key("briefing.section.seitDemLetztenTermin"))
             }
+            .listRowBackground(Color("BegleiterCardSurface"))
         }
 
         if !briefing.offenePunkte.isEmpty {
@@ -127,6 +135,7 @@ struct PreVisitBriefingView: View {
             } header: {
                 Text(L10n.key("briefing.section.offenePunkte"))
             }
+            .listRowBackground(Color("BegleiterCardSurface"))
         }
 
         if !briefing.fragenVorschlaege.isEmpty {
@@ -141,6 +150,7 @@ struct PreVisitBriefingView: View {
             } header: {
                 Text(L10n.key("briefing.section.fragen"))
             }
+            .listRowBackground(Color("BegleiterCardSurface"))
         }
 
         if !briefing.mitzunehmen.isEmpty {
@@ -151,6 +161,7 @@ struct PreVisitBriefingView: View {
             } header: {
                 Text(L10n.key("briefing.section.mitzunehmen"))
             }
+            .listRowBackground(Color("BegleiterCardSurface"))
         }
     }
 

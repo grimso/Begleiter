@@ -30,6 +30,7 @@ struct DiagnosisDateView: View {
             } footer: {
                 Text(L10n.key("onboarding.diagnosisDate.caption"))
             }
+            .listRowBackground(Color("BegleiterCardSurface"))
 
             Section {
                 Button {
@@ -40,8 +41,11 @@ struct DiagnosisDateView: View {
                         .frame(maxWidth: .infinity)
                 }
             }
+            .listRowBackground(Color("BegleiterCardSurface"))
         }
         .navigationTitle(L10n.key("onboarding.diagnosisDate.title"))
+        .scrollContentBackground(.hidden)
+        .background(Color("BegleiterBackground").ignoresSafeArea())
         .onAppear {
             if let existing = model.diagnosisDate {
                 selectedDate = existing

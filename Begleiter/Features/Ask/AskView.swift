@@ -81,6 +81,8 @@ struct AskView: View {
                     }
                 }
             }
+            .scrollContentBackground(.hidden)
+            .background(Color("BegleiterBackground").ignoresSafeArea())
         }
         .task {
             if viewModel == nil {

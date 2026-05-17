@@ -19,6 +19,7 @@ struct ArmView: View {
             } footer: {
                 Text(L10n.key("onboarding.arm.caption"))
             }
+            .listRowBackground(Color("BegleiterCardSurface"))
 
             Section {
                 Button {
@@ -29,8 +30,11 @@ struct ArmView: View {
                 }
                 .disabled(model.randomizationArm == nil)
             }
+            .listRowBackground(Color("BegleiterCardSurface"))
         }
         .navigationTitle(L10n.key("onboarding.arm.title"))
+        .scrollContentBackground(.hidden)
+        .background(Color("BegleiterBackground").ignoresSafeArea())
     }
 }
 
