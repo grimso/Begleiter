@@ -224,17 +224,30 @@ actor DocumentImportService {
     ) -> ImportedDocument {
         let cleanedChunks: [DocumentChunk] = (wire.chunks ?? [])
             .enumerated()
-            .compactMap { offset, wireChunk in
+            .compactMap { offset, wireChunk -> DocumentChunk? in
                 let body = wireChunk.text
                     .trimmingCharacters(in: .whitespacesAndNewlines)
                 guard !body.isEmpty else { return nil }
                 let kind = (wireChunk.kind ?? "sonstiges")
                     .trimmingCharacters(in: .whitespacesAndNewlines)
                     .lowercased()
+                // Post-process span recovery: find the longest run of
+                // characters in `body` that appears verbatim inside
+                // `sourceText`. When ≥ 30 characters match, the chunk
+                // ships with a `sourceSpan` the UI can highlight on a
+                // `[D:docId#chunkIndex]` tap — turning Gemma's
+                // structured paraphrase into a partial source-grounded
+                // citation. Costs O(n×m) per chunk; cheap at the
+                // import-side budget cap of `docImportMaxChars` ≤ 64k.
+                let span = SourceSpanRecovery.findLongestVerbatimSpan(
+                    of: body,
+                    in: sourceText
+                )
                 return DocumentChunk(
                     index: offset,
                     kind: kind.isEmpty ? "sonstiges" : kind,
-                    text: body
+                    text: body,
+                    sourceSpan: span
                 )
             }
         let title = (wire.title?.trimmingCharacters(in: .whitespacesAndNewlines)).flatMap {

@@ -355,7 +355,13 @@ enum DemoDataLoader {
         Bei Fieber > 38,5 °C oder Infektzeichen umgehende Vorstellung in der Klinik.
         """
 
-        let chunks: [DocumentChunk] = [
+        // Run the same span-recovery pass that production imports use
+        // (`DocumentImportService.makeDocument`) so the demo document's
+        // chunks ship with real `sourceSpan` values where a verbatim
+        // run exists in `sourceText` — chunks whose phrasing diverges
+        // too far from the original simply have `sourceSpan == nil`,
+        // which is the honest production behaviour.
+        let rawChunks: [DocumentChunk] = [
             DocumentChunk(
                 index: 0,
                 kind: "befund",
@@ -377,6 +383,9 @@ enum DemoDataLoader {
                 text: "Bei Fieber > 38,5 °C oder Infektzeichen umgehende Vorstellung in der Klinik. Ambulante Kontrolltermine zwischen den HD-MTX-Zyklen."
             ),
         ]
+        let chunks = rawChunks.map {
+            SourceSpanRecovery.annotated(chunk: $0, sourceText: sourceText)
+        }
 
         return ImportedDocument(
             title: "Entlassungsbericht UKE — Abschluss Protokoll IB",

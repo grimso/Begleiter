@@ -106,15 +106,62 @@ final class ImportedDocument {
 /// caption ("Befund" / "Medikation" / "Entscheidung" / …). The `text`
 /// field is what the agent's `search_documents` tool scores against
 /// and what the final answer can quote.
+///
+/// `sourceSpan` is the longest contiguous run of characters from
+/// ``text`` that appears verbatim in ``ImportedDocument/sourceText``,
+/// recovered post-chunking by ``SourceSpanRecovery``. Optional — `nil`
+/// when no run ≥ 30 characters matches (Gemma's paraphrase shares no
+/// long verbatim window with the original), and on every chunk
+/// persisted **before** spans were introduced (Codable migration:
+/// missing key decodes to `nil`). When present, the UI can render the
+/// original PDF text with the span highlighted in response to a
+/// `[D:docId#chunkIndex]` citation tap — closing the
+/// "structured-memory citation vs source-span grounding" gap the
+/// reviewer flagged on docs/WRITEUP §4.6.
 nonisolated struct DocumentChunk: Codable, Hashable, Sendable {
     let index: Int
     let kind: String
     let text: String
+    let sourceSpan: SourceSpan?
 
-    init(index: Int, kind: String, text: String) {
+    init(index: Int, kind: String, text: String, sourceSpan: SourceSpan? = nil) {
         self.index = index
         self.kind = kind
         self.text = text
+        self.sourceSpan = sourceSpan
+    }
+}
+
+/// A contiguous range inside ``ImportedDocument/sourceText`` that
+/// matches a ``DocumentChunk/text`` verbatim. Offsets are
+/// **Character-indexed** (Swift grapheme cluster offsets via
+/// `String.index(_, offsetBy:)`) — not UTF-16, not byte offsets.
+/// Storing the unit choice up front avoids the German-text edge cases
+/// (`°`, `½`, combining accents) that bite later when extracting
+/// substrings or building `AttributedString` highlights.
+///
+/// Persisted as part of ``DocumentChunk`` in
+/// ``ImportedDocument/chunksJSON``. Codable-encoded with `start` +
+/// `length`; tests assert round-trip stability and that decoders
+/// tolerate the field's absence on legacy chunks.
+nonisolated struct SourceSpan: Codable, Hashable, Sendable {
+    /// Character offset of the first matching character into the
+    /// source text. `0` means the match starts at the first character.
+    let start: Int
+    /// Number of characters in the match. Always `> 0` when the value
+    /// exists — a zero-length span would be useless and ``SourceSpanRecovery``
+    /// never emits one.
+    let length: Int
+
+    /// Extract the matching substring from `text`. Returns `nil` when
+    /// the span runs off the end of `text` — e.g. when the source
+    /// document was edited after the span was recorded.
+    func substring(of text: String) -> String? {
+        guard start >= 0, length > 0 else { return nil }
+        guard start + length <= text.count else { return nil }
+        let lo = text.index(text.startIndex, offsetBy: start)
+        let hi = text.index(lo, offsetBy: length)
+        return String(text[lo..<hi])
     }
 }
 
