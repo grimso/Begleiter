@@ -5,7 +5,7 @@
 // "Erhaltungstherapie" = maintenance therapy.
 
 // MARK: - App-wide
-"app.name" = "Begleiter";
+"app.name" = "Companion";
 "app.continue" = "Weiter";
 "app.back" = "Zurück";
 "app.cancel" = "Abbrechen";
@@ -74,7 +74,7 @@
 "phase.maintenance.label" = "Erhaltungstherapie";
 
 // MARK: - Home (post-onboarding entry: wordmark + three primary cards)
-"home.tagline" = "Ihre Gesundheit. Ihr Weg.";
+"home.tagline" = "Companion — Your smart AIEOP-BFM ALL continuity layer";
 "home.greeting.morning" = "Guten Morgen";
 "home.greeting.afternoon" = "Guten Tag";
 "home.greeting.evening" = "Guten Abend";
@@ -85,7 +85,8 @@
 "home.card.labs.subtitle" = "Aktuelle Werte und Verläufe.";
 "home.card.ask.title" = "Fragen";
 "home.card.ask.subtitle" = "Antworten zu Gesundheit & Therapie.";
-"home.encouragement" = "Sie machen das großartig. Kleine Schritte, große Wirkung.";
+"home.footer.line1" = "Immer dabei — Visite für Visite.";
+"home.footer.line2" = "Gemma 4 E2B, auf Ihrem iPhone.";
 
 // MARK: - Tab bar (root TabView labels)
 "tab.home" = "Start";

@@ -5,7 +5,7 @@
 // German remains the primary language of the app.
 
 // MARK: - App-wide
-"app.name" = "Begleiter";
+"app.name" = "Companion";
 "app.continue" = "Continue";
 "app.back" = "Back";
 "app.cancel" = "Cancel";
@@ -74,7 +74,7 @@
 "phase.maintenance.label" = "Maintenance";
 
 // MARK: - Home (post-onboarding entry: wordmark + three primary cards)
-"home.tagline" = "Your health. Your way.";
+"home.tagline" = "Companion — Your smart AIEOP-BFM ALL continuity layer";
 "home.greeting.morning" = "Good morning";
 "home.greeting.afternoon" = "Good afternoon";
 "home.greeting.evening" = "Good evening";
@@ -85,7 +85,8 @@
 "home.card.labs.subtitle" = "Latest values and trends.";
 "home.card.ask.title" = "Ask";
 "home.card.ask.subtitle" = "Answers about health & therapy.";
-"home.encouragement" = "You're doing great. Small steps, lasting impact.";
+"home.footer.line1" = "Always with you — visit after visit.";
+"home.footer.line2" = "Gemma 4 E2B, on your iPhone.";
 
 // MARK: - Tab bar (root TabView labels)
 "tab.home" = "Home";

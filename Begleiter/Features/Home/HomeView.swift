@@ -1,6 +1,5 @@
 import SwiftData
 import SwiftUI
-import UIKit
 
 /// Home tab in the root `TabView`. Visual identity:
 ///
@@ -46,56 +45,23 @@ struct HomeView: View {
         }
     }
 
-    // MARK: - Hero (wordmark · crane · tagline)
+    // MARK: - Hero (app-icon logo + tagline)
 
     private var hero: some View {
-        VStack(spacing: 14) {
-            wordmarkBlock
-            craneIllustration
-            taglineBlock
-        }
-        .padding(.top, 8)
-    }
-
-    private var wordmarkBlock: some View {
-        VStack(spacing: 6) {
-            rule
-                .frame(maxWidth: 220)
-            Text(L10n.key("app.name"))
-                .font(.system(size: 38, weight: .bold, design: .serif).italic())
-                .foregroundStyle(Color("BegleiterPrimary"))
-            rule
-                .frame(maxWidth: 220)
-        }
-    }
-
-    @ViewBuilder
-    private var craneIllustration: some View {
-        if UIImage(named: "crane") != nil {
-            Image("crane")
+        VStack(spacing: 12) {
+            Image("CompanionLogo")
                 .resizable()
                 .scaledToFit()
-                .frame(maxHeight: 140)
-                .frame(maxWidth: .infinity)
-        }
-    }
-
-    private var taglineBlock: some View {
-        HStack(spacing: 12) {
-            rule
+                .frame(width: 88, height: 88)
+                .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+                .shadow(color: Color.black.opacity(0.08), radius: 6, x: 0, y: 2)
             Text(L10n.key("home.tagline"))
-                .font(.system(.callout, design: .serif).italic())
+                .font(.system(.subheadline, design: .serif).italic())
                 .foregroundStyle(Color("BegleiterAccent"))
-                .fixedSize(horizontal: true, vertical: false)
-            rule
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 24)
         }
-        .padding(.horizontal, 32)
-    }
-
-    private var rule: some View {
-        Rectangle()
-            .fill(Color("BegleiterDivider"))
-            .frame(height: 0.6)
+        .padding(.top, 8)
     }
 
     // MARK: - Greeting
@@ -162,19 +128,23 @@ struct HomeView: View {
     // MARK: - Encouragement
 
     private var encouragementPill: some View {
-        HStack(spacing: 8) {
+        HStack(alignment: .top, spacing: 8) {
             Image(systemName: "face.smiling")
                 .font(.footnote)
                 .foregroundStyle(Color("BegleiterAccent"))
-            Text(L10n.key("home.encouragement"))
-                .font(.footnote)
-                .foregroundStyle(Color("BegleiterPrimary").opacity(0.8))
-                .multilineTextAlignment(.center)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(L10n.key("home.footer.line1"))
+                    .font(.footnote)
+                    .foregroundStyle(Color("BegleiterPrimary").opacity(0.8))
+                Text(L10n.key("home.footer.line2"))
+                    .font(.caption2)
+                    .foregroundStyle(Color("BegleiterPrimary").opacity(0.55))
+            }
         }
         .padding(.vertical, 10)
         .padding(.horizontal, 16)
         .background(Color("BegleiterPillSurface"))
-        .clipShape(Capsule())
+        .clipShape(RoundedRectangle(cornerRadius: 18))
         .padding(.top, 4)
     }
 }
