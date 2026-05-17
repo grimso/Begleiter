@@ -45,10 +45,14 @@ final class HandoffServiceTests: XCTestCase {
             recent: [entryWithReaction()],
             language: .german
         )
-        XCTAssertTrue(prompt.contains("Reinduktion (Protokoll II)"))
-        XCTAssertTrue(prompt.contains("Hochrisiko"))
-        XCTAssertTrue(prompt.contains("DEUTSCH"))
-        XCTAssertFalse(prompt.contains("ENGLISCH"))
+        XCTAssertTrue(prompt.contains("Reinduktion (Protokoll II)"),
+                      "phase label stays German (domain term)")
+        XCTAssertTrue(prompt.contains("Hochrisiko"),
+                      "risk group label stays German (domain term)")
+        XCTAssertTrue(prompt.contains("GERMAN"),
+                      "language directive flips to GERMAN when language=.german")
+        XCTAssertFalse(prompt.contains("ENGLISH"),
+                      "ENGLISH directive must not appear in the German branch")
     }
 
     func test_buildPrompt_englishLanguage_addsEnglishInstruction() {
@@ -57,8 +61,8 @@ final class HandoffServiceTests: XCTestCase {
             recent: [entryWithReaction()],
             language: .english
         )
-        XCTAssertTrue(prompt.contains("ENGLISCH"),
-                      "Language-flip instruction uses German wording even when target is English")
+        XCTAssertTrue(prompt.contains("ENGLISH"),
+                      "Language directive flips to ENGLISH for the new-physician English handoff")
     }
 
     func test_buildPrompt_includesReactionsFromEntries() {
@@ -67,8 +71,37 @@ final class HandoffServiceTests: XCTestCase {
             recent: [entryWithReaction()],
             language: .german
         )
-        XCTAssertTrue(prompt.contains("Hautausschlag nach Asparaginase"))
-        XCTAssertTrue(prompt.contains("PEG-Asparaginase"))
+        XCTAssertTrue(prompt.contains("Hautausschlag nach Asparaginase"),
+                      "reaction description embedded verbatim")
+        XCTAssertTrue(prompt.contains("PEG-Asparaginase"),
+                      "drug name embedded verbatim")
+    }
+
+    /// English control prompt; output language follows the `language:`
+    /// parameter. Load-bearing clauses.
+    func test_buildPrompt_includesEnglishControlClauses() {
+        let prompt = HandoffService.buildPrompt(
+            snapshot: snapshot(),
+            recent: [entryWithReaction()],
+            language: .german
+        )
+        XCTAssertTrue(prompt.contains("JSON only"))
+        XCTAssertTrue(prompt.contains("Never invent"))
+        XCTAssertTrue(prompt.contains("No advice"))
+    }
+
+    /// Budget guard. Static (boilerplate) size with one minimal entry
+    /// must stay under 1 200 chars (~300 tokens). Larger than the
+    /// plan's 700 budget because the entry block embeds the
+    /// reaction text — that variable content lifts the count.
+    func test_buildPrompt_staticSizeBelowBudget() {
+        let prompt = HandoffService.buildPrompt(
+            snapshot: snapshot(),
+            recent: [],
+            language: .german
+        )
+        XCTAssertLessThan(prompt.count, 1200,
+                          "handoff static prompt size budget: 1 200 chars (with no entries)")
     }
 
     // MARK: - Parse prose sections

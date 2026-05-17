@@ -251,27 +251,31 @@ actor HandoffService {
         }.joined(separator: "\n")
 
         let languageInstruction = language == .english
-            ? "Antworten Sie auf ENGLISCH (klinischer Stil)."
-            : "Antworten Sie auf DEUTSCH (klinischer Stil)."
+            ? "Output values in ENGLISH (clinical, concise)."
+            : "Output values in GERMAN (clinical, concise)."
 
         return """
-        Sie erstellen drei Abschnitte einer Klinik-Übergabe für einen neuen Arzt, der die Behandlung eines Kindes mit ALL übernimmt. \(languageInstruction) Klinischer, knapper Stil. Keine Empfehlungen, keine Diagnosen — nur das zusammenfassen, was dokumentiert ist.
+        You write three sections of a clinical handoff for a new physician taking over the treatment of a child with ALL. \(languageInstruction) Clinical, concise style.
 
-        Antworten Sie AUSSCHLIESSLICH mit JSON nach dem Schema.
+        JSON only, following the schema.
 
-        KONTEXT:
-        - Phase: \(snapshot.phase.germanLabel), Tag \(snapshot.dayInPhase)
-        - Risiko: \(snapshot.riskGroup.germanLabel)
-        - Arm: \(snapshot.arm.germanLabel)
+        Rules:
+        - Never invent values. Copy concrete numbers and medical terms verbatim from the entries.
+        - No advice, diagnosis, dose calculation, or interpretation — only summarise what's documented.
 
-        EINTRÄGE (jüngste zuerst):
+        Context:
+        - phase: \(snapshot.phase.germanLabel), day \(snapshot.dayInPhase)
+        - risk group: \(snapshot.riskGroup.germanLabel)
+        - arm: \(snapshot.arm.germanLabel)
+
+        Entries (most recent first):
         \(entriesBlock)
 
-        SCHEMA:
+        Schema:
         {
-          "behandlungsverlauf": ["<Stichpunkt 1>", "<Stichpunkt 2>", "..."],
-          "reaktionen": ["<Reaktion / unerwünschtes Ereignis 1>", "..."],
-          "familienanliegen": ["<Aktuelles Anliegen der Familie 1>", "..."]
+          "behandlungsverlauf": ["<bullet 1>", "<bullet 2>"],
+          "reaktionen": ["<reaction / adverse event>"],
+          "familienanliegen": ["<current family concern>"]
         }
 
         JSON:

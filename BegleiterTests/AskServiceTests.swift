@@ -313,10 +313,40 @@ final class AskServiceTests: XCTestCase {
         )
         XCTAssertTrue(prompt.contains(entry.entryId.uuidString))
         XCTAssertTrue(prompt.contains(chunk.id))
-        XCTAssertTrue(prompt.contains("FRAGE: Was ist Vincristin?"))
-        XCTAssertTrue(prompt.contains("REGELN"))
+        XCTAssertTrue(prompt.contains("QUESTION: Was ist Vincristin?"))
+        XCTAssertTrue(prompt.contains("Rules:"))
         XCTAssertTrue(prompt.contains("\"claims\""))
         XCTAssertTrue(prompt.contains("\"followUps\""))
+    }
+
+    /// English control prompt with German output. Required clauses:
+    /// JSON-only directive, German-output directive, no-invent rule,
+    /// no-advice rule. Also assert the EventQuestionDetector handoff —
+    /// the prompt no longer carries the long "Quellenwahl" rule, so
+    /// the load-bearing safety net is the Swift-side guard plus the
+    /// "no entry matches → reply with empty citations" line below.
+    func test_buildPrompt_includesEnglishControlClauses() {
+        let prompt = AskService.buildPrompt(question: "x", entries: [], chunks: [])
+        XCTAssertTrue(prompt.contains("JSON only"),
+                      "single-shot prompt must enforce JSON-only output")
+        XCTAssertTrue(prompt.contains("plain German"),
+                      "single-shot prompt must direct German output")
+        XCTAssertTrue(prompt.contains("Never invent"),
+                      "single-shot prompt must carry the no-hallucination rule")
+        XCTAssertTrue(prompt.contains("No advice"),
+                      "single-shot prompt must carry the safety rule")
+        XCTAssertTrue(prompt.contains("Im Journal finde ich dazu keinen Eintrag."),
+                      "the canonical event-question refusal text must be quoted exactly so the model copies it verbatim")
+    }
+
+    /// Budget guard. Static (boilerplate) char count when called with
+    /// empty inputs must stay under 1 200 chars (~300 tokens). If a
+    /// future change makes the prompt longer, this test fails before
+    /// the prefill regression reaches users.
+    func test_buildPrompt_staticSizeBelowBudget() {
+        let prompt = AskService.buildPrompt(question: "", entries: [], chunks: [])
+        XCTAssertLessThan(prompt.count, 1200,
+                          "single-shot static prompt size budget: 1 200 chars")
     }
 
     func test_buildPrompt_omitsJournalSectionWhenEmpty() {
@@ -330,9 +360,9 @@ final class AskServiceTests: XCTestCase {
             updatedAt: "2026-05-13"
         )
         let prompt = AskService.buildPrompt(question: "x", entries: [], chunks: [chunk])
-        XCTAssertFalse(prompt.contains("EINTRÄGE AUS DEM JOURNAL"),
+        XCTAssertFalse(prompt.contains("JOURNAL ENTRIES:"),
                        "Empty journal context should omit the journal section header")
-        XCTAssertTrue(prompt.contains("REFERENZKORPUS"))
+        XCTAssertTrue(prompt.contains("REFERENCE CORPUS"))
     }
 
     // MARK: - Surfaced-IDs scan (custom-agent citation universe)
@@ -450,7 +480,7 @@ final class AskServiceTests: XCTestCase {
             transcript: [],
             forceFinal: true
         )
-        XCTAssertTrue(instructions.contains("Werkzeug-Budget"),
+        XCTAssertTrue(instructions.contains("Tool budget exhausted"),
                       "force-final turn must tell the model to stop calling tools")
     }
 
@@ -531,11 +561,61 @@ final class AskServiceTests: XCTestCase {
             scope: .all,
             schemas: schemas
         )
-        XCTAssertTrue(prompt.contains("VERFÜGBARE WERKZEUGE (Schema"),
+        XCTAssertTrue(prompt.contains("Available tools (schema"),
                       "system prompt must label the declaration block")
         XCTAssertTrue(prompt.contains("search_documents"),
                       "5th tool must be advertised in the system prompt")
         XCTAssertTrue(prompt.contains("[D:<UUID>#<idx>]"),
                       "citation format for documents must be specified")
+    }
+
+    /// English control prompt; German output. Load-bearing clauses for
+    /// the demo-critical agent prompt.
+    func test_buildCustomAgentSystemPrompt_includesEnglishControlClauses() {
+        let schemas = AgentTools(
+            retrieval: RetrievalService(),
+            corpus: CorpusService.shared,
+            entries: [],
+            importedDocs: []
+        ).schemas
+        let prompt = AskService.buildCustomAgentSystemPrompt(
+            scope: .all,
+            schemas: schemas
+        )
+        XCTAssertTrue(prompt.contains("Output in German"),
+                      "custom-agent prompt must direct German output explicitly")
+        XCTAssertTrue(prompt.contains("Never invent UUIDs"),
+                      "custom-agent prompt must carry the no-hallucination citation rule")
+        XCTAssertTrue(prompt.contains("No advice, diagnosis"),
+                      "custom-agent prompt must carry the safety rule")
+        XCTAssertTrue(prompt.contains("Max 4 calls"),
+                      "tool-call budget must be stated up front")
+        XCTAssertTrue(prompt.contains("<|tool_call>"),
+                      "native Gemma tool-loop framing must remain advertised")
+    }
+
+    /// Budget guard. Static (boilerplate) size — excluding the JSON
+    /// declaration block which is data-dependent — must stay under
+    /// 2 400 chars (~600 tokens). The combined prompt including JSON
+    /// is roughly ~3 500 chars but JSON is informationally dense and
+    /// the token count comes in lower than chars suggest.
+    func test_buildCustomAgentSystemPrompt_staticSizeBelowBudget() {
+        let schemas = AgentTools(
+            retrieval: RetrievalService(),
+            corpus: CorpusService.shared,
+            entries: [],
+            importedDocs: []
+        ).schemas
+        let prompt = AskService.buildCustomAgentSystemPrompt(
+            scope: .all,
+            schemas: schemas
+        )
+        // Subtract the JSON declaration block to measure only the
+        // hand-written prose budget; the JSON is its own contract
+        // verified by `test_formatDeclarationBlock_isDeterministic`.
+        let declaration = AskService.formatDeclarationBlock(schemas)
+        let proseSize = prompt.count - declaration.count
+        XCTAssertLessThan(proseSize, 2400,
+                          "custom-agent prose prompt size budget: 2 400 chars (excluding JSON declaration)")
     }
 }

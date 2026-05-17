@@ -16,12 +16,15 @@ final class ExtractionServiceTests: XCTestCase {
             visitDate: Date(timeIntervalSince1970: 1_700_000_000),
             strictMode: false
         )
+        // Phase label and parent text stay German — they're either
+        // domain terms or copied source — but the surrounding control
+        // labels (`phase`, `dayInPhase`) are English now.
         XCTAssertTrue(prompt.contains("Induktion (Protokoll IA)"),
-                      "Prompt must label phase in German.")
-        XCTAssertTrue(prompt.contains("Tag in dieser Phase: 12"),
-                      "Prompt must include day-in-phase context.")
+                      "Phase label is a German domain term, preserved verbatim.")
+        XCTAssertTrue(prompt.contains("dayInPhase: 12"),
+                      "Day-in-phase context surfaces under an English key.")
         XCTAssertTrue(prompt.contains("Heute Vincristin"),
-                      "Prompt must include parent's text.")
+                      "Parent's German text is embedded verbatim.")
     }
 
     func test_buildPrompt_strictMode_addsJSONOnlyDirective() {
@@ -33,8 +36,8 @@ final class ExtractionServiceTests: XCTestCase {
             text: "x", phase: .inductionIA, dayInPhase: 1,
             visitDate: .now, strictMode: false
         )
-        XCTAssertTrue(strict.contains("AUSSCHLIESSLICH"))
-        XCTAssertFalse(lax.contains("AUSSCHLIESSLICH"))
+        XCTAssertTrue(strict.contains("Strict mode"))
+        XCTAssertFalse(lax.contains("Strict mode"))
     }
 
     func test_buildPrompt_alwaysIncludesSchema() {
@@ -51,6 +54,62 @@ final class ExtractionServiceTests: XCTestCase {
         for key in requiredKeys {
             XCTAssertTrue(prompt.contains(key), "Prompt missing schema key: \(key)")
         }
+    }
+
+    /// English control prompt; German output. Load-bearing instruction
+    /// substrings the model must see every time. If a future rewrite
+    /// drops one of these, the safety contract weakens before anyone
+    /// notices.
+    func test_buildPrompt_includesEnglishControlClauses() {
+        let prompt = ExtractionService.buildPrompt(
+            text: "", phase: .inductionIA, dayInPhase: 1,
+            visitDate: .now, strictMode: false
+        )
+        XCTAssertTrue(prompt.contains("Return JSON only") || prompt.contains("Strict mode"),
+                      "extraction prompt must enforce JSON-only output")
+        XCTAssertTrue(prompt.contains("Never invent"),
+                      "extraction prompt must carry the no-hallucination rule")
+        XCTAssertTrue(prompt.contains("No advice, diagnosis, dose"),
+                      "extraction prompt must carry the safety rule")
+        XCTAssertTrue(prompt.contains("German"),
+                      "extraction prompt must direct German JSON values")
+    }
+
+    /// Budget guard. Static (boilerplate) size when called with empty
+    /// input must stay under 2 200 chars (~550 tokens) so prefill time
+    /// stays predictable on every queue-driven extraction.
+    func test_buildPrompt_staticSizeBelowBudget() {
+        let prompt = ExtractionService.buildPrompt(
+            text: "", phase: .inductionIA, dayInPhase: 0,
+            visitDate: Date(timeIntervalSince1970: 0), strictMode: false
+        )
+        XCTAssertLessThan(prompt.count, 2200,
+                          "extraction static prompt size budget: 2 200 chars")
+    }
+
+    func test_buildVisionPrompt_staticSizeBelowBudget() {
+        let prompt = ExtractionService.buildVisionPrompt(
+            text: "", phase: .inductionIA, dayInPhase: 0,
+            visitDate: Date(timeIntervalSince1970: 0),
+            imageCount: 1, strictMode: false
+        )
+        // Budget held at 2 600 chars — measurably below the 2 880-char
+        // German baseline; the bigger win comes from English tokenizer
+        // density (~3.4 → ~4 chars/token) on top of the cuts.
+        XCTAssertLessThan(prompt.count, 2600,
+                          "vision extraction static prompt size budget: 2 600 chars")
+    }
+
+    func test_buildVisionPrompt_includesEnglishControlClauses() {
+        let prompt = ExtractionService.buildVisionPrompt(
+            text: "", phase: .inductionIA, dayInPhase: 1,
+            visitDate: .now, imageCount: 1, strictMode: false
+        )
+        XCTAssertTrue(prompt.contains("Never invent"))
+        XCTAssertTrue(prompt.contains("No advice"))
+        XCTAssertTrue(prompt.contains("German"))
+        XCTAssertTrue(prompt.contains("Befund"),
+                      "vision prompt must keep the German domain term verbatim")
     }
 
     // MARK: - Tolerant JSON parsing

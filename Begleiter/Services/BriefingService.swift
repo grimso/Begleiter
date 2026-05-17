@@ -139,36 +139,36 @@ actor BriefingService {
             .joined(separator: ", ")
 
         return """
-        Sie erstellen eine Vorbereitung für den nächsten Klinik-Termin der Eltern eines Kindes in AIEOP-BFM ALL 2017 Behandlung. Antworten Sie AUSSCHLIESSLICH mit JSON nach dem unten gezeigten Schema. Maximal 400 Wörter im JSON.
+        You write a pre-visit briefing for the parent of a child in AIEOP-BFM ALL 2017 treatment. JSON only, max 400 words in the JSON, German text values.
 
-        REGELN:
-        - Jede Aussage im JSON-Feld text MUSS aus einem bestimmten Eintrag stammen. Geben Sie die genaue entryId aus dem Kontext an.
-        - Wenn keine Quelle existiert (z.B. allgemeine Phase-Info), setzen Sie entryId auf null.
-        - KEINE klinischen Empfehlungen, KEINE Dosisaussagen, KEINE Diagnosen. Nur strukturieren und zusammenfassen, was die Eltern dokumentiert haben.
-        - Drei "fragenVorschlaege" — konkret und auf den Verlauf des Kindes bezogen.
-        - "mitzunehmen" — praktische Dinge (z.B. Heparin-Block, Wäsche, Pass, Impfheft, Lab-Werte).
+        Rules:
+        - Every `text` value in the JSON cites a specific entryId from the context. Use the exact UUID; set entryId to null only for general phase info.
+        - Never invent values. Copy concrete numbers and German medical terms verbatim from the entries.
+        - No advice, diagnosis, dose calculation, or interpretation — structure and summarise what the parent documented.
+        - Three "fragenVorschlaege" — concrete, anchored in this child's history.
+        - "mitzunehmen" — practical items the parent should bring (e.g. Heparin-Block, Wäsche, Pass, Impfheft, Lab-Werte).
 
-        KONTEXT:
-        - Datum des Termins: \(dateString)
-        - Aktuelle Phase: \(phaseLabel)
-        - Übliche Medikamente dieser Phase: \(drugList)
-        - Übliche Sorgen der Eltern in dieser Phase: \(phaseMetadata.commonParentConcerns.joined(separator: "; "))
+        Context:
+        - visitDate: \(dateString)
+        - phase: \(phaseLabel)
+        - typical drugs this phase: \(drugList)
+        - typical parent concerns this phase: \(phaseMetadata.commonParentConcerns.joined(separator: "; "))
 
-        EINTRÄGE (jüngste zuerst):
+        Entries (most recent first):
         \(entryBlocks)
 
-        SCHEMA:
+        Schema:
         {
           "targetDate": "\(dateString)",
-          "aktuellerStand": { "text": "<eine Zeile, max 20 Wörter>", "entryId": "<UUID oder null>" },
+          "aktuellerStand": { "text": "<one German line, max 20 words>", "entryId": "<UUID or null>" },
           "seitDemLetztenTermin": [
-            { "text": "<eine Beobachtung>", "entryId": "<UUID>" }
+            { "text": "<one German observation>", "entryId": "<UUID>" }
           ],
           "offenePunkte": [
-            { "text": "<offener Punkt>", "entryId": "<UUID>" }
+            { "text": "<open item, German>", "entryId": "<UUID>" }
           ],
-          "fragenVorschlaege": ["<Frage 1>", "<Frage 2>", "<Frage 3>"],
-          "mitzunehmen": ["<Sache 1>", "<Sache 2>", "..."]
+          "fragenVorschlaege": ["<German question 1>", "<German question 2>", "<German question 3>"],
+          "mitzunehmen": ["<item 1>", "<item 2>"]
         }
 
         JSON:

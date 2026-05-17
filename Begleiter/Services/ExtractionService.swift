@@ -260,8 +260,8 @@ actor ExtractionService {
         let phaseLabel = phase.germanLabel
 
         let header = strictMode
-            ? "WICHTIG: Antworten Sie AUSSCHLIESSLICH mit gültigem JSON. Kein Markdown, kein Text vor oder nach dem JSON, keine Erklärungen. Beginnen Sie direkt mit { und enden Sie mit }."
-            : "Antworten Sie ausschließlich mit JSON nach dem unten gezeigten Schema."
+            ? "Strict mode: respond with valid JSON only. No markdown, no prose. Start with { and end with }."
+            : "Return JSON only, following the schema below."
 
         // Optional Befund block — only included when OCR text is present.
         // The lab-extraction rule is conditional on this block existing,
@@ -272,51 +272,51 @@ actor ExtractionService {
             befundBlock = """
 
 
-                BEFUND-INHALT (automatisch aus einem Foto oder PDF erkannt):
+                BEFUND (OCR / PDF text):
                 ```
                 \(ocrText)
                 ```
                 """
-            labRule = "- Wenn der BEFUND-INHALT Laborwerte enthält, extrahieren Sie ALLE eindeutig erkennbaren Werte in `labValues` (Parameter, Wert, Einheit). Mehrere Werte sind die Regel, nicht die Ausnahme."
+            labRule = "- If the BEFUND block contains lab values, extract ALL clearly readable values into `labValues` (parameter, value, unit). Multiple values are the rule, not the exception."
         } else {
             befundBlock = ""
-            labRule = "- Erfassen Sie nur Laborwerte, die im Text der Eltern explizit genannt werden."
+            labRule = "- Capture only lab values explicitly stated in the parent text."
         }
 
         return """
-        Sie sind ein medizinischer Tagebuch-Assistent für Eltern eines Kindes in der AIEOP-BFM ALL 2017 Behandlung. Ihre einzige Aufgabe ist es, den freien Text der Eltern in strukturierte Felder zu überführen.
+        You extract structured facts from a parent's German journal entry about a child in AIEOP-BFM ALL 2017 treatment.
 
         \(header)
 
-        REGELN:
-        - Erfinden Sie NIEMALS Werte, die nicht in den Eingaben stehen. Wenn etwas nicht erwähnt wird, **lassen Sie das ganze Feld komplett weg**. NIEMALS "value": null oder "value": [] verwenden — einfach das Feld nicht in das JSON aufnehmen.
-        - Jedes Feld MUSS beide Schlüssel haben: "value" und "confidence" (eine Zahl zwischen 0.0 und 1.0).
-        - Konfidenz-Skala: 1.0 = explizit genannt, 0.5 = wahrscheinlich aber unsicher, < 0.3 = sehr unsicher.
-        - Geben Sie KEINE medizinischen Einschätzungen, Empfehlungen oder Diagnosen ab. Sie strukturieren nur, was die Eltern gesagt oder als Befund hochgeladen haben.
-        - Schreiben Sie Eigennamen und medizinische Begriffe genau so wie im Originaltext (z.B. "Vincristin", nicht "Vindchristin"; "Notaufnahme", nicht "Botaufnahme").
+        Rules:
+        - Never invent values. If something isn't mentioned, OMIT the field entirely. Never emit "value": null or "value": [].
+        - Each field carries both "value" and "confidence" (0.0–1.0; 1.0 means explicitly stated).
+        - No advice, diagnosis, dose calculation, or interpretation — only structure what's in the source.
+        - Copy names and medical terms verbatim from the source ("Vincristin", "Asparaginase", "Notaufnahme"). Do not anglicise.
+        - All free-text values inside the JSON are German.
         \(labRule)
 
-        KONTEXT (zur Plausibilitätsprüfung, NICHT ins JSON kopieren):
-        - Aktuelle Phase: \(phaseLabel)
-        - Tag in dieser Phase: \(dayInPhase)
-        - Datum des Eintrags: \(dateString)
+        Context (for sanity-check, do not copy into JSON):
+        - phase: \(phaseLabel)
+        - dayInPhase: \(dayInPhase)
+        - date: \(dateString)
 
-        SCHEMA (alle Felder optional — weglassen wenn nicht erwähnt):
+        Schema (every field optional — omit if not mentioned):
         {
-          "visitType": { "value": "ambulant" | "stationaer" | "notfall" | "telefonisch" | "zuhause", "confidence": 0.0-1.0 },
-          "doctorName": { "value": "<Name>", "confidence": 0.0-1.0 },
-          "drugsMentioned": { "value": [{ "name": "<INN>", "germanLabel": "<wie genannt>", "doseDescription": "<frei>", "administeredAt": null }], "confidence": 0.0-1.0 },
-          "labValues": { "value": [{ "parameter": "<beliebiger Laborparameter, z.B. WBC, RBC, ANC, Hb, HGB, HCT, PLT, MCV, MCH, MCHC, CRP, ALT, AST, Quick, INR, Na, K, Ca, Glucose, ...>", "germanLabel": "<dt. Bezeichnung oder gleich wie parameter>", "value": <Zahl>, "unit": "<Einheit>", "measuredAt": "\(dateString)", "source": "text" }], "confidence": 0.0-1.0 },
-          "proceduresMentioned": { "value": ["<Prozedur 1>", "..."], "confidence": 0.0-1.0 },
-          "decisions": { "value": ["<Entscheidung des Teams 1>", "..."], "confidence": 0.0-1.0 },
-          "parentObservations": { "value": ["<Beobachtung der Eltern 1>", "..."], "confidence": 0.0-1.0 },
-          "openQuestions": { "value": ["<offene Frage 1>", "..."], "confidence": 0.0-1.0 },
-          "reactions": { "value": [{ "description": "<frei>", "suspectedCause": "<Medikament/Prozedur oder null>", "parentSeverity": "leicht" | "mittel" | "schwer" | null, "occurredAt": null }], "confidence": 0.0-1.0 },
-          "summary": { "value": "<ein Satz auf Deutsch>", "confidence": 0.0-1.0 }
+          "visitType": { "value": "ambulant|stationaer|notfall|telefonisch|zuhause", "confidence": 0.0-1.0 },
+          "doctorName": { "value": "<name>", "confidence": 0.0-1.0 },
+          "drugsMentioned": { "value": [{ "name": "<INN>", "germanLabel": "<as written>", "doseDescription": "<free text>", "administeredAt": null }], "confidence": 0.0-1.0 },
+          "labValues": { "value": [{ "parameter": "<short code, e.g. WBC, ANC, Hb, HGB, PLT, CRP, ALT, AST, Na, K, Glucose>", "germanLabel": "<German label or same as parameter>", "value": <number>, "unit": "<unit>", "measuredAt": "\(dateString)", "source": "text" }], "confidence": 0.0-1.0 },
+          "proceduresMentioned": { "value": ["<procedure>"], "confidence": 0.0-1.0 },
+          "decisions": { "value": ["<team decision>"], "confidence": 0.0-1.0 },
+          "parentObservations": { "value": ["<parent observation>"], "confidence": 0.0-1.0 },
+          "openQuestions": { "value": ["<open question>"], "confidence": 0.0-1.0 },
+          "reactions": { "value": [{ "description": "<free text>", "suspectedCause": "<drug/procedure or null>", "parentSeverity": "leicht|mittel|schwer|null", "occurredAt": null }], "confidence": 0.0-1.0 },
+          "summary": { "value": "<one German sentence>", "confidence": 0.0-1.0 }
         }
 
-        TEXT DER ELTERN:
-        \(text.isEmpty ? "(kein eigener Text — Befund liegt unten bei)" : text)\(befundBlock)
+        Input (parent text, German):
+        \(text.isEmpty ? "(no parent text — Befund block follows)" : text)\(befundBlock)
 
         JSON:
         """
@@ -344,47 +344,47 @@ actor ExtractionService {
         let phaseLabel = phase.germanLabel
 
         let header = strictMode
-            ? "WICHTIG: Antworten Sie AUSSCHLIESSLICH mit gültigem JSON. Kein Markdown, kein Text vor oder nach dem JSON, keine Erklärungen. Beginnen Sie direkt mit { und enden Sie mit }."
-            : "Antworten Sie ausschließlich mit JSON nach dem unten gezeigten Schema."
+            ? "Strict mode: respond with valid JSON only. No markdown, no prose. Start with { and end with }."
+            : "Return JSON only, following the schema below."
 
         let imagePhrase = imageCount == 1
-            ? "ein Befund-Foto"
-            : "\(imageCount) Befund-Fotos"
+            ? "one Befund photo"
+            : "\(imageCount) Befund photos"
 
         return """
-        Sie sind ein medizinischer Tagebuch-Assistent für Eltern eines Kindes in der AIEOP-BFM ALL 2017 Behandlung. Ihre einzige Aufgabe ist es, den freien Text der Eltern UND den/die angehängten Befund \(imageCount == 1 ? "" : "e") in strukturierte Felder zu überführen.
+        You extract structured facts from a parent's German journal entry AND the attached Befund image(s) for a child in AIEOP-BFM ALL 2017 treatment.
 
         \(header)
 
-        REGELN:
-        - Im Anhang dieses Eintrags ist \(imagePhrase). Lesen Sie ALLE eindeutig erkennbaren Laborwerte direkt aus dem Bild ab (Parameter, Wert, Einheit). Mehrere Werte sind die Regel, nicht die Ausnahme.
-        - Erfinden Sie NIEMALS Werte. Wenn ein Wert im Bild unleserlich ist, **lassen Sie das Feld komplett weg**. NIEMALS "value": null oder "value": [] verwenden — einfach das Feld nicht in das JSON aufnehmen.
-        - Jedes Feld MUSS beide Schlüssel haben: "value" und "confidence" (eine Zahl zwischen 0.0 und 1.0).
-        - Konfidenz-Skala: 1.0 = explizit und klar lesbar, 0.5 = wahrscheinlich aber unsicher (z.B. teilweise verdeckt), < 0.3 = sehr unsicher (z.B. handschriftlich, verwackelt).
-        - Geben Sie KEINE medizinischen Einschätzungen, Empfehlungen oder Diagnosen ab. Sie strukturieren nur, was im Bild steht oder die Eltern gesagt haben.
-        - Schreiben Sie Eigennamen und medizinische Begriffe genau so wie im Befund (z.B. "Vincristin", "Methotrexat", "Hb", "ANC").
+        Rules:
+        - \(imagePhrase) is attached. Read ALL clearly readable lab values directly off the image(s) (parameter, value, unit). Multiple values are the rule, not the exception.
+        - Never invent values. If a value in the image is unreadable, OMIT the field. Never emit "value": null or "value": [].
+        - Each field carries both "value" and "confidence" (0.0–1.0; 1.0 means explicit and clearly readable, < 0.3 means very uncertain — e.g. handwritten or blurred).
+        - No advice, diagnosis, dose calculation, or interpretation — only structure what's in the image or parent text.
+        - Copy names and medical terms verbatim from the Befund ("Vincristin", "Methotrexat", "Hb", "ANC"). Do not anglicise.
+        - All free-text values inside the JSON are German.
 
-        KONTEXT (zur Plausibilitätsprüfung, NICHT ins JSON kopieren):
-        - Aktuelle Phase: \(phaseLabel)
-        - Tag in dieser Phase: \(dayInPhase)
-        - Datum des Eintrags: \(dateString)
+        Context (for sanity-check, do not copy into JSON):
+        - phase: \(phaseLabel)
+        - dayInPhase: \(dayInPhase)
+        - date: \(dateString)
 
-        SCHEMA (alle Felder optional — weglassen wenn nicht erwähnt):
+        Schema (every field optional — omit if not mentioned):
         {
-          "visitType": { "value": "ambulant" | "stationaer" | "notfall" | "telefonisch" | "zuhause", "confidence": 0.0-1.0 },
-          "doctorName": { "value": "<Name>", "confidence": 0.0-1.0 },
-          "drugsMentioned": { "value": [{ "name": "<INN>", "germanLabel": "<wie genannt>", "doseDescription": "<frei>", "administeredAt": null }], "confidence": 0.0-1.0 },
-          "labValues": { "value": [{ "parameter": "<WBC, RBC, ANC, Hb, HGB, HCT, PLT, MCV, MCH, MCHC, CRP, ALT, AST, Quick, INR, Na, K, Ca, Glucose, ...>", "germanLabel": "<dt. Bezeichnung oder gleich wie parameter>", "value": <Zahl>, "unit": "<Einheit>", "measuredAt": "\(dateString)", "source": "befund_photo" }], "confidence": 0.0-1.0 },
-          "proceduresMentioned": { "value": ["<Prozedur 1>", "..."], "confidence": 0.0-1.0 },
-          "decisions": { "value": ["<Entscheidung des Teams 1>", "..."], "confidence": 0.0-1.0 },
-          "parentObservations": { "value": ["<Beobachtung der Eltern 1>", "..."], "confidence": 0.0-1.0 },
-          "openQuestions": { "value": ["<offene Frage 1>", "..."], "confidence": 0.0-1.0 },
-          "reactions": { "value": [{ "description": "<frei>", "suspectedCause": "<Medikament/Prozedur oder null>", "parentSeverity": "leicht" | "mittel" | "schwer" | null, "occurredAt": null }], "confidence": 0.0-1.0 },
-          "summary": { "value": "<ein Satz auf Deutsch>", "confidence": 0.0-1.0 }
+          "visitType": { "value": "ambulant|stationaer|notfall|telefonisch|zuhause", "confidence": 0.0-1.0 },
+          "doctorName": { "value": "<name>", "confidence": 0.0-1.0 },
+          "drugsMentioned": { "value": [{ "name": "<INN>", "germanLabel": "<as written>", "doseDescription": "<free text>", "administeredAt": null }], "confidence": 0.0-1.0 },
+          "labValues": { "value": [{ "parameter": "<short code, e.g. WBC, ANC, Hb, HGB, PLT, CRP, ALT, AST, Na, K, Glucose>", "germanLabel": "<German label or same as parameter>", "value": <number>, "unit": "<unit>", "measuredAt": "\(dateString)", "source": "befund_photo" }], "confidence": 0.0-1.0 },
+          "proceduresMentioned": { "value": ["<procedure>"], "confidence": 0.0-1.0 },
+          "decisions": { "value": ["<team decision>"], "confidence": 0.0-1.0 },
+          "parentObservations": { "value": ["<parent observation>"], "confidence": 0.0-1.0 },
+          "openQuestions": { "value": ["<open question>"], "confidence": 0.0-1.0 },
+          "reactions": { "value": [{ "description": "<free text>", "suspectedCause": "<drug/procedure or null>", "parentSeverity": "leicht|mittel|schwer|null", "occurredAt": null }], "confidence": 0.0-1.0 },
+          "summary": { "value": "<one German sentence>", "confidence": 0.0-1.0 }
         }
 
-        TEXT DER ELTERN:
-        \(text.isEmpty ? "(kein eigener Text — siehe angehängtes Befund-Bild)" : text)
+        Input (parent text, German):
+        \(text.isEmpty ? "(no parent text — see attached Befund image)" : text)
 
         JSON:
         """

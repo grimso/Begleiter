@@ -353,23 +353,23 @@ actor LabPlotParser {
 
     static func buildGemmaPrompt(question: String) -> String {
         """
-        Du übersetzt eine Eltern-Frage in einen Plot-Spezifikation als JSON.
+        You translate a parent's German question into a lab-plot spec as JSON.
 
-        REGELN:
-        - Antworte AUSSCHLIESSLICH mit JSON. Keine Erklärung, keine Markdown-Fences.
-        - parameters: Liste kanonischer Codes aus {WBC, ANC, HB, PLT, RBC, HCT, MCV, CRP, LDH, ALT, AST, GGT, Bili, Krea, Na, K, Ca, Mg}. Für "Blutbild"/"CBC" verwende [WBC, ANC, HB, PLT].
-        - windows: 1 oder 2 Einträge.
-          - Phase-Fenster: {"kind":"phase","phase":"<rawValue>","fromDay":<int>,"toDay":<int>,"label":"..."}
-            Phasen-rawValues: inductionIA, inductionIB, consolidationM, consolidationHR1, consolidationHR2, consolidationHR3, reinductionII, maintenance.
-          - Relativ-Fenster: {"kind":"relativeDays","daysBack":<int>,"label":"..."}
-          - Absolut-Fenster (selten): {"kind":"absolute","from":"YYYY-MM-DDT00:00:00Z","to":"YYYY-MM-DDT00:00:00Z","label":"..."}
-        - layout: "sideBySideByParameter" (Standard bei 2 Fenstern) oder "overlayWindowsPerParameter".
-        - title: kurzer deutscher Titel.
+        Rules:
+        - JSON only. No explanation, no markdown fences.
+        - Never invent values. The German title is short and parent-readable.
+        - parameters: list of canonical codes from {WBC, ANC, HB, PLT, RBC, HCT, MCV, CRP, LDH, ALT, AST, GGT, Bili, Krea, Na, K, Ca, Mg}. For "Blutbild"/"CBC" use [WBC, ANC, HB, PLT].
+        - windows: 1 or 2 entries.
+          - phase window: {"kind":"phase","phase":"<rawValue>","fromDay":<int>,"toDay":<int>,"label":"<German label>"}
+            phase rawValues: inductionIA, inductionIB, consolidationM, consolidationHR1, consolidationHR2, consolidationHR3, reinductionII, maintenance.
+          - relative window: {"kind":"relativeDays","daysBack":<int>,"label":"<German label>"}
+          - absolute window (rare): {"kind":"absolute","from":"YYYY-MM-DDT00:00:00Z","to":"YYYY-MM-DDT00:00:00Z","label":"<German label>"}
+        - layout: "sideBySideByParameter" (default for 2 windows) or "overlayWindowsPerParameter".
 
-        SCHEMA:
-        {"title":"...","parameters":["..."],"windows":[{"kind":"...","...":"..."}],"layout":"sideBySideByParameter"}
+        Schema:
+        {"title":"<short German title>","parameters":["..."],"windows":[{"kind":"...","...":"..."}],"layout":"sideBySideByParameter"}
 
-        FRAGE: \(question)
+        Question (German): \(question)
 
         JSON:
         """

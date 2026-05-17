@@ -171,6 +171,22 @@ final class LabPlotParserTests: XCTestCase {
         XCTAssertTrue(prompt.contains("inductionIA"))
         XCTAssertTrue(prompt.contains("reinductionII"))
         XCTAssertTrue(prompt.contains("sideBySideByParameter"))
-        XCTAssertTrue(prompt.contains("FRAGE: Blutbild seit Tag 1"))
+        XCTAssertTrue(prompt.contains("Question (German): Blutbild seit Tag 1"))
+    }
+
+    /// English control prompt; German output. Load-bearing clauses.
+    func test_gemma_promptIncludesEnglishControlClauses() {
+        let prompt = LabPlotParser.buildGemmaPrompt(question: "x")
+        XCTAssertTrue(prompt.contains("JSON only"))
+        XCTAssertTrue(prompt.contains("Never invent"))
+        XCTAssertTrue(prompt.contains("German"),
+                      "lab-plot prompt must direct German title / label values")
+    }
+
+    /// Budget guard. Static size under 1 200 chars (~300 tokens).
+    func test_gemma_promptStaticSizeBelowBudget() {
+        let prompt = LabPlotParser.buildGemmaPrompt(question: "")
+        XCTAssertLessThan(prompt.count, 1200,
+                          "lab-plot static prompt size budget: 1 200 chars")
     }
 }

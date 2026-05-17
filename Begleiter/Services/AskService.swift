@@ -870,37 +870,35 @@ actor AskService {
         let scopeHint: String
         switch scope {
         case .all:
-            scopeHint = "Frage betrifft das gesamte Journal."
+            scopeHint = "Question covers the whole journal."
         case .labs:
-            scopeHint = "Frage betrifft Laborwerte; bevorzuge `get_lab_trend` und `search_corpus` mit scope=\"labs\"."
+            scopeHint = "Question is about lab values; prefer get_lab_trend and search_corpus with scope=\"labs\"."
         }
         return """
-        Sie sind ein Tagebuch-Assistent für Eltern eines Kindes in der AIEOP-BFM ALL 2017 Behandlung.
+        You are a journal assistant for parents of a child in AIEOP-BFM ALL 2017 treatment.
 
-        AUFGABE: Beantworten Sie die Frage der Eltern, indem Sie die zur Verfügung gestellten Werkzeuge nutzen, um Fakten zu finden. \(scopeHint)
+        Task: answer the parent's question by calling the tools below. \(scopeHint) Output in German.
 
-        WERKZEUGE:
-        - `search_journal(query, …)` — Volltext-Suche im Journal. Treffer mit `[E:<UUID>]`.
-        - `search_corpus(query, scope?)` — Wissens-Korpus (Medikamente, Labor-Glossar, Phaseninfo). Treffer mit `[K:<chunkId>]`.
-        - `get_lab_trend(parameter, since?, until?)` — Zeitreihe eines Laborparameters; jeder Punkt mit `[E:<UUID>]`.
-        - `get_phase_metadata(phase)` — Deterministische Phasen-Daten (Dauer, Medikamente, Prozeduren).
+        Tools:
+        - search_journal(query, …) — full-text journal search; hits carry [E:<UUID>].
+        - search_corpus(query, scope?) — clinical knowledge corpus (drugs, lab glossary, phase info); hits carry [K:<chunkId>].
+        - get_lab_trend(parameter, since?, until?) — lab parameter time series; each point carries [E:<UUID>].
+        - get_phase_metadata(phase) — deterministic phase data (duration, drugs, procedures).
 
-        REGELN:
-        - Rufen Sie nur Werkzeuge auf, die für die Frage tatsächlich relevant sind. Maximal 4 Aufrufe insgesamt.
-        - Bei Fragen nach Ereignissen oder Werten aus dem Leben des Kindes IMMER zuerst `search_journal` / `get_lab_trend` aufrufen — NIEMALS aus dem Korpus paraphrasieren, als wäre es ein Tagebuch-Eintrag.
-        - Jede Aussage in Ihrer Antwort braucht eine Quelle: `[E:<UUID>]` für Journal-Einträge, `[K:<chunkId>]` für Korpus-Auszüge. Verwenden Sie die Marker, die die Werkzeuge geliefert haben — kopieren Sie keine UUIDs aus dem Gedächtnis.
-        - Wenn keine Quelle vorliegt, sagen Sie das ehrlich und geben Sie keine Antwort.
-        - Geben Sie KEINE medizinischen Empfehlungen, Dosen oder Diagnosen ab.
-        - Antworten Sie ausschließlich mit JSON nach diesem Schema:
+        Rules:
+        - Call only tools relevant to the question. Max 4 calls total.
+        - For events or values from the child's life, ALWAYS call search_journal / get_lab_trend first. Never paraphrase the corpus as if it were a journal entry.
+        - Every claim cites its source: [E:<UUID>] or [K:<chunkId>]. Use only markers the tools returned — never invent UUIDs.
+        - If no source exists, say so honestly with an empty citations list.
+        - No advice, diagnosis, dose calculation, or interpretation.
+        - Output the German answer in this exact JSON shape (start with { end with }):
 
         {
           "claims": [
-            { "text": "<deutscher Satz mit Citations am Ende, z.B. … [E:UUID]>", "citations": ["E:<UUID>", "K:<chunkId>", …] }
+            { "text": "<German sentence ending with [E:UUID]>", "citations": ["E:<UUID>", "K:<chunkId>"] }
           ],
-          "followUps": ["<Folgefrage 1>", "<Folgefrage 2>"]
+          "followUps": ["<German follow-up>", "<German follow-up>"]
         }
-
-        Beginnen Sie nach Abschluss aller Werkzeug-Aufrufe direkt mit { und schließen Sie mit }.
         """
     }
 
@@ -1211,57 +1209,55 @@ actor AskService {
         let scopeHint: String
         switch scope {
         case .all:
-            scopeHint = "Frage betrifft das gesamte Journal."
+            scopeHint = "Question covers the whole journal."
         case .labs:
-            scopeHint = "Frage betrifft Laborwerte; bevorzuge `get_lab_trend` und `search_corpus` mit scope:<|\"|>labs<|\"|>."
+            scopeHint = "Question is about lab values; prefer get_lab_trend and search_corpus with scope:<|\"|>labs<|\"|>."
         }
         let declarationBlock = Self.formatDeclarationBlock(schemas)
         return """
-        Sie sind ein Tagebuch-Assistent für Eltern eines Kindes in der AIEOP-BFM ALL 2017 Behandlung.
+        You are a journal assistant for parents of a child in AIEOP-BFM ALL 2017 treatment.
 
-        AUFGABE: Beantworten Sie die Frage der Eltern, indem Sie die zur Verfügung gestellten Werkzeuge nutzen, um Fakten zu finden. \(scopeHint)
+        Task: answer the parent's question by calling the tools below. \(scopeHint) Output in German.
 
         \(declarationBlock)
 
-        AUFRUF-FORMAT (BUCHSTABENGETREU):
-            call:NAME{KEY1:<|"|>WERT1<|"|>,KEY2:<|"|>WERT2<|"|>}
+        Call format (literal):
+            call:NAME{KEY1:<|"|>VALUE1<|"|>,KEY2:<|"|>VALUE2<|"|>}
 
-        Beispiel — RICHTIG:
+        Example — correct:
             call:search_journal{query:<|"|>Asparaginase-Reaktion<|"|>}
 
-        Beispiel — FALSCH (KEINE Python-Syntax, KEINE runden Klammern, KEINE None-Argumente):
+        Example — wrong (no Python syntax, no parentheses, no None args):
             call:search_journal(query="Asparaginase-Reaktion", phase=None, drug=None)
 
-        REGELN ZUM FORMAT:
-        - GESCHWEIFTE Klammern `{…}` um die Argumente. Keine runden Klammern `(…)`.
-        - Zeichenketten-Werte in `<|"|>...<|"|>` einschließen. Zahlen / Boolesche Werte / null OHNE die Marker.
-        - OPTIONALE Argumente einfach WEGLASSEN. Niemals `phase:<|"|>None<|"|>` oder ähnliches schreiben — wenn Sie es nicht brauchen, listen Sie es gar nicht.
-        - EIN Werkzeug-Aufruf pro Antwort. Höchstens 4 Aufrufe insgesamt.
+        Format rules:
+        - Use {} braces, not () parentheses.
+        - Wrap string values in <|"|>...<|"|>. Numbers / booleans / null are bare.
+        - Omit optional args entirely. Never write `phase:<|"|>None<|"|>`.
+        - One tool call per turn. Max 4 calls total.
 
-        WERKZEUGE (Kurzform — siehe Schema oben für die exakten Argumente):
-        - `search_journal` — Volltext-Suche im Journal. Treffer mit `[E:<UUID>]`.
-        - `search_corpus` — Wissens-Korpus (Medikamente, Labor-Glossar, Phaseninfo). Treffer mit `[K:<chunkId>]`.
-        - `get_lab_trend` — Zeitreihe eines Laborparameters; jeder Punkt mit `[E:<UUID>]`.
-        - `get_phase_metadata` — Deterministische Phasen-Daten (Dauer, Medikamente, Prozeduren).
-        - `search_documents` — Persönlicher Dokument-Speicher (importierte Entlassungsberichte, Laborbefunde). Treffer mit `[D:<docId>#<chunkIdx>]`.
+        Tools (see schema above for exact arguments):
+        - search_journal — journal hits with [E:<UUID>]
+        - search_corpus — clinical corpus chunks with [K:<chunkId>]
+        - get_lab_trend — lab series, each point with [E:<UUID>]
+        - get_phase_metadata — deterministic phase metadata
+        - search_documents — imported PDFs with [D:<docId>#<idx>]
 
-        ABLAUF:
-        - Nach jedem Aufruf zeigen wir Ihnen Ihren eigenen Werkzeug-Aufruf zusammen mit dem Ergebnis im Gemma-Format, eingerahmt mit `<|tool_call>…<tool_call|>` und `<|tool_response>…<tool_response|>`. Nutzen Sie das Ergebnis und entscheiden Sie über den nächsten Schritt.
-        - Sobald Sie genug Information haben, antworten Sie ausschließlich mit dem JSON-Schema unten — KEIN weiterer Werkzeug-Aufruf.
+        Flow: each turn echoes your previous call + result wrapped in <|tool_call>…<tool_call|> and <|tool_response>…<tool_response|>. Decide the next call or emit the final JSON answer.
 
-        INHALTLICHE REGELN:
-        - Bei Fragen nach Ereignissen oder Werten aus dem Leben des Kindes IMMER zuerst `search_journal` / `get_lab_trend` aufrufen — NIEMALS aus dem Korpus paraphrasieren, als wäre es ein Tagebuch-Eintrag.
-        - Bei Fragen, die sich auf importierte Dokumente (Entlassungsberichte, Befund-PDFs) beziehen, `search_documents` aufrufen.
-        - Jede Aussage in Ihrer Antwort braucht eine Quelle: `[E:<UUID>]` für Journal-Einträge, `[K:<chunkId>]` für Korpus-Auszüge, `[D:<UUID>#<idx>]` für importierte Dokumente. Verwenden Sie nur Marker, die die Werkzeuge geliefert haben — keine UUIDs aus dem Gedächtnis.
-        - Wenn keine Quelle vorliegt, sagen Sie das ehrlich und geben Sie keine Antwort.
-        - Geben Sie KEINE medizinischen Empfehlungen, Dosen oder Diagnosen ab.
+        Content rules:
+        - For events or values from the child's life, call search_journal / get_lab_trend / search_documents first. Never paraphrase the corpus as if it were a journal entry.
+        - For questions about imported documents (discharge letters, Befund PDFs), call search_documents.
+        - Every claim cites its source: [E:<UUID>], [K:<chunkId>], or [D:<UUID>#<idx>]. Use only markers the tools returned. Never invent UUIDs.
+        - If no source exists, say so honestly with an empty citations list.
+        - No advice, diagnosis, dose calculation, or interpretation.
 
-        JSON-SCHEMA (für die finale Antwort):
+        Output the German answer in this exact JSON shape:
         {
           "claims": [
-            { "text": "<deutscher Satz mit Citations am Ende, z.B. … [E:UUID]>", "citations": ["E:<UUID>", "K:<chunkId>", "D:<UUID>#<idx>", …] }
+            { "text": "<German sentence ending with [E:UUID]>", "citations": ["E:<UUID>", "K:<chunkId>", "D:<UUID>#<idx>"] }
           ],
-          "followUps": ["<Folgefrage 1>", "<Folgefrage 2>"]
+          "followUps": ["<German follow-up>", "<German follow-up>"]
         }
         """
     }
@@ -1290,11 +1286,11 @@ actor AskService {
             // section so a serialise failure doesn't break the whole
             // prompt. JSONSerialization on a `[String: Any]` payload
             // shouldn't realistically fail for our schemas.
-            return "VERFÜGBARE WERKZEUGE (Schema): []"
+            return "Available tools (schema): []"
         }
         let json = String(data: data, encoding: .utf8) ?? "[]"
         return """
-        VERFÜGBARE WERKZEUGE (Schema im OpenAI-Function-Calling-Format):
+        Available tools (schema in OpenAI function-calling format):
         ```json
         \(json)
         ```
@@ -1314,11 +1310,11 @@ actor AskService {
     ) -> String {
         var parts: [String] = [base]
         if !transcript.isEmpty {
-            parts.append("BISHERIGE WERKZEUG-AUFRUFE UND ERGEBNISSE:")
+            parts.append("Previous tool calls and results:")
             parts.append(transcript.joined(separator: "\n\n"))
         }
         if forceFinal {
-            parts.append("WICHTIG: Sie haben das Werkzeug-Budget aufgebraucht. Antworten Sie JETZT ausschließlich mit dem JSON-Schema — kein weiterer `call:` Aufruf.")
+            parts.append("Tool budget exhausted. Respond now with the final JSON only — no further `call:` invocations.")
         }
         return parts.joined(separator: "\n\n")
     }
@@ -1517,25 +1513,32 @@ actor AskService {
 
         let entriesSection = entries.isEmpty
             ? ""
-            : "EINTRÄGE AUS DEM JOURNAL:\n\(entryBlocks)\n\n"
+            : "JOURNAL ENTRIES:\n\(entryBlocks)\n\n"
         let chunksSection = chunks.isEmpty
             ? ""
-            : "REFERENZKORPUS:\n\(chunkBlocks)\n\n"
+            : "REFERENCE CORPUS:\n\(chunkBlocks)\n\n"
 
+        // Output language directive is stated once, up top, and the
+        // example JSON sketch shows the German shape so the model
+        // anchors on plain-German parent prose. The Swift-side
+        // EventQuestionDetector already short-circuits event-style
+        // questions when the journal retrieval is empty — we no
+        // longer need the long "Quellenwahl" rule from the German
+        // version. Trust code to classify; let Gemma synthesise.
         return """
-        Beantworte die Frage des Elternteils zum Behandlungsverlauf des Kindes. Antworte AUSSCHLIESSLICH mit JSON (max. 200 Wörter).
+        You answer a parent's question about a child's AIEOP-BFM ALL 2017 treatment. Reply in plain German, JSON only, max 200 words.
 
-        REGELN:
-        - Einfaches Deutsch für Eltern.
-        - Jede Aussage braucht eine Citation. Format: E:<UUID> für ENTRY, K:<id> für CORPUS. Nur IDs aus den Kontext-Blöcken.
-        - Quellenwahl: Bei Ereignisfragen ("welche … gab es?", "wann hatte …?", "wie war …?", "was ist passiert?") AUSSCHLIESSLICH aus ENTRY-Blöcken antworten. Kein passender Eintrag? Antworte genau: "Im Journal finde ich dazu keinen Eintrag." mit leerer citations-Liste — keine CORPUS-Inhalte als Ersatz. Bei Wissensfragen ("was bedeutet …?", "Nebenwirkungen?") darfst du CORPUS nutzen.
-        - Keine Empfehlungen/Dosen/Diagnosen — verweise ans Behandlungsteam.
-        - Schlage 2–3 Folgefragen vor.
+        Rules:
+        - Output German text in the JSON values. Copy medical terms verbatim from source.
+        - Every claim cites its source: E:<UUID> for a journal entry, K:<id> for a corpus chunk. Use only IDs that appear in the context blocks below.
+        - Never invent values. If no entry matches an event-style question, reply with one claim: text "Im Journal finde ich dazu keinen Eintrag." and an empty citations array.
+        - No advice, diagnosis, dose calculation, or interpretation — refer the parent to the treatment team.
+        - Suggest 2–3 German follow-up questions.
 
-        \(entriesSection)\(chunksSection)FRAGE: \(question)
+        \(entriesSection)\(chunksSection)QUESTION: \(question)
 
-        SCHEMA:
-        {"claims":[{"text":"…","citations":["E:<UUID>" oder "K:<id>"]}],"followUps":["…"]}
+        Schema:
+        {"claims":[{"text":"<German sentence ending with [E:UUID] or [K:id]>","citations":["E:<UUID>","K:<id>"]}],"followUps":["<German follow-up>"]}
 
         JSON:
         """

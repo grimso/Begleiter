@@ -67,6 +67,35 @@ final class BriefingServiceTests: XCTestCase {
                       "Prompt should list at least one canonical IA drug")
     }
 
+    /// English control prompt; German output. Load-bearing clauses.
+    func test_buildPrompt_includesEnglishControlClauses() {
+        let prompt = BriefingService.buildPrompt(
+            visitDate: .now,
+            child: snapshot(),
+            entries: [entry(summary: "x")]
+        )
+        XCTAssertTrue(prompt.contains("JSON only"))
+        XCTAssertTrue(prompt.contains("German"),
+                      "briefing prompt must direct German JSON values")
+        XCTAssertTrue(prompt.contains("Never invent"))
+        XCTAssertTrue(prompt.contains("No advice"))
+    }
+
+    /// Budget guard. Static (boilerplate) size with no entries must
+    /// stay under 1 700 chars. The default snapshot is inductionIA;
+    /// PhaseMetadata.for(.inductionIA) embeds the IA drug list +
+    /// typical parent concerns into the "static" frame, which lifts
+    /// the floor above the pure-prose 1 300 char target.
+    func test_buildPrompt_staticSizeBelowBudget() {
+        let prompt = BriefingService.buildPrompt(
+            visitDate: Date(timeIntervalSince1970: 0),
+            child: snapshot(),
+            entries: []
+        )
+        XCTAssertLessThan(prompt.count, 1700,
+                          "briefing static prompt size budget: 1 700 chars (inductionIA snapshot)")
+    }
+
     // MARK: - Verifiable-generation guard
 
     func test_filterUngroundedClaims_dropsUnknownEntryIds() {

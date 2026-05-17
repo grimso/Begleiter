@@ -164,34 +164,34 @@ actor DocumentImportService {
 
     static func buildPrompt(sourceText: String, strictMode: Bool) -> String {
         let header = strictMode
-            ? "WICHTIG: Antworten Sie AUSSCHLIESSLICH mit gültigem JSON. Kein Markdown, kein Text vor oder nach dem JSON. Beginnen Sie direkt mit { und enden Sie mit }."
-            : "Antworten Sie ausschließlich mit JSON nach dem unten gezeigten Schema."
+            ? "Strict mode: respond with valid JSON only. No markdown, no prose. Start with { and end with }."
+            : "Return JSON only, following the schema below."
         return """
-        Sie sind ein medizinischer Tagebuch-Assistent für Eltern eines Kindes in der AIEOP-BFM ALL 2017 Behandlung. Ihre Aufgabe: das angefügte Dokument (z.B. Entlassungsbericht, Laborbefund, Protokoll-Auszug) in eine strukturierte, zitierbare Erinnerung umwandeln.
+        You convert one German medical document (discharge letter, lab report, protocol excerpt) for a child in AIEOP-BFM ALL 2017 treatment into a structured, citable memory.
 
         \(header)
 
-        REGELN:
-        - Erfinden Sie NIEMALS Inhalte, die nicht im Dokument stehen.
-        - Geben Sie KEINE medizinischen Empfehlungen oder Diagnosen ab. Sie strukturieren nur, was im Dokument steht.
-        - `title`: kurzer deutscher Titel, max. 80 Zeichen (z.B. "Entlassungsbericht UKE 2026-04-12").
-        - `summary`: EIN deutscher Satz, der das Dokument in 1-2 Zeilen zusammenfasst.
-        - `chunks`: 3 bis 20 thematische Abschnitte. Jeder Abschnitt:
-          - `kind`: einer von `"befund"`, `"medikation"`, `"prozedur"`, `"entscheidung"`, `"beobachtung"`, `"naechste_schritte"`, `"sonstiges"`.
-          - `text`: deutscher Volltext-Abschnitt. Mehrere Sätze erlaubt; behalten Sie konkrete Werte (Laborzahlen, Medikamentennamen, Daten) bei. Max. 600 Zeichen pro Abschnitt.
-        - Reihenfolge der Abschnitte: wie im Original.
+        Rules:
+        - Never invent content. Copy concrete values (lab numbers, drug names, dates) verbatim from the source.
+        - No advice, diagnosis, dose calculation, or interpretation — only structure what's in the document.
+        - All free-text values inside the JSON are German.
+        - `title`: short German title, max 80 chars (e.g. "Entlassungsbericht UKE 2026-04-12").
+        - `summary`: one German sentence summarising the document.
+        - `chunks`: 3 to 20 topical sections, in source order. Each section:
+          - `kind`: one of "befund", "medikation", "prozedur", "entscheidung", "beobachtung", "naechste_schritte", "sonstiges".
+          - `text`: German prose (multiple sentences allowed); preserve concrete values; max 600 chars per chunk.
 
-        SCHEMA:
+        Schema:
         {
-          "title": "<deutscher Titel>",
-          "summary": "<ein deutscher Satz>",
+          "title": "<German title>",
+          "summary": "<one German sentence>",
           "chunks": [
-            { "kind": "befund", "text": "<...>" },
-            { "kind": "medikation", "text": "<...>" }
+            { "kind": "befund", "text": "<German prose>" },
+            { "kind": "medikation", "text": "<German prose>" }
           ]
         }
 
-        DOKUMENT:
+        Document (German source):
         ```
         \(sourceText)
         ```

@@ -18,7 +18,7 @@ final class DocumentImportServiceTests: XCTestCase {
         )
         XCTAssertTrue(prompt.contains(source),
                       "source text must be embedded so the model has something to summarise")
-        XCTAssertTrue(prompt.contains("SCHEMA"),
+        XCTAssertTrue(prompt.contains("Schema:"),
                       "prompt must call out the JSON schema header")
         XCTAssertTrue(prompt.contains("\"chunks\""),
                       "prompt must show the wire shape Gemma should emit")
@@ -31,8 +31,31 @@ final class DocumentImportServiceTests: XCTestCase {
             sourceText: "x",
             strictMode: true
         )
-        XCTAssertTrue(prompt.contains("AUSSCHLIESSLICH"),
+        XCTAssertTrue(prompt.contains("Strict mode"),
                       "strict mode must enforce JSON-only output")
+    }
+
+    /// English control prompt; German output. Load-bearing clauses.
+    func test_buildPrompt_includesEnglishControlClauses() {
+        let prompt = DocumentImportService.buildPrompt(
+            sourceText: "x",
+            strictMode: false
+        )
+        XCTAssertTrue(prompt.contains("Never invent"))
+        XCTAssertTrue(prompt.contains("No advice"))
+        XCTAssertTrue(prompt.contains("German"),
+                      "doc-import prompt must direct German JSON values")
+    }
+
+    /// Budget guard. Static (boilerplate) size when called with empty
+    /// source must stay under 1 100 chars (~275 tokens).
+    func test_buildPrompt_staticSizeBelowBudget() {
+        let prompt = DocumentImportService.buildPrompt(
+            sourceText: "",
+            strictMode: false
+        )
+        XCTAssertLessThan(prompt.count, 1300,
+                          "doc-import static prompt size budget: 1 300 chars")
     }
 
     // MARK: - Error mapping
