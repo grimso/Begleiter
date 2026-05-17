@@ -86,6 +86,10 @@
 "home.card.labs.subtitle" = "Latest values and trends.";
 "home.card.ask.title" = "Ask";
 "home.card.ask.subtitle" = "Answers about health & therapy.";
+"home.card.briefing.title" = "Briefing";
+"home.card.briefing.subtitle" = "Notes for the next appointment.";
+"home.card.handoff.title" = "Handover";
+"home.card.handoff.subtitle" = "Clinical summary for new doctors.";
 "home.footer.line1" = "Always with you — visit after visit.";
 "home.footer.line2" = "Gemma 4 E2B, on your iPhone.";
 

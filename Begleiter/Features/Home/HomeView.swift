@@ -7,23 +7,28 @@ import SwiftUI
 ///   wordmark flanked by thin rules and a time-of-day greeting.
 /// - Optional `Image("crane")` illustration above the greeting (renders only
 ///   when the asset is present; otherwise the slot collapses to zero height).
-/// - Three primary cards (Tagebuch / Blutwerte / Fragen) with circular
-///   dark-teal icon containers.
+/// - Five primary cards (Tagebuch / Blutwerte / Fragen / Vorbereitung /
+///   Übergabe) with circular dark-teal icon containers.
 /// - A small beige encouragement pill at the bottom.
 ///
 /// Tap routing:
 /// - Tagebuch → switches the parent `TabView` to the Timeline tab.
 /// - Blutwerte → presents `LabValuesView` as a sheet.
 /// - Fragen → presents `AskView(scope: .all)` as a sheet.
+/// - Vorbereitung → presents `PreVisitBriefingView` as a sheet.
+/// - Übergabe → presents `HandoffDocumentView` as a sheet.
 ///
-/// No toolbar. Add-entry, Vorbereitung, and Übergabe live on the Timeline
-/// tab; Einstellungen lives on the Profile tab.
+/// No toolbar. Add-entry lives on the Timeline tab; Vorbereitung and
+/// Übergabe are also reachable from the Timeline toolbar; Einstellungen
+/// lives on the Profile tab.
 struct HomeView: View {
     let child: ChildState
     @Binding var selectedTab: HomeTab
 
     @State private var presentingLabs = false
     @State private var presentingAsk = false
+    @State private var presentingBriefing = false
+    @State private var presentingHandoff = false
 
     var body: some View {
         ScrollView {
@@ -42,6 +47,12 @@ struct HomeView: View {
         }
         .sheet(isPresented: $presentingAsk) {
             AskView(child: child, scope: .all)
+        }
+        .sheet(isPresented: $presentingBriefing) {
+            PreVisitBriefingView(child: child)
+        }
+        .sheet(isPresented: $presentingHandoff) {
+            HandoffDocumentView(child: child)
         }
     }
 
@@ -119,6 +130,28 @@ struct HomeView: View {
                     icon: "bubble.left.and.text.bubble.right",
                     titleKey: "home.card.ask.title",
                     subtitleKey: "home.card.ask.subtitle"
+                )
+            }
+            .buttonStyle(.plain)
+
+            Button {
+                presentingBriefing = true
+            } label: {
+                HomeCardLabel(
+                    icon: "calendar.badge.clock",
+                    titleKey: "home.card.briefing.title",
+                    subtitleKey: "home.card.briefing.subtitle"
+                )
+            }
+            .buttonStyle(.plain)
+
+            Button {
+                presentingHandoff = true
+            } label: {
+                HomeCardLabel(
+                    icon: "doc.text",
+                    titleKey: "home.card.handoff.title",
+                    subtitleKey: "home.card.handoff.subtitle"
                 )
             }
             .buttonStyle(.plain)

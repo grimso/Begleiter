@@ -86,6 +86,10 @@
 "home.card.labs.subtitle" = "Aktuelle Werte und Verläufe.";
 "home.card.ask.title" = "Fragen";
 "home.card.ask.subtitle" = "Antworten zu Gesundheit & Therapie.";
+"home.card.briefing.title" = "Vorbereitung";
+"home.card.briefing.subtitle" = "Notizen für den nächsten Termin.";
+"home.card.handoff.title" = "Übergabe";
+"home.card.handoff.subtitle" = "Klinische Zusammenfassung für neue Ärzte.";
 "home.footer.line1" = "Immer dabei — Visite für Visite.";
 "home.footer.line2" = "Gemma 4 E2B, auf Ihrem iPhone.";
 
