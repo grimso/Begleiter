@@ -63,6 +63,9 @@ struct OnboardingView: View {
 
 private struct WelcomeScreen: View {
     let onStart: () -> Void
+    @Environment(\.modelContext) private var modelContext
+    @State private var showLoadDemoConfirm: Bool = false
+    @State private var demoOutcomeMessage: String?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 24) {
@@ -81,8 +84,56 @@ private struct WelcomeScreen: View {
                     .frame(maxWidth: .infinity, minHeight: 44)
             }
             .buttonStyle(.borderedProminent)
+
+            // Judge / evaluator affordance. After tapping "Alle Daten
+            // zurücksetzen" in Settings, the SwiftData store has no
+            // `ChildState` and the app lands back on this screen — the
+            // existing demo loader inside Settings → Entwicklung is
+            // unreachable from there. Surfacing it here closes that
+            // loop. Visually subdued so a real parent on first launch
+            // gravitates to "Begleiter starten" instead.
+            Button {
+                showLoadDemoConfirm = true
+            } label: {
+                Text(L10n.key("onboarding.welcome.loadDemo"))
+                    .frame(maxWidth: .infinity, minHeight: 36)
+            }
+            .buttonStyle(.bordered)
+            .tint(.secondary)
+
+            if let message = demoOutcomeMessage {
+                Label(message, systemImage: "info.circle")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
         }
         .padding()
+        .confirmationDialog(
+            L10n.key("settings.developer.demoData.loadConfirm.title"),
+            isPresented: $showLoadDemoConfirm,
+            titleVisibility: .visible
+        ) {
+            Button(L10n.t("settings.developer.demoData.loadConfirm.action")) {
+                let outcome = DemoDataLoader.loadDemoDataset(into: modelContext)
+                demoOutcomeMessage = Self.formatOutcome(outcome)
+            }
+            Button(L10n.t("app.cancel"), role: .cancel) { }
+        } message: {
+            Text(L10n.key("settings.developer.demoData.loadConfirm.message"))
+        }
+    }
+
+    private static func formatOutcome(_ outcome: DemoDataLoader.Outcome) -> String {
+        switch outcome {
+        case .loaded(let entries, let documents):
+            let format = L10n.t("settings.developer.demoData.outcome.loaded")
+            return String(format: format, entries, documents)
+        case .alreadyPopulated:
+            return L10n.t("settings.developer.demoData.outcome.alreadyPopulated")
+        case .failed(let reason):
+            let format = L10n.t("settings.developer.demoData.outcome.failed")
+            return String(format: format, reason)
+        }
     }
 }
 

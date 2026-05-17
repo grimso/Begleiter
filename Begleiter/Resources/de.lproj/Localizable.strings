@@ -18,6 +18,7 @@
 "onboarding.welcome.subtitle" = "Ein Tagebuch für die Behandlung Ihres Kindes";
 "onboarding.welcome.body" = "Begleiter hilft Ihnen, die Behandlung zu dokumentieren, sich auf Termine vorzubereiten und Übergaben für neue Ärztinnen und Ärzte zu erstellen. Alle Daten bleiben auf Ihrem Gerät.";
 "onboarding.welcome.start" = "Loslegen";
+"onboarding.welcome.loadDemo" = "Demo-Daten laden";
 
 "onboarding.diagnosisDate.title" = "Diagnosedatum";
 "onboarding.diagnosisDate.subtitle" = "Wann wurde die Diagnose gestellt?";

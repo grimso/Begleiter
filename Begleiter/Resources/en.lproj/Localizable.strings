@@ -18,6 +18,7 @@
 "onboarding.welcome.subtitle" = "A journal for your child's treatment";
 "onboarding.welcome.body" = "Begleiter helps you document the treatment, prepare for appointments, and create handovers for new doctors. All data stays on your device.";
 "onboarding.welcome.start" = "Get started";
+"onboarding.welcome.loadDemo" = "Load demo data";
 
 "onboarding.diagnosisDate.title" = "Diagnosis date";
 "onboarding.diagnosisDate.subtitle" = "When was the diagnosis made?";
