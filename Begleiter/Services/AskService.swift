@@ -216,6 +216,19 @@ nonisolated struct AskDebugInfo: Sendable, Hashable {
     /// without a Gemma call.
     let eventGuardFired: Bool
 
+    // MARK: - Journal timeline pack diagnostics
+    /// Number of journal entries dropped from the oldest end of the
+    /// timeline to fit the per-variant token budget. `0` when the full
+    /// filtered set fit or when the timeline pack path was off (legacy
+    /// `.prefix(4)` BM25 path). Surfaces in the Diagnose sheet so the
+    /// parent can see whether the answer is grounded on a full window
+    /// or a truncated one.
+    let timelinePackOmittedCount: Int
+    /// Approximate prompt-side token count of the journal-pack section,
+    /// per ``TokenEstimator``. `0` when the pack was empty or the
+    /// timeline-pack path was off.
+    let timelinePackTokens: Int
+
     /// Empty placeholder used when an answer is constructed outside the
     /// real pipeline (e.g., tests, the static `AskAnswer.refusal` helper).
     static let empty = AskDebugInfo(
@@ -244,7 +257,9 @@ nonisolated struct AskDebugInfo: Sendable, Hashable {
         corpusEmbedCount: 0,
         rerankSkippedReason: nil,
         eventQuestionDetected: false,
-        eventGuardFired: false
+        eventGuardFired: false,
+        timelinePackOmittedCount: 0,
+        timelinePackTokens: 0
     )
 }
 
@@ -307,7 +322,9 @@ nonisolated struct AskAnswer: Sendable, Hashable, Identifiable {
                 corpusEmbedCount: debug.corpusEmbedCount,
                 rerankSkippedReason: debug.rerankSkippedReason,
                 eventQuestionDetected: debug.eventQuestionDetected,
-                eventGuardFired: debug.eventGuardFired
+                eventGuardFired: debug.eventGuardFired,
+                timelinePackOmittedCount: debug.timelinePackOmittedCount,
+                timelinePackTokens: debug.timelinePackTokens
             ),
             renderedAt: .now
         )
@@ -361,7 +378,9 @@ nonisolated struct AskAnswer: Sendable, Hashable, Identifiable {
                 corpusEmbedCount: debug.corpusEmbedCount,
                 rerankSkippedReason: debug.rerankSkippedReason,
                 eventQuestionDetected: true,
-                eventGuardFired: true
+                eventGuardFired: true,
+                timelinePackOmittedCount: debug.timelinePackOmittedCount,
+                timelinePackTokens: debug.timelinePackTokens
             ),
             renderedAt: .now
         )
@@ -473,29 +492,63 @@ actor AskService {
             corpusEmbedCount: 0,
             rerankSkippedReason: rerankEnabled ? nil : "toggle off",
             eventQuestionDetected: false,
-            eventGuardFired: false
+            eventGuardFired: false,
+            timelinePackOmittedCount: 0,
+            timelinePackTokens: 0
         )
 
-        // 1. Retrieval. With rerank on, pull a wider candidate set
-        // (limit 20 instead of 6) so the second-stage RRF has room to
-        // promote semantic matches that BM25 ranks low.
+        // 1. Retrieval. Two journal paths:
+        //   - **Timeline-pack mode** (default, the Kaggle-submission
+        //     long-context-Gemma-4 story): skip BM25 over journals and
+        //     build a chronological ``JournalTimelinePack`` from every
+        //     filtered entry that fits the per-variant token budget.
+        //     The model sees the parent's full window instead of four
+        //     keyword-matched entries.
+        //   - **Legacy BM25 mode** (toggle off): keep the top-K BM25
+        //     hits and materialise the top-4 with optional dense
+        //     rerank. Kept for A/B comparison and for parents on E2B
+        //     who hit prefill-latency limits on long packs.
+        let timelinePackEnabled = AppSettings.askTimelinePackEnabled
         let firstStageLimit = rerankEnabled ? 20 : 6
         let filters = Self.filters(for: question.scope)
-        let journalHits = retrieval.search(
-            query: question.text,
-            in: entries,
-            filters: filters,
-            limit: firstStageLimit
-        )
+        let pack: JournalTimelinePack
+        let journalHits: [RetrievalService.Hit]
+        if timelinePackEnabled {
+            let candidates = RetrievalService.applyFilters(entries: entries, filters: filters)
+            pack = JournalTimelinePackBuilder.build(
+                entries: candidates,
+                budgetTokens: JournalTimelinePackBuilder.budgetTokens(
+                    for: AppSettings.modelVariant
+                )
+            )
+            // Empty hit list signals the rerank below to skip the
+            // journal half — pack ordering is canonical (chronological)
+            // and must not be reordered by RRF.
+            journalHits = []
+        } else {
+            pack = .empty
+            journalHits = retrieval.search(
+                query: question.text,
+                in: entries,
+                filters: filters,
+                limit: firstStageLimit
+            )
+        }
         let corpusHits = corpus.search(
             query: question.text,
             scope: question.scope,
             limit: firstStageLimit
         )
-        debug = debug.with(journalHits: journalHits.count, corpusHits: corpusHits.count)
-        askLog.info("retrieval: journal=\(journalHits.count, privacy: .public) corpus=\(corpusHits.count, privacy: .public) scope=\(question.scope.rawValue, privacy: .public) limit=\(firstStageLimit, privacy: .public)")
+        let journalSourceCount = timelinePackEnabled ? pack.entries.count : journalHits.count
+        debug = debug.with(
+            journalHits: journalSourceCount,
+            corpusHits: corpusHits.count,
+            timelinePackOmittedCount: pack.omittedCount,
+            timelinePackTokens: pack.estimatedTokens
+        )
+        askLog.info("retrieval: journal=\(journalSourceCount, privacy: .public) corpus=\(corpusHits.count, privacy: .public) scope=\(question.scope.rawValue, privacy: .public) limit=\(firstStageLimit, privacy: .public) packMode=\(timelinePackEnabled, privacy: .public) packOmitted=\(pack.omittedCount, privacy: .public) packTokens=\(pack.estimatedTokens, privacy: .public)")
 
-        if journalHits.isEmpty && corpusHits.isEmpty {
+        if journalSourceCount == 0 && corpusHits.isEmpty {
             askLog.info("empty retrieval — emitting refusal")
             // Rerank doesn't run when there's nothing to rerank.
             if rerankEnabled {
@@ -510,15 +563,18 @@ actor AskService {
 
         // 1b. Event-question guard. If the question looks like a
         // past-tense event question ("Welche … gab es?", "Wann hatte
-        // …?") AND the journal retrieval found nothing AND the toggle
-        // is on: short-circuit to "Im Journal finde ich dazu keinen
-        // Eintrag." without calling Gemma. Prevents the model from
-        // paraphrasing a topically-relevant corpus chunk into an
-        // answer that reads like a journal claim.
+        // …?") AND the journal source is empty AND the toggle is on:
+        // short-circuit to "Im Journal finde ich dazu keinen Eintrag."
+        // without calling Gemma. Prevents the model from paraphrasing a
+        // topically-relevant corpus chunk into an answer that reads
+        // like a journal claim. In timeline-pack mode the journal
+        // source is empty only when the parent literally has zero
+        // entries matching the scope — the guard's intent ("no journal
+        // material to ground on") is preserved.
         let eventDetected = EventQuestionDetector.looksLikeEventQuestion(question.text)
         debug = debug.with(eventQuestionDetected: eventDetected)
         if AppSettings.askEventGuardEnabled,
-           journalHits.isEmpty,
+           journalSourceCount == 0,
            eventDetected
         {
             askLog.info("event-question guard fired (journal empty, question is event-shaped)")
@@ -533,8 +589,12 @@ actor AskService {
 
         // 2. Dense rerank (optional). Reorders BM25's top-K by RRF of
         // BM25 rank + cosine rank, with E5-multilingual embeddings.
-        // Falls back to BM25 if the embedder fails to load.
-        var rerankedJournalIds: [UUID] = journalHits.map { $0.entryId }
+        // Falls back to BM25 if the embedder fails to load. In timeline-
+        // pack mode `journalHits` is `[]`, so rerank only touches the
+        // corpus half; pack ordering stays canonical.
+        var rerankedJournalIds: [UUID] = timelinePackEnabled
+            ? pack.entries.map(\.entryId)
+            : journalHits.map { $0.entryId }
         var rerankedChunkIds: [String] = corpusHits.map { $0.chunkId }
         if rerankEnabled, !journalHits.isEmpty || !corpusHits.isEmpty {
             debug = debug.with(
@@ -549,7 +609,11 @@ actor AskService {
                     entries: entries,
                     persistEntryEmbeddings: persistEntryEmbeddings
                 )
-                rerankedJournalIds = outcome.journalIds
+                // Pack mode owns the journal ordering — never let rerank
+                // overwrite it. Corpus reorder is always honoured.
+                if !timelinePackEnabled {
+                    rerankedJournalIds = outcome.journalIds
+                }
                 rerankedChunkIds = outcome.chunkIds
                 debug = debug.with(
                     denseRerankerEnabled: true,
@@ -570,13 +634,20 @@ actor AskService {
             }
         }
 
-        // 3. Materialise: take top-4 from the (possibly reranked) lists.
-        let entryById = Dictionary(
-            uniqueKeysWithValues: entries.map { ($0.entryId, $0) }
-        )
-        let topEntries: [JournalEntry] = rerankedJournalIds
-            .prefix(4)
-            .compactMap { entryById[$0] }
+        // 3. Materialise. Pack mode sends every pack entry to the
+        // prompt (chronological, up to the token budget); legacy mode
+        // keeps the .prefix(4) post-rerank window.
+        let topEntries: [JournalEntry]
+        if timelinePackEnabled {
+            topEntries = pack.entries
+        } else {
+            let entryById = Dictionary(
+                uniqueKeysWithValues: entries.map { ($0.entryId, $0) }
+            )
+            topEntries = rerankedJournalIds
+                .prefix(4)
+                .compactMap { entryById[$0] }
+        }
         let topChunks: [CorpusChunk] = rerankedChunkIds
             .prefix(4)
             .compactMap { corpus.chunk(id: $0) }
@@ -585,11 +656,16 @@ actor AskService {
             promptedChunkIds: topChunks.map(\.id)
         )
 
-        // 4. Generate
+        // 4. Generate. In pack mode the prompt includes a leading
+        // omitted-marker note when entries were dropped from the
+        // oldest end of the timeline.
         let prompt = Self.buildPrompt(
             question: question.text,
             entries: topEntries,
-            chunks: topChunks
+            chunks: topChunks,
+            omittedMarker: timelinePackEnabled
+                ? JournalTimelinePackBuilder.omittedMarker(for: pack)
+                : nil
         )
         debug = debug.with(promptCharCount: prompt.count, promptText: prompt)
 
@@ -757,7 +833,9 @@ actor AskService {
             corpusEmbedCount: 0,
             rerankSkippedReason: nil,
             eventQuestionDetected: false,
-            eventGuardFired: false
+            eventGuardFired: false,
+            timelinePackOmittedCount: 0,
+            timelinePackTokens: 0
         )
 
         let tools = AgentTools(
@@ -955,7 +1033,9 @@ actor AskService {
             corpusEmbedCount: 0,
             rerankSkippedReason: nil,
             eventQuestionDetected: false,
-            eventGuardFired: false
+            eventGuardFired: false,
+            timelinePackOmittedCount: 0,
+            timelinePackTokens: 0
         )
 
         let tools = AgentTools(
@@ -1480,13 +1560,15 @@ actor AskService {
     static func buildPrompt(
         question: String,
         entries: [JournalEntry],
-        chunks: [CorpusChunk]
+        chunks: [CorpusChunk],
+        omittedMarker: String? = nil
     ) -> String {
         let entryBlocks = entries.enumerated().map { (idx, entry) -> String in
             let date = dateFormatter.string(from: entry.visitDate)
+            let phase = entry.phase.rawValue
             let f = entry.extractedFields
             var lines: [String] = []
-            lines.append("[ENTRY \(idx + 1)] id=\(entry.entryId.uuidString) datum=\(date)")
+            lines.append("[ENTRY \(idx + 1)] id=\(entry.entryId.uuidString) datum=\(date) phase=\(phase)")
             if let summary = f.summary?.value, !summary.isEmpty {
                 lines.append("zusf: \(summary)")
             }
@@ -1514,9 +1596,13 @@ actor AskService {
             """
         }.joined(separator: "\n\n")
 
+        let omittedPrefix: String = {
+            guard let marker = omittedMarker, !marker.isEmpty else { return "" }
+            return "\(marker)\n\n"
+        }()
         let entriesSection = entries.isEmpty
             ? ""
-            : "JOURNAL ENTRIES:\n\(entryBlocks)\n\n"
+            : "JOURNAL ENTRIES:\n\(omittedPrefix)\(entryBlocks)\n\n"
         let chunksSection = chunks.isEmpty
             ? ""
             : "REFERENCE CORPUS:\n\(chunkBlocks)\n\n"
@@ -1534,6 +1620,7 @@ actor AskService {
         Rules:
         - Output German text in the JSON values. Copy medical terms verbatim from source.
         - Every claim cites its source: E:<UUID> for a journal entry, K:<id> for a corpus chunk. Use only IDs that appear in the context blocks below.
+        - Journal entries are listed chronologically, oldest → newest; the most recent entries are at the bottom.
         - Never invent values. If no entry matches an event-style question, reply with one claim: text "Im Journal finde ich dazu keinen Eintrag." and an empty citations array.
         - No advice, diagnosis, dose calculation, or interpretation — refer the parent to the treatment team.
         - Suggest 2–3 German follow-up questions.
@@ -1788,7 +1875,9 @@ extension AskDebugInfo {
         corpusEmbedCount: Int? = nil,
         rerankSkippedReason: String?? = nil,
         eventQuestionDetected: Bool? = nil,
-        eventGuardFired: Bool? = nil
+        eventGuardFired: Bool? = nil,
+        timelinePackOmittedCount: Int? = nil,
+        timelinePackTokens: Int? = nil
     ) -> AskDebugInfo {
         AskDebugInfo(
             scope: self.scope,
@@ -1816,7 +1905,9 @@ extension AskDebugInfo {
             corpusEmbedCount: corpusEmbedCount ?? self.corpusEmbedCount,
             rerankSkippedReason: rerankSkippedReason ?? self.rerankSkippedReason,
             eventQuestionDetected: eventQuestionDetected ?? self.eventQuestionDetected,
-            eventGuardFired: eventGuardFired ?? self.eventGuardFired
+            eventGuardFired: eventGuardFired ?? self.eventGuardFired,
+            timelinePackOmittedCount: timelinePackOmittedCount ?? self.timelinePackOmittedCount,
+            timelinePackTokens: timelinePackTokens ?? self.timelinePackTokens
         )
     }
 }

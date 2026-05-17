@@ -425,6 +425,8 @@
 "ask.debug.scope" = "Scope";
 "ask.debug.journalHits" = "Journal-Treffer";
 "ask.debug.corpusHits" = "Korpus-Treffer";
+"ask.debug.timelinePackTokens" = "Timeline-Pack-Tokens";
+"ask.debug.timelinePackOmitted" = "Ältere Einträge weggelassen";
 "ask.debug.promptContext" = "Prompt-Kontext";
 "ask.debug.promptedEntries" = "Einträge im Prompt";
 "ask.debug.entryIds" = "Entry-IDs";
@@ -465,6 +467,8 @@
 "ask.debug.refusalReason.noJournalForEventQuestion" = "Frage zielt auf Journal-Ereignisse, aber kein passender Eintrag — Swift-Guard hat ohne Gemma-Aufruf geantwortet.";
 
 "settings.developer.askEventGuard" = "Journal-Schutz für Ereignisfragen";
+"settings.developer.askTimelinePack" = "Journal-Timeline-Pack";
+"settings.developer.askTimelinePack.hint" = "Sendet alle passenden Journal-Einträge chronologisch an Gemma (statt der Top-4 BM25-Treffer). Ältere Einträge werden zuerst weggelassen, wenn das Token-Budget nicht reicht.";
 "settings.developer.askMode" = "Antwort-Modus";
 "settings.developer.askMode.chat" = "Chat (Standard)";
 "settings.developer.askMode.mlxToolCall" = "MLX-Werkzeug-Aufrufe (defekt)";

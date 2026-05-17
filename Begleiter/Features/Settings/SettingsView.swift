@@ -63,6 +63,9 @@ struct SettingsView: View {
     @AppStorage(AppSettings.askEventGuardEnabledKey)
     private var askEventGuardEnabled: Bool = AppSettings.defaultAskEventGuardEnabled
 
+    @AppStorage(AppSettings.askTimelinePackEnabledKey)
+    private var askTimelinePackEnabled: Bool = AppSettings.defaultAskTimelinePackEnabled
+
     @AppStorage(AppSettings.askAgentEnabledKey)
     private var askAgentEnabled: Bool = AppSettings.defaultAskAgentEnabled
 
@@ -427,6 +430,16 @@ struct SettingsView: View {
                       systemImage: "trash")
             }
             .disabled(!askDenseRerankerEnabled)
+            Toggle(isOn: $askTimelinePackEnabled) {
+                Label(L10n.key("settings.developer.askTimelinePack"),
+                      systemImage: "clock.arrow.circlepath")
+            }
+            if askTimelinePackEnabled {
+                Label(L10n.key("settings.developer.askTimelinePack.hint"),
+                      systemImage: "info.circle")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
             Toggle(isOn: $askEventGuardEnabled) {
                 Label(L10n.key("settings.developer.askEventGuard"),
                       systemImage: "calendar.badge.exclamationmark")

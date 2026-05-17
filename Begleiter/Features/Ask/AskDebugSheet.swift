@@ -56,6 +56,19 @@ struct AskDebugSheet: View {
             LabeledContent(L10n.t("ask.debug.corpusHits")) {
                 Text("\(answer.debug.corpusHits)").monospacedDigit()
             }
+            if answer.debug.timelinePackTokens > 0 {
+                LabeledContent(L10n.t("ask.debug.timelinePackTokens")) {
+                    Text("\(answer.debug.timelinePackTokens)").monospacedDigit()
+                        .foregroundStyle(.purple)
+                }
+            }
+            if answer.debug.timelinePackOmittedCount > 0 {
+                LabeledContent(L10n.t("ask.debug.timelinePackOmitted")) {
+                    Text("\(answer.debug.timelinePackOmittedCount)")
+                        .monospacedDigit()
+                        .foregroundStyle(.orange)
+                }
+            }
         } header: {
             Text(L10n.key("ask.debug.retrieval"))
         }

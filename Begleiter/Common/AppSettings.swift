@@ -115,6 +115,7 @@ enum AppSettings {
     nonisolated static let latencyHUDEnabledKey    = "latencyHUDEnabled"
     nonisolated static let didApplyDemoDefaultsKey = "didApplyDemoDefaults"
     nonisolated static let demoDefaultsAppliedAtKey = "demoDefaultsAppliedAt"
+    nonisolated static let askTimelinePackEnabledKey = "askTimelinePackEnabled"
 
     nonisolated static let defaultExtractionMaxTokens = 2500
     nonisolated static let defaultBriefingMaxTokens   = 640
@@ -150,6 +151,16 @@ enum AppSettings {
     /// "every new AI surface ships off by default" convention is
     /// explicitly overridden here for the submission window.
     nonisolated static let defaultImportedDocsEnabled = true
+
+    /// Default-on for the Kaggle submission: the `.chat` Ask path sends
+    /// the parent's full chronological journal (truncated to the per-
+    /// variant token budget) to Gemma in one prompt instead of the
+    /// previous "top-4 BM25 hits" path. The longitudinal-journal story
+    /// is the reviewer's recommended polish (see plan §S2) — defaulting
+    /// it on for the submission window matches the precedent set by
+    /// ``defaultImportedDocsEnabled``. The Settings → Entwicklung toggle
+    /// stays so a parent can A/B with the legacy RAG-only path.
+    nonisolated static let defaultAskTimelinePackEnabled = true
 
     /// Hard cap on the number of characters from one imported PDF that
     /// reach Gemma 4 in a single long-context call. 12 000 chars is
@@ -328,6 +339,20 @@ enum AppSettings {
     /// in Settings → Entwicklung.
     nonisolated static var latencyHUDEnabled: Bool {
         UserDefaults.standard.bool(forKey: latencyHUDEnabledKey)
+    }
+
+    /// When `true` (the submission default), `AskService.answer` in
+    /// `.chat` mode builds a chronological ``JournalTimelinePack`` from
+    /// every filtered entry that fits the per-variant token budget,
+    /// instead of running BM25 + reranker over the journal and prompting
+    /// with the top-4 hits. Corpus and imported-document retrieval keep
+    /// their existing RAG path — only the journal side switches to long-
+    /// context. Flipping this off restores the legacy `.prefix(4)`
+    /// behaviour for A/B comparison. Toggle lives in
+    /// Settings → Entwicklung.
+    nonisolated static var askTimelinePackEnabled: Bool {
+        UserDefaults.standard.object(forKey: askTimelinePackEnabledKey) as? Bool
+            ?? defaultAskTimelinePackEnabled
     }
 
     /// Write path used by `GemmaService` when E4B load fails and the

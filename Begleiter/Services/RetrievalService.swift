@@ -132,6 +132,19 @@ struct RetrievalService: Sendable {
         entries: [JournalEntry],
         filters: Filters
     ) -> [JournalEntry] {
+        Self.applyFilters(entries: entries, filters: filters)
+    }
+
+    /// Stateless filter pass over `entries` against `filters`. Exposed
+    /// as a static so the timeline-pack builder
+    /// (``JournalTimelinePackBuilder/build(entries:budgetTokens:perEntryCharCap:)``)
+    /// can reuse the same predicate without instantiating a
+    /// `RetrievalService` just to filter. Pure function; no SwiftData
+    /// or BM25 state involved.
+    static func applyFilters(
+        entries: [JournalEntry],
+        filters: Filters
+    ) -> [JournalEntry] {
         entries.filter { entry in
             if let phase = filters.phase, entry.phase != phase { return false }
             if let from = filters.fromDate, entry.visitDate < from { return false }

@@ -365,6 +365,106 @@ final class AskServiceTests: XCTestCase {
         XCTAssertTrue(prompt.contains("REFERENCE CORPUS"))
     }
 
+    /// Timeline pack story: when AskService passes 12 entries to
+    /// buildPrompt, the prompt must include every entry id (not a top-4
+    /// subset). Locks in the S2 fix — old code path silently dropped
+    /// entries 5 through 12 via `.prefix(4)`.
+    func test_buildPrompt_withTimelinePack_includesAllEntries() {
+        let entries = (0..<12).map { idx in
+            JournalEntry(
+                entryId: UUID(),
+                childId: UUID(),
+                visitDate: Calendar(identifier: .gregorian)
+                    .date(byAdding: .day, value: -idx, to: Date()) ?? Date(),
+                phase: .consolidationM,
+                dayInPhase: 1,
+                riskGroup: .standardRisk,
+                arm: .standard,
+                inputModalities: ["text"],
+                rawText: nil,
+                extractedFields: ExtractedFields(
+                    summary: ConfidenceField(value: "Eintrag-\(idx)", confidence: 0.9)
+                )
+            )
+        }
+        let prompt = AskService.buildPrompt(question: "x", entries: entries, chunks: [])
+        for entry in entries {
+            XCTAssertTrue(
+                prompt.contains(entry.entryId.uuidString),
+                "Prompt must include every entry's UUID — entry \(entry.entryId) missing"
+            )
+        }
+        XCTAssertTrue(prompt.contains("[ENTRY 12]"),
+                      "Prompt must enumerate all 12 entries, not just the first 4")
+    }
+
+    /// When the timeline pack drops older entries, AskService passes an
+    /// `omittedMarker` to buildPrompt. The marker must surface inside
+    /// the JOURNAL ENTRIES block so the model knows it's looking at a
+    /// window, not the full journal.
+    func test_buildPrompt_withOmittedMarker_includesMarkerAboveEntries() {
+        let entry = JournalEntry(
+            entryId: UUID(),
+            childId: UUID(),
+            visitDate: .now,
+            phase: .consolidationM,
+            dayInPhase: 1,
+            riskGroup: .standardRisk,
+            arm: .standard,
+            inputModalities: ["text"],
+            rawText: nil,
+            extractedFields: .empty
+        )
+        let marker = "NOTE: 5 earlier journal entries from 2026-01-01 to 2026-02-01 were omitted from this pack."
+        let prompt = AskService.buildPrompt(
+            question: "x",
+            entries: [entry],
+            chunks: [],
+            omittedMarker: marker
+        )
+        XCTAssertTrue(prompt.contains(marker), "Omitted marker must appear in the prompt")
+        // Marker should precede the entry block: the marker's position
+        // must be less than the first [ENTRY n] position.
+        guard let markerRange = prompt.range(of: marker),
+              let entryRange = prompt.range(of: "[ENTRY 1]") else {
+            XCTFail("Marker and entry block must both be present")
+            return
+        }
+        XCTAssertLessThan(markerRange.lowerBound, entryRange.lowerBound,
+                          "Omitted marker must precede the entry blocks so the model reads the window note first")
+    }
+
+    /// Existing call sites that don't pass `omittedMarker` keep the
+    /// previous byte shape — no leading "NOTE:" line creeps into the
+    /// prompt when entries fit entirely.
+    func test_buildPrompt_withoutOmittedMarker_hasNoNoteLine() {
+        let entry = JournalEntry(
+            entryId: UUID(),
+            childId: UUID(),
+            visitDate: .now,
+            phase: .consolidationM,
+            dayInPhase: 1,
+            riskGroup: .standardRisk,
+            arm: .standard,
+            inputModalities: ["text"],
+            rawText: nil,
+            extractedFields: .empty
+        )
+        let prompt = AskService.buildPrompt(question: "x", entries: [entry], chunks: [])
+        XCTAssertFalse(prompt.contains("NOTE:"),
+                       "Prompt must not include a NOTE marker when omittedMarker is nil")
+    }
+
+    /// The timeline-pack story relies on the model knowing the entries
+    /// are listed chronologically (recent at the bottom). Pin the rule.
+    func test_buildPrompt_includesChronologicalRule() {
+        let prompt = AskService.buildPrompt(question: "x", entries: [], chunks: [])
+        XCTAssertTrue(prompt.contains("chronologically"),
+                      "Prompt must instruct the model on the timeline pack's ordering")
+        XCTAssertTrue(prompt.contains("oldest"),
+                      "Prompt must spell out the oldest → newest direction")
+    }
+
     // MARK: - Surfaced-IDs scan (custom-agent citation universe)
 
     /// Tool outputs always emit `[E:<UUID>]` for journal hits and

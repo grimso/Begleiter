@@ -425,6 +425,8 @@
 "ask.debug.scope" = "Scope";
 "ask.debug.journalHits" = "Journal hits";
 "ask.debug.corpusHits" = "Corpus hits";
+"ask.debug.timelinePackTokens" = "Timeline pack tokens";
+"ask.debug.timelinePackOmitted" = "Earlier entries omitted";
 "ask.debug.promptContext" = "Prompt context";
 "ask.debug.promptedEntries" = "Entries in prompt";
 "ask.debug.entryIds" = "Entry IDs";
@@ -465,6 +467,8 @@
 "ask.debug.refusalReason.noJournalForEventQuestion" = "Question targets journal events but no matching entry — Swift guard answered without calling Gemma.";
 
 "settings.developer.askEventGuard" = "Journal guard for event questions";
+"settings.developer.askTimelinePack" = "Journal timeline pack";
+"settings.developer.askTimelinePack.hint" = "Sends every matching journal entry chronologically to Gemma (instead of the top-4 BM25 hits). Older entries are dropped first if the token budget runs out.";
 "settings.developer.askMode" = "Answer mode";
 "settings.developer.askMode.chat" = "Chat (default)";
 "settings.developer.askMode.mlxToolCall" = "MLX tool calls (broken)";
