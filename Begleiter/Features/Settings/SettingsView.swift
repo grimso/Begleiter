@@ -84,6 +84,9 @@ struct SettingsView: View {
     @State private var fellBackToE2BMessage: String?
     @State private var cacheClearedFlash: Bool = false
     @State private var memorySnapshot: MemoryDiagnostics.UISnapshot = MemoryDiagnostics.uiSnapshot()
+    @State private var showDemoLoadConfirm: Bool = false
+    @State private var showDemoResetConfirm: Bool = false
+    @State private var demoOutcomeMessage: String?
 
     // MARK: - Derived bindings
 
@@ -474,10 +477,75 @@ struct SettingsView: View {
                           systemImage: "tray.full")
                 }
             }
+            // Demo data loader. Surfaces a confirmation alert so a parent
+            // can't accidentally overwrite real data; the loader itself
+            // refuses to write when any child / entry / document already
+            // exists, but the alert is the parent-facing safety net.
+            Button {
+                showDemoLoadConfirm = true
+            } label: {
+                Label(L10n.key("settings.developer.demoData.load"),
+                      systemImage: "sparkles.rectangle.stack")
+            }
+            Button(role: .destructive) {
+                showDemoResetConfirm = true
+            } label: {
+                Label(L10n.key("settings.developer.demoData.reset"),
+                      systemImage: "trash")
+            }
+            if let message = demoOutcomeMessage {
+                Label(message, systemImage: "info.circle")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
         } header: {
             Text(L10n.key("settings.developer.section"))
         } footer: {
             Text(L10n.key("settings.developer.footer"))
+        }
+        .confirmationDialog(
+            L10n.key("settings.developer.demoData.loadConfirm.title"),
+            isPresented: $showDemoLoadConfirm,
+            titleVisibility: .visible
+        ) {
+            Button(L10n.t("settings.developer.demoData.loadConfirm.action")) {
+                let outcome = DemoDataLoader.loadDemoDataset(into: modelContext)
+                demoOutcomeMessage = Self.formatDemoOutcome(outcome)
+            }
+            Button(L10n.t("app.cancel"), role: .cancel) { }
+        } message: {
+            Text(L10n.key("settings.developer.demoData.loadConfirm.message"))
+        }
+        .confirmationDialog(
+            L10n.key("settings.developer.demoData.resetConfirm.title"),
+            isPresented: $showDemoResetConfirm,
+            titleVisibility: .visible
+        ) {
+            Button(L10n.t("settings.developer.demoData.resetConfirm.action"), role: .destructive) {
+                let outcome = DemoDataLoader.resetAllData(in: modelContext)
+                demoOutcomeMessage = Self.formatDemoOutcome(outcome)
+            }
+            Button(L10n.t("app.cancel"), role: .cancel) { }
+        } message: {
+            Text(L10n.key("settings.developer.demoData.resetConfirm.message"))
+        }
+    }
+
+    /// User-facing summary of a `DemoDataLoader.Outcome`. Kept terse so
+    /// it fits in a `.caption` Label under the buttons.
+    private static func formatDemoOutcome(_ outcome: DemoDataLoader.Outcome) -> String {
+        switch outcome {
+        case .loaded(let entries, let documents):
+            if entries == 0 && documents == 0 {
+                return L10n.t("settings.developer.demoData.outcome.reset")
+            }
+            let format = L10n.t("settings.developer.demoData.outcome.loaded")
+            return String(format: format, entries, documents)
+        case .alreadyPopulated:
+            return L10n.t("settings.developer.demoData.outcome.alreadyPopulated")
+        case .failed(let reason):
+            let format = L10n.t("settings.developer.demoData.outcome.failed")
+            return String(format: format, reason)
         }
     }
 

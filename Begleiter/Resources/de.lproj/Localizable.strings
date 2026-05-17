@@ -357,6 +357,18 @@
 "settings.diagnostics.memoryRefresh" = "Neu messen";
 "settings.diagnostics.memoryHint" = "Limit = belegt + frei. Mit „Increased Memory Limit“ sind ~3,0 GB (6-GB-Geräte) bzw. ~4,5 GB (8-GB-Geräte) zu erwarten.";
 "settings.diagnostics.demoDefaultsAppliedAt" = "Demo-Defaults angewendet";
+"settings.developer.demoData.load" = "Demo-Daten laden";
+"settings.developer.demoData.reset" = "Alle Daten zurücksetzen";
+"settings.developer.demoData.loadConfirm.title" = "Synthetische Demo-Daten laden?";
+"settings.developer.demoData.loadConfirm.message" = "Fügt ein fiktives Kind, 10 Journal-Einträge und 1 importiertes Dokument ein — nur in einen leeren Speicher. Echte Daten werden niemals überschrieben.";
+"settings.developer.demoData.loadConfirm.action" = "Demo-Daten laden";
+"settings.developer.demoData.resetConfirm.title" = "Alle Daten löschen?";
+"settings.developer.demoData.resetConfirm.message" = "Entfernt unwiderruflich alle Kinder, Journal-Einträge und importierten Dokumente auf diesem Gerät. Dieser Vorgang kann nicht rückgängig gemacht werden.";
+"settings.developer.demoData.resetConfirm.action" = "Alles löschen";
+"settings.developer.demoData.outcome.loaded" = "Demo-Daten geladen: %1$d Einträge, %2$d Dokumente.";
+"settings.developer.demoData.outcome.reset" = "Alle Daten gelöscht.";
+"settings.developer.demoData.outcome.alreadyPopulated" = "Übersprungen — Daten bereits vorhanden. Vor dem Laden zuerst zurücksetzen.";
+"settings.developer.demoData.outcome.failed" = "Fehlgeschlagen: %@";
 
 "settings.developer.section" = "Entwicklung";
 "settings.developer.smokeTest" = "Gemma 4 Smoke-Test";

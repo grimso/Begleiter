@@ -357,6 +357,18 @@
 "settings.diagnostics.memoryRefresh" = "Re-sample";
 "settings.diagnostics.memoryHint" = "Limit = used + available. With \"Increased Memory Limit\" expect ~3.0 GB (6 GB devices) or ~4.5 GB (8 GB devices).";
 "settings.diagnostics.demoDefaultsAppliedAt" = "Demo defaults applied";
+"settings.developer.demoData.load" = "Load demo data";
+"settings.developer.demoData.reset" = "Reset all data";
+"settings.developer.demoData.loadConfirm.title" = "Load synthetic demo data?";
+"settings.developer.demoData.loadConfirm.message" = "Inserts a fake child, 10 journal entries, and 1 imported document — only into an empty store. Refuses to overwrite any real data.";
+"settings.developer.demoData.loadConfirm.action" = "Load demo data";
+"settings.developer.demoData.resetConfirm.title" = "Delete all data?";
+"settings.developer.demoData.resetConfirm.message" = "Permanently removes every child, journal entry, and imported document on this device. This cannot be undone.";
+"settings.developer.demoData.resetConfirm.action" = "Delete everything";
+"settings.developer.demoData.outcome.loaded" = "Demo data loaded: %1$d entries, %2$d documents.";
+"settings.developer.demoData.outcome.reset" = "All data deleted.";
+"settings.developer.demoData.outcome.alreadyPopulated" = "Skipped — data already exists. Reset first to load demo data.";
+"settings.developer.demoData.outcome.failed" = "Failed: %@";
 
 "settings.developer.section" = "Developer";
 "settings.developer.smokeTest" = "Gemma 4 smoke test";
