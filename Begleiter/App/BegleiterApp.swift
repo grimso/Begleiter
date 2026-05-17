@@ -105,6 +105,12 @@ struct RootView: View {
             }
         }
         .task {
+            // Fresh install (no ChildState yet) lands the judge on the
+            // multimodal-vision lab pipeline so the Gemma 4 vision story
+            // shows up without a Settings dig. Guarded — no-op after
+            // the first run, and never overrides a user who has set
+            // the toggle by hand.
+            AppSettings.applyDemoDefaultsIfNeeded(isFreshInstall: children.isEmpty)
             await memoryWarningObserver.observe()
             // Bootstrap the async extraction queue. Recovers orphans
             // (entries left in .extracting by a previous run) and

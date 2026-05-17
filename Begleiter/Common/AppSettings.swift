@@ -113,6 +113,8 @@ enum AppSettings {
     nonisolated static let importedDocsEnabledKey  = "importedDocsEnabled"
     nonisolated static let docImportMaxCharsKey    = "docImportMaxChars"
     nonisolated static let latencyHUDEnabledKey    = "latencyHUDEnabled"
+    nonisolated static let didApplyDemoDefaultsKey = "didApplyDemoDefaults"
+    nonisolated static let demoDefaultsAppliedAtKey = "demoDefaultsAppliedAt"
 
     nonisolated static let defaultExtractionMaxTokens = 2500
     nonisolated static let defaultBriefingMaxTokens   = 640
@@ -333,5 +335,49 @@ enum AppSettings {
     /// next read.
     nonisolated static func persistModelVariant(_ variant: ModelVariant) {
         UserDefaults.standard.set(variant.rawValue, forKey: modelVariantKey)
+    }
+
+    /// `true` once the first-launch demo posture has been applied. Flag
+    /// is set the first time ``applyDemoDefaultsIfNeeded(isFreshInstall:)``
+    /// actually writes a value, so the migration never runs twice — an
+    /// existing user who later flips their lab pipeline back is never
+    /// overridden by a future app update.
+    nonisolated static var didApplyDemoDefaults: Bool {
+        UserDefaults.standard.bool(forKey: didApplyDemoDefaultsKey)
+    }
+
+    /// Timestamp the first-launch demo posture was applied. Surfaces in
+    /// Settings → Diagnose so a parent (or judge) can see the app's
+    /// initial preset history; `nil` if the migration never fired
+    /// (existing install before the migration was added, or a parent
+    /// who started with a non-empty SwiftData store from a backup).
+    nonisolated static var demoDefaultsAppliedAt: Date? {
+        UserDefaults.standard.object(forKey: demoDefaultsAppliedAtKey) as? Date
+    }
+
+    /// One-shot first-launch posture for fresh installs: flips the
+    /// default lab pipeline to ``LabPipelineMode/directMultimodal`` so a
+    /// judge running a fresh build lands on Gemma 4's multimodal vision
+    /// path without having to dig into Settings → Befund-Verarbeitung
+    /// first. **Guarded**: runs only when no migration has fired yet
+    /// (`!didApplyDemoDefaults`) AND the caller passes
+    /// `isFreshInstall == true` (i.e. the SwiftData store has no
+    /// `ChildState`). Returns `true` iff it actually wrote any defaults.
+    ///
+    /// Once applied, ``didApplyDemoDefaults`` is `true` and this call
+    /// is a no-op for that install. A parent who later switches lab
+    /// pipeline back to `.ocrThenGemma` is never re-overridden — the
+    /// flag stays set and the migration never runs again on that
+    /// device.
+    @discardableResult
+    nonisolated static func applyDemoDefaultsIfNeeded(isFreshInstall: Bool) -> Bool {
+        guard !didApplyDemoDefaults, isFreshInstall else { return false }
+        UserDefaults.standard.set(
+            LabPipelineMode.directMultimodal.rawValue,
+            forKey: labPipelineModeKey
+        )
+        UserDefaults.standard.set(true, forKey: didApplyDemoDefaultsKey)
+        UserDefaults.standard.set(Date(), forKey: demoDefaultsAppliedAtKey)
+        return true
     }
 }

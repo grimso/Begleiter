@@ -334,6 +334,13 @@ struct SettingsView: View {
                     .monospacedDigit()
                     .foregroundStyle(.secondary)
             }
+            if let appliedAt = AppSettings.demoDefaultsAppliedAt {
+                LabeledContent(L10n.t("settings.diagnostics.demoDefaultsAppliedAt")) {
+                    Text(appliedAt.formatted(date: .abbreviated, time: .shortened))
+                        .monospacedDigit()
+                        .foregroundStyle(.secondary)
+                }
+            }
             Button {
                 memorySnapshot = MemoryDiagnostics.uiSnapshot()
             } label: {
