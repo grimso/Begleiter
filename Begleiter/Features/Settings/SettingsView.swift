@@ -1,9 +1,13 @@
 import SwiftData
 import SwiftUI
 
-/// User-facing settings for runtime configuration of the Gemma stack.
+/// Developer-facing settings for runtime configuration of the Gemma stack.
 ///
-/// Four sections:
+/// Reached via Profile tab → Entwicklung. The user-facing clinical fields
+/// (diagnosis date, risk group, arm, current phase) live in the sibling
+/// `ClinicalSettingsView` and are not surfaced here.
+///
+/// Sections:
 /// 1. **Modell** — switch Gemma 4 variant (E2B / E4B). Triggers a
 ///    background reload via `GemmaService.shared.reload(variant:)`.
 /// 2. **Generierungslänge** — per-feature `maxTokens` (extraction,
@@ -15,6 +19,8 @@ import SwiftUI
 /// 4. **Diagnose** — read-only model identifier + "clear cache" button
 ///    that forces the next call to reload weights from the local HF
 ///    cache (no network).
+/// 5. **Entwicklung** — developer toggles (latency HUD, ask diagnostics,
+///    thinking mode, dense reranker, ask mode picker, document store).
 struct SettingsView: View {
 
     @Environment(\.modelContext) private var modelContext
@@ -124,7 +130,7 @@ struct SettingsView: View {
         .scrollContentBackground(.hidden)
         .background(Color("BegleiterBackground").ignoresSafeArea())
         .listRowBackground(Color("BegleiterCardSurface"))
-        .navigationTitle(L10n.key("settings.title"))
+        .navigationTitle(L10n.key("settings.entwicklung.title"))
         .navigationBarTitleDisplayMode(.inline)
         .alert(
             L10n.t("settings.model.fellBackTitle"),

@@ -285,6 +285,30 @@
 "debug.smoke.generating" = "Generating …";
 "debug.smoke.outputSection" = "Response";
 
+// MARK: - Profile landing (Profile tab root: Behandlung / Entwicklung)
+"settings.profile.title" = "Profile";
+"settings.profile.behandlung" = "Treatment";
+"settings.profile.behandlung.description" = "Diagnosis, risk group, study arm, current phase";
+"settings.profile.entwicklung" = "Development";
+"settings.profile.entwicklung.description" = "Model, generation length, diagnostics, developer toggles";
+
+// MARK: - Behandlung (user-facing clinical state, editable in Settings)
+"settings.behandlung.title" = "Treatment";
+"settings.behandlung.diagnosisDate.section" = "Diagnosis";
+"settings.behandlung.diagnosisDate.label" = "Date of diagnosis";
+"settings.behandlung.riskGroup.section" = "Risk group";
+"settings.behandlung.arm.section" = "Study arm";
+"settings.behandlung.arm.armResetWarning" = "Study arm reset — please pick again.";
+"settings.behandlung.phase.section" = "Current phase";
+"settings.behandlung.phase.startDateLabel" = "Phase start";
+"settings.behandlung.phase.alert.title" = "Phase changed";
+"settings.behandlung.phase.alert.correction" = "Correction (overwrite)";
+"settings.behandlung.phase.alert.advance" = "New phase (record history)";
+"settings.behandlung.phase.alert.cancel" = "Cancel";
+
+// MARK: - Entwicklung (developer settings: title used by SettingsView nav bar)
+"settings.entwicklung.title" = "Development";
+
 // MARK: - Settings (Model, Generation length, Lab processing, Diagnostics)
 "settings.title" = "Settings";
 "settings.toolbar" = "Settings";

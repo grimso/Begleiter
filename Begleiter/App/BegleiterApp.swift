@@ -88,7 +88,7 @@ struct RootView: View {
                         }
                         .tag(HomeTab.insights)
 
-                    ProfileTabView()
+                    ProfileTabView(child: child)
                         .tabItem {
                             Label(L10n.t("tab.profile"), systemImage: "person.crop.circle")
                         }
