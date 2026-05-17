@@ -40,6 +40,30 @@ nonisolated struct LabPlotSpec: Codable, Hashable, Sendable {
         /// "day-in-window" x-axis with different colours. Better for
         /// trend-shape comparison.
         case overlayWindowsPerParameter
+
+        /// Tolerant decoder: accepts canonical camelCase, snake_case, and
+        /// common aliases the model emits (`side_by_side`, `overlay`,
+        /// `grid`, `stacked`, …). Unknown values default to
+        /// `.sideBySideByParameter` rather than throwing — the rendering
+        /// layout is a presentation hint, not a correctness invariant.
+        init(from decoder: Decoder) throws {
+            let raw = try decoder.singleValueContainer().decode(String.self)
+            let folded = raw
+                .lowercased()
+                .replacingOccurrences(of: "_", with: "")
+                .replacingOccurrences(of: "-", with: "")
+                .replacingOccurrences(of: " ", with: "")
+            switch folded {
+            case "sidebysidebyparameter", "sidebyside", "grid", "columns",
+                 "sidebysidebywindows", "sidebysideparameter":
+                self = .sideBySideByParameter
+            case "overlaywindowsperparameter", "overlay", "overlaywindows",
+                 "stacked", "overlayperparameter":
+                self = .overlayWindowsPerParameter
+            default:
+                self = .sideBySideByParameter
+            }
+        }
     }
 
     /// One time window. Stays abstract so `LabPlotResolver` can turn
@@ -65,10 +89,17 @@ nonisolated struct LabPlotSpec: Codable, Hashable, Sendable {
 
 extension LabPlotSpec.Window {
     private enum CodingKeys: String, CodingKey {
-        case kind, phase, fromDay, toDay, label, daysBack, from, to
+        case kind, type
+        case phase
+        case fromDay, from_day, startDay, start_day
+        case toDay, to_day, endDay, end_day
+        case label, window
+        case daysBack, days_back, days
+        case from, to
+        case start, end
     }
 
-    private enum Kind: String, Codable {
+    private enum Kind: String {
         case phase, relativeDays, absolute
     }
 
@@ -76,17 +107,17 @@ extension LabPlotSpec.Window {
         var c = encoder.container(keyedBy: CodingKeys.self)
         switch self {
         case .phase(let phase, let fromDay, let toDay, let label):
-            try c.encode(Kind.phase, forKey: .kind)
+            try c.encode(Kind.phase.rawValue, forKey: .kind)
             try c.encode(phase, forKey: .phase)
             try c.encode(fromDay, forKey: .fromDay)
             try c.encode(toDay, forKey: .toDay)
             try c.encodeIfPresent(label, forKey: .label)
         case .relativeDays(let daysBack, let label):
-            try c.encode(Kind.relativeDays, forKey: .kind)
+            try c.encode(Kind.relativeDays.rawValue, forKey: .kind)
             try c.encode(daysBack, forKey: .daysBack)
             try c.encodeIfPresent(label, forKey: .label)
         case .absolute(let from, let to, let label):
-            try c.encode(Kind.absolute, forKey: .kind)
+            try c.encode(Kind.absolute.rawValue, forKey: .kind)
             try c.encode(from, forKey: .from)
             try c.encode(to, forKey: .to)
             try c.encodeIfPresent(label, forKey: .label)
@@ -95,28 +126,88 @@ extension LabPlotSpec.Window {
 
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
-        let kind = try c.decode(Kind.self, forKey: .kind)
-        let label = try c.decodeIfPresent(String.self, forKey: .label)
+
+        let rawKind: String = (try? c.decode(String.self, forKey: .kind))
+            ?? (try? c.decode(String.self, forKey: .type))
+            ?? ""
+        let kind = Self.normalizeKind(rawKind)
+
+        let label = (try? c.decode(String.self, forKey: .label))
+            ?? (try? c.decode(String.self, forKey: .window))
+
         switch kind {
         case .phase:
-            self = .phase(
-                phase:   try c.decode(String.self, forKey: .phase),
-                fromDay: try c.decode(Int.self, forKey: .fromDay),
-                toDay:   try c.decode(Int.self, forKey: .toDay),
-                label:   label
-            )
+            let phase = try c.decode(String.self, forKey: .phase)
+            let fromDay = Self.firstInt(in: c, keys: [.fromDay, .from_day, .startDay, .start_day]) ?? 1
+            let toDay = Self.firstInt(in: c, keys: [.toDay, .to_day, .endDay, .end_day]) ?? fromDay
+            self = .phase(phase: phase, fromDay: fromDay, toDay: toDay, label: label)
+
         case .relativeDays:
-            self = .relativeDays(
-                daysBack: try c.decode(Int.self, forKey: .daysBack),
-                label:    label
-            )
+            if let n = Self.firstInt(in: c, keys: [.daysBack, .days_back, .days]) {
+                self = .relativeDays(daysBack: n, label: label)
+            } else if let derived = Self.daysBack(fromString: label)
+                ?? Self.daysBack(fromString: (try? c.decode(String.self, forKey: .window))) {
+                self = .relativeDays(daysBack: derived, label: label)
+            } else {
+                self = .relativeDays(daysBack: 7, label: label)
+            }
+
         case .absolute:
-            self = .absolute(
-                from:  try c.decode(Date.self, forKey: .from),
-                to:    try c.decode(Date.self, forKey: .to),
-                label: label
-            )
+            let from = (try? c.decode(Date.self, forKey: .from))
+                ?? (try? c.decode(Date.self, forKey: .start))
+            let to = (try? c.decode(Date.self, forKey: .to))
+                ?? (try? c.decode(Date.self, forKey: .end))
+            guard let from, let to else {
+                throw DecodingError.dataCorrupted(
+                    .init(codingPath: decoder.codingPath,
+                          debugDescription: "absolute window missing from/to dates"))
+            }
+            self = .absolute(from: from, to: to, label: label)
         }
+    }
+
+    /// Map raw model output for the `kind` discriminator onto the
+    /// canonical enum. Defaults to `.phase` when missing — the prompt
+    /// emphasises phase windows, so this matches the most common shape.
+    private static func normalizeKind(_ raw: String) -> Kind {
+        let folded = raw
+            .lowercased()
+            .replacingOccurrences(of: "_", with: "")
+            .replacingOccurrences(of: "-", with: "")
+            .replacingOccurrences(of: " ", with: "")
+        switch folded {
+        case "phase", "phasewindow", "phasewindowdays": return .phase
+        case "relativedays", "relative", "relativetonow", "lastdays": return .relativeDays
+        case "absolute", "absolutedates", "absolutewindow", "daterange": return .absolute
+        default: return .phase
+        }
+    }
+
+    /// First decodable Int among the given keys, or nil. Tolerates the
+    /// model emitting either `fromDay` or `from_day` etc.
+    private static func firstInt(in c: KeyedDecodingContainer<CodingKeys>, keys: [CodingKeys]) -> Int? {
+        for key in keys {
+            if let v = try? c.decode(Int.self, forKey: key) { return v }
+        }
+        return nil
+    }
+
+    /// Best-effort daysBack extraction from a label like `"last 30 days"`,
+    /// `"letzte 2 Wochen"`, `"last_month"`. Returns nil if nothing
+    /// parses out.
+    private static func daysBack(fromString s: String?) -> Int? {
+        guard let s = s?.lowercased() else { return nil }
+        if let match = s.range(of: #"(\d+)"#, options: .regularExpression),
+           let n = Int(s[match]) {
+            if s.contains("week") || s.contains("woche") { return n * 7 }
+            if s.contains("month") || s.contains("monat") { return n * 30 }
+            if s.contains("year") || s.contains("jahr") { return n * 365 }
+            return n
+        }
+        if s.contains("week") || s.contains("woche") { return 7 }
+        if s.contains("month") || s.contains("monat") { return 30 }
+        if s.contains("year") || s.contains("jahr") { return 365 }
+        return nil
     }
 }
 

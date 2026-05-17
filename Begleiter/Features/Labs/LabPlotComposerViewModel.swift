@@ -51,19 +51,30 @@ final class LabPlotComposerViewModel {
         isBusy = true
         lastError = nil
         let chosenParser = parserKind
+        let context = Self.buildPromptContext(child: child, entries: entries)
         Task {
             do {
                 let spec = try await parser.parse(
                     question: trimmed,
-                    kind: chosenParser
+                    kind: chosenParser,
+                    context: context
                 )
                 let result = LabPlotResolver.resolve(
                     spec: spec,
                     child: child,
                     entries: entries
                 )
+                // Even when parsing + resolving succeed, the resolver
+                // may produce zero points if Gemma picked a phase the
+                // child hasn't entered or a parameter the journal
+                // doesn't have. Show the result (so the diagnose pane
+                // can render the parsed spec) plus a clear error so the
+                // parent knows why the plot is empty.
+                let isResultEmpty = result.panels.allSatisfy { panel in
+                    panel.windows.allSatisfy { $0.points.isEmpty }
+                }
                 self.lastResult = result
-                self.lastError = nil
+                self.lastError = isResultEmpty ? .parser(.noMatchingDataForSpec) : nil
             } catch let error as LabPlotParserError {
                 self.lastResult = nil
                 self.lastError = .parser(error)
@@ -73,6 +84,45 @@ final class LabPlotComposerViewModel {
             }
             self.isBusy = false
         }
+    }
+
+    /// Build a ``LabPlotPromptContext`` from the loaded child + entries.
+    /// Empty-on-empty: if there are no entries yet, returns the empty
+    /// context so the prompt falls back to its unconstrained default.
+    static func buildPromptContext(
+        child: ChildState,
+        entries: [JournalEntry]
+    ) -> LabPlotPromptContext {
+        // Available parameters: canonical codes across all entries'
+        // labValues, in `LabSeries.aggregate` order so the prompt
+        // surfaces the parent's most-important parameters first.
+        let availableParameters = LabSeries.aggregate(entries: entries).map(\.parameter)
+
+        // Entered phases: completed phases (in order) plus the current one.
+        var enteredPhases: [String] = child.completedPhases.map(\.phaseRaw)
+        let current = child.currentPhase.rawValue
+        if !enteredPhases.contains(current) {
+            enteredPhases.append(current)
+        }
+
+        // Data range: span of all lab measurements present.
+        let labDates: [Date] = entries.flatMap { entry in
+            entry.extractedFields.labValues?.value.map(\.measuredAt) ?? []
+        }
+        let formatter: ISO8601DateFormatter = {
+            let f = ISO8601DateFormatter()
+            f.formatOptions = [.withFullDate]
+            return f
+        }()
+        let earliest = labDates.min().map { formatter.string(from: $0) }
+        let latest   = labDates.max().map { formatter.string(from: $0) }
+
+        return LabPlotPromptContext(
+            availableParameters: availableParameters,
+            enteredPhases: enteredPhases,
+            earliestDataDate: earliest,
+            latestDataDate: latest
+        )
     }
 
     /// Tapping a starter chip prefills the input but doesn't submit —

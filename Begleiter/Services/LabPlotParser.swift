@@ -27,6 +27,11 @@ enum LabPlotParserError: Error, LocalizedError {
     case gemmaReturnedNoJSON
     case gemmaReturnedInvalidJSON(String)
     case gemmaError(String)
+    /// Spec parsed and validated but the resolver found zero matching
+    /// points across all (parameter, window) cells — usually because the
+    /// model invented a phase the child hasn't entered, or named a
+    /// parameter the loaded journal doesn't contain.
+    case noMatchingDataForSpec
 
     var errorDescription: String? {
         switch self {
@@ -40,8 +45,35 @@ enum LabPlotParserError: Error, LocalizedError {
             return "Gemma hat ungültiges JSON geliefert: \(detail)"
         case .gemmaError(let detail):
             return "Gemma-Aufruf fehlgeschlagen: \(detail)"
+        case .noMatchingDataForSpec:
+            return "Gemma hat eine gültige Anfrage erstellt, aber für diesen Zeitraum gibt es keine passenden Werte. Versuchen Sie einen anderen Zeitraum."
         }
     }
+}
+
+/// Data context passed to the Gemma path so the prompt can constrain
+/// the model to parameters and phases that actually exist in the
+/// loaded child's journal. Avoids the failure mode where Gemma confidently
+/// picks Reinduktion or Leberwerte that have no backing data.
+struct LabPlotPromptContext: Sendable {
+    /// Canonical parameter codes present in the loaded journal entries
+    /// (e.g. `["WBC", "ANC", "HB", "PLT", "CRP"]`). Empty array means
+    /// no constraint — the prompt falls back to listing the full vocab.
+    let availableParameters: [String]
+    /// Phase rawValues the child has actually entered (completed phases
+    /// plus the current phase). Empty array means no constraint.
+    let enteredPhases: [String]
+    /// Earliest / latest measurement date in the loaded data, formatted
+    /// `YYYY-MM-DD` or `nil` if there are no measurements yet.
+    let earliestDataDate: String?
+    let latestDataDate: String?
+
+    static let empty = LabPlotPromptContext(
+        availableParameters: [],
+        enteredPhases: [],
+        earliestDataDate: nil,
+        latestDataDate: nil
+    )
 }
 
 /// Turns a free-form German question like "Blutbild für die ersten zwei
@@ -64,15 +96,19 @@ actor LabPlotParser {
     ///   - question: parent's raw input. Mixed case OK.
     ///   - kind: which parser to run. `.heuristic` is offline; `.gemma`
     ///     hits the on-device model and is slower.
+    ///   - context: data-aware constraints for the Gemma prompt. The
+    ///     heuristic path ignores this — pass `.empty` if no context
+    ///     is available.
     func parse(
         question: String,
-        kind: LabPlotParserKind
+        kind: LabPlotParserKind,
+        context: LabPlotPromptContext = .empty
     ) async throws -> LabPlotSpec {
         switch kind {
         case .heuristic:
             return try Self.parseHeuristic(question: question)
         case .gemma:
-            return try await parseViaGemma(question: question)
+            return try await parseViaGemma(question: question, context: context)
         }
     }
 
@@ -320,22 +356,62 @@ actor LabPlotParser {
         return "\(paramPart): \(windowParts.joined(separator: " vs "))"
     }
 
-    // MARK: - Gemma path (lands in a follow-up chunk)
+    // MARK: - Gemma path
 
-    private func parseViaGemma(question: String) async throws -> LabPlotSpec {
-        let prompt = Self.buildGemmaPrompt(question: question)
+    /// Two-attempt Gemma pipeline:
+    ///   1. Build a context-aware prompt and ask the model.
+    ///   2. Extract → decode → normalize the result. On any failure
+    ///      (no JSON, decode error, empty after normalization), retry
+    ///      once with a stricter "OUTPUT JSON ONLY" prefix.
+    ///   3. If the second pass also fails, throw the most specific
+    ///      error caught.
+    ///
+    /// Mirrors the loose-then-strict pattern in ``ExtractionService`` and
+    /// ``DocumentImportService`` so failure modes match across surfaces.
+    private func parseViaGemma(
+        question: String,
+        context: LabPlotPromptContext
+    ) async throws -> LabPlotSpec {
+        let attempt1 = try? await runGemmaAttempt(
+            prompt: Self.buildGemmaPrompt(question: question, context: context, strict: false),
+            surface: "labplot"
+        )
+        if let spec = attempt1 { return spec }
+
+        // Retry once with stricter prompt. We deliberately swallow the
+        // first attempt's specific error here — `runGemmaAttempt` already
+        // logged the raw output, and the retry's outcome is what the
+        // caller will surface.
+        plotLog.warning("attempt=1 failed, retrying with stricter prompt")
+        return try await runGemmaAttempt(
+            prompt: Self.buildGemmaPrompt(question: question, context: context, strict: true),
+            surface: "labplot.retry"
+        )
+    }
+
+    /// Single Gemma round-trip: generate → extract → decode → normalize.
+    /// Throws ``LabPlotParserError`` on every failure path so the caller
+    /// can branch on the cause if needed.
+    private func runGemmaAttempt(prompt: String, surface: String) async throws -> LabPlotSpec {
         let raw: String
         do {
             raw = try await gemma.generate(
                 prompt: prompt,
                 parameters: GenerateParameters(maxTokens: 512, temperature: 0.2),
                 enableThinking: false,
-                surface: "labplot"
+                surface: surface
             )
         } catch {
             throw LabPlotParserError.gemmaError(error.localizedDescription)
         }
-        return try Self.parseGemmaJSON(raw)
+        plotLog.debug("\(surface, privacy: .public) raw=\(raw, privacy: .private)")
+        let decoded = try Self.parseGemmaJSON(raw)
+        switch LabPlotSpecNormalizer.normalize(decoded) {
+        case .success(let spec):
+            return spec
+        case .failure(let error):
+            throw error
+        }
     }
 
     static func parseGemmaJSON(_ raw: String) throws -> LabPlotSpec {
@@ -352,23 +428,64 @@ actor LabPlotParser {
         }
     }
 
+    /// Backwards-compatible helper used by the unit tests. New callers
+    /// should pass an explicit ``LabPlotPromptContext``.
     static func buildGemmaPrompt(question: String) -> String {
-        """
-        You translate a parent's German question into a lab-plot spec as JSON.
+        buildGemmaPrompt(question: question, context: .empty, strict: false)
+    }
+
+    /// Build the Gemma prompt. The control clauses are English (kept
+    /// consistent with the rest of the project's prompts) and the
+    /// example labels stay German. Two new clauses constrain the model
+    /// to the parameters / phases that exist in the loaded data; both
+    /// are omitted when the context is empty so legacy call-sites
+    /// still get a well-formed prompt.
+    static func buildGemmaPrompt(
+        question: String,
+        context: LabPlotPromptContext,
+        strict: Bool
+    ) -> String {
+        let strictPrefix = strict
+            ? "OUTPUT JSON ONLY. Start with { and end with }. No prose, no markdown.\n\n"
+            : ""
+
+        let availableParametersClause: String = context.availableParameters.isEmpty
+            ? ""
+            : "\n- parameters MUST be a subset of these AVAILABLE parameters in the loaded data: [\(context.availableParameters.joined(separator: ", "))]."
+
+        let enteredPhasesClause: String = context.enteredPhases.isEmpty
+            ? ""
+            : "\n- phase rawValues MUST be one of these phases the child has entered: [\(context.enteredPhases.joined(separator: ", "))]."
+
+        let dataRangeClause: String
+        if let earliest = context.earliestDataDate, let latest = context.latestDataDate {
+            dataRangeClause = "\n- Available data range: \(earliest) … \(latest)."
+        } else {
+            dataRangeClause = ""
+        }
+
+        return """
+        \(strictPrefix)You translate a parent's German question into a lab-plot spec as JSON.
 
         Rules:
         - JSON only. No explanation, no markdown fences.
         - Never invent values. The German title is short and parent-readable.
-        - parameters: list of canonical codes from {WBC, ANC, HB, PLT, RBC, HCT, MCV, CRP, LDH, ALT, AST, GGT, Bili, Krea, Na, K, Ca, Mg}. For "Blutbild"/"CBC" use [WBC, ANC, HB, PLT].
+        - parameters: list of canonical codes from {WBC, ANC, HB, PLT, RBC, HCT, MCV, CRP, LDH, ALT, AST, GGT, Bili, Krea, Na, K, Ca, Mg}. For "Blutbild"/"CBC" use [WBC, ANC, HB, PLT].\(availableParametersClause)
         - windows: 1 or 2 entries.
           - phase window: {"kind":"phase","phase":"<rawValue>","fromDay":<int>,"toDay":<int>,"label":"<German label>"}
-            phase rawValues: inductionIA, inductionIB, consolidationM, consolidationHR1, consolidationHR2, consolidationHR3, reinductionII, maintenance.
+            phase rawValues: inductionIA, inductionIB, consolidationM, consolidationHR1, consolidationHR2, consolidationHR3, reinductionII, maintenance.\(enteredPhasesClause)
+            Day ranges are 1-indexed and inclusive. For "the whole phase" (no explicit day range in the question), use fromDay: 1 and toDay equal to the phase's typical duration:
+              inductionIA: 33, inductionIB: 29, consolidationM: 56, consolidationHR1: 14, consolidationHR2: 14, consolidationHR3: 14, reinductionII: 49, maintenance: 730.
+            Never use fromDay: 1, toDay: 1 — that is a one-day slice and almost never what the parent meant. For "die ersten 7 Tage" use fromDay: 1, toDay: 7. For "Woche 2" use fromDay: 8, toDay: 14.
           - relative window: {"kind":"relativeDays","daysBack":<int>,"label":"<German label>"}
           - absolute window (rare): {"kind":"absolute","from":"YYYY-MM-DDT00:00:00Z","to":"YYYY-MM-DDT00:00:00Z","label":"<German label>"}
-        - layout: "sideBySideByParameter" (default for 2 windows) or "overlayWindowsPerParameter".
+        - layout: "sideBySideByParameter" (default for 2 windows) or "overlayWindowsPerParameter".\(dataRangeClause)
 
         Schema:
         {"title":"<short German title>","parameters":["..."],"windows":[{"kind":"...","...":"..."}],"layout":"sideBySideByParameter"}
+
+        Example — "Blutbild in Induktion IB und Konsolidierung M nebeneinander":
+        {"title":"Blutbild IB vs M","parameters":["WBC","ANC","HB","PLT"],"windows":[{"kind":"phase","phase":"inductionIB","fromDay":1,"toDay":29,"label":"Induktion IB"},{"kind":"phase","phase":"consolidationM","fromDay":1,"toDay":56,"label":"Konsolidierung M"}],"layout":"sideBySideByParameter"}
 
         Question (German): \(question)
 

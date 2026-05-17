@@ -66,7 +66,13 @@ nonisolated enum LabPlotResolver {
         var warnings: Set<LabPlotWarning> = []
         var panels: [LabPlotPanel] = []
         for parameter in spec.parameters {
-            let canonical = LabSeries.canonicalKey(for: parameter)
+            // Canonicalize via the full synonym table so Gemma outputs
+            // like "Leukozyten" / "Neutrophile" / "Platelets" map onto
+            // the WBC / ANC / PLT keys produced by `LabSeries.aggregate`.
+            // `LabSeries.canonicalKey` only folds the HB/HGB family.
+            let canonical = LabSeries.canonicalKey(
+                for: LabParameterCanonicalizer.canonical(for: parameter)
+            )
             let series = seriesByParameter[canonical]
             let germanLabel = series?.germanLabel ?? canonical
             let unit = series?.unit ?? ""
