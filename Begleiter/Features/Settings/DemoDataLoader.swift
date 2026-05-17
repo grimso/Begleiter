@@ -245,8 +245,8 @@ enum DemoDataLoader {
                 reactions: [
                     AdverseEvent(description: "Fieber in Neutropenie", suspectedCause: nil, parentSeverity: .moderate, occurredAt: nil),
                 ],
-                decisions: ["Stationäre Aufnahme", "Empirische i.v.-Antibiose begonnen"],
-                observations: ["sehr matt", "Trinkmenge wenig"]
+                observations: ["sehr matt", "Trinkmenge wenig"],
+                decisions: ["Stationäre Aufnahme", "Empirische i.v.-Antibiose begonnen"]
             ),
             makeEntry(
                 daysAgo: 30, phase: .inductionIB, phaseStart: inductionIBStart,
@@ -266,12 +266,12 @@ enum DemoDataLoader {
                 daysAgo: 20, phase: .inductionIB, phaseStart: inductionIBStart,
                 summary: "Knochenmark-Punktion, Übergang in Konsolidierung M",
                 rawText: "Knochenmarkpunktion heute, MRD-Ergebnis steht aus. Behandlungsteam plant Start Protokoll M nächste Woche. Wir haben besprochen, was beim ersten Hochdosis-Methotrexat zu erwarten ist.",
-                decisions: ["Übergang in Protokoll M geplant", "MRD-Ergebnis abwarten"],
+                observations: ["gute Tage", "freut sich auf Schule"],
                 openQuestions: [
                     "Wann genau startet die erste HD-MTX-Dose?",
                     "Wie lange dauert die Konsolidierung M insgesamt?"
                 ],
-                observations: ["gute Tage", "freut sich auf Schule"]
+                decisions: ["Übergang in Protokoll M geplant", "MRD-Ergebnis abwarten"]
             ),
 
             // --- Konsolidierung M ---
@@ -288,8 +288,8 @@ enum DemoDataLoader {
                     lab("ANC", "Neutrophile", value: 2.1, unit: "G/L", refMin: 1.5, refMax: 7.0, daysAgo: 13),
                     lab("PLT", "Thrombozyten", value: 165, unit: "G/L", refMin: 150, refMax: 400, daysAgo: 13),
                 ],
-                decisions: ["HD-MTX Zyklus 1 begonnen", "Leucovorin nach Schema"],
-                observations: ["fühlt sich okay", "viel Trinken klappt"]
+                observations: ["fühlt sich okay", "viel Trinken klappt"],
+                decisions: ["HD-MTX Zyklus 1 begonnen", "Leucovorin nach Schema"]
             ),
             makeEntry(
                 daysAgo: 8, phase: .consolidationM, phaseStart: consolidationMStart,
@@ -317,12 +317,12 @@ enum DemoDataLoader {
                 daysAgo: 1, phase: .consolidationM, phaseStart: consolidationMStart,
                 summary: "Vorbereitung nächste HD-MTX-Dose",
                 rawText: "Morgen kommt die nächste Hochdosis-Methotrexat-Gabe. Wir packen für den stationären Aufenthalt. Fragen für den Termin: Soll die Mundspülung prophylaktisch starten? Wie war das MRD-Ergebnis genau?",
+                observations: ["gut drauf", "freut sich auf Lego mitnehmen"],
                 openQuestions: [
                     "Sollen wir prophylaktisch mit der Mundspülung beginnen?",
                     "Wie war das MRD-Ergebnis aus der letzten Punktion?",
                     "Ist die Infusion diesmal wieder 24 h?"
-                ],
-                observations: ["gut drauf", "freut sich auf Lego mitnehmen"]
+                ]
             ),
         ]
     }
