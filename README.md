@@ -4,6 +4,12 @@
 
 > _"In a two-year leukemia protocol, the doctors rotate. Parents are the only constant. We give them the tools to carry that weight."_
 
+## Demo
+
+- **90-second walkthrough video:** _link pending upload_ (script + shot list in `docs/DEMO_VIDEO.md`)
+- **Screenshots (for judges without a supported device):** `docs/screenshots/` — onboarding completion, populated home timeline, Ask flow with validated citations + warning chip, multimodal lab extraction, Settings → Diagnose proving the Increased Memory Limit entitlement is signed.
+- **Try it without typing journal entries:** Settings → Entwicklung → **Demo-Daten laden** synthesizes a fully-extracted SR child + 10 chronological journal entries + 1 imported Entlassungsbericht. Refuses to overwrite real data; pair with the **Reset alle Daten** inverse if you want a clean state.
+
 A native iOS app (Swift / SwiftUI) for parents of children in AIEOP-BFM ALL 2017 treatment. Runs entirely on the iPhone — no network, no telemetry, no cloud. Gemma 4 E2B 4-bit (~2 GB resident) handles every model call via MLX-Swift. The architectural principle: **hard-code the protocol, use Gemma 4 for the soft work.** When Gemma cites a journal entry or corpus chunk, a post-hoc filter validates the citation against the surfaced context — fabricated IDs are dropped, and any uncited or advice-shaped claim surfaces a visible warning so the parent always sees both the model's prose and the safety signal attached to it.
 
 ## What it does
