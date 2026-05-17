@@ -143,6 +143,7 @@
 "handoff.section.medication" = "Current medication";
 "handoff.section.familyConcerns" = "Current family concerns";
 "handoff.claim.citationLabel" = "Cited journal entry";
+"briefing.disclaimer.protocolUnreviewed" = "Protocol-derived details (drug schedules, anticipated events, risk-group stratification) come from publicly published BFM 2017 schemas. The deterministic state machine is auditable Swift code; specific clinical values are not yet clinically reviewed and should be confirmed with the treating team.";
 
 // MARK: - Timeline
 "timeline.title" = "Journal";

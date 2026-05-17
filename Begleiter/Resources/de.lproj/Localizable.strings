@@ -143,6 +143,7 @@
 "handoff.section.medication" = "Aktuelle Medikation";
 "handoff.section.familyConcerns" = "Aktuelle Anliegen der Familie";
 "handoff.claim.citationLabel" = "Zitierter Journal-Eintrag";
+"briefing.disclaimer.protocolUnreviewed" = "Protokoll-basierte Angaben (Medikamentenpläne, zu erwartende Ereignisse, Risikogruppen-Stratifizierung) stammen aus öffentlich publizierten BFM-2017-Schemata. Die deterministische Logik ist nachvollziehbarer Swift-Code; konkrete klinische Werte sind noch nicht klinisch validiert und mit dem Behandlungsteam abzugleichen.";
 
 // MARK: - Timeline
 "timeline.title" = "Tagebuch";

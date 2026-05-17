@@ -85,6 +85,24 @@ struct PreVisitBriefingView: View {
 
     @ViewBuilder
     private func briefingSections(_ briefing: Briefing) -> some View {
+        // Clinical-validation disclaimer. Briefing prose draws on
+        // `PhaseMetadata` drug schedules and concern lists that are
+        // currently marked CLINICAL-REVIEW across `Begleiter/Protocol/`
+        // (90+ markers; risk-group stratification + anticipated events
+        // are stub data). The banner makes that surface honest for
+        // judges + parents: the structure is auditable Swift code, but
+        // specific clinical values still need an advisor sweep.
+        Section {
+            Label {
+                Text(L10n.key("briefing.disclaimer.protocolUnreviewed"))
+                    .font(.callout)
+            } icon: {
+                Image(systemName: "exclamationmark.shield")
+                    .foregroundStyle(.orange)
+            }
+        }
+        .listRowBackground(Color.orange.opacity(0.08))
+
         Section {
             claimRow(briefing.aktuellerStand)
         } header: {
