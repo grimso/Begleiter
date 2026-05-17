@@ -4,7 +4,11 @@ import MLX
 import MLXHuggingFace
 import MLXLLM
 import MLXLMCommon
+import OSLog
 import Tokenizers
+
+private let gemmaLog = Logger(subsystem: "io.grimso.Begleiter", category: "gemma.generate")
+private let gemmaSignposter = OSSignposter(subsystem: "io.grimso.Begleiter", category: "gemma.generate")
 
 /// Loads Gemma 4 (4-bit) via mlx-swift-lm and runs prompts against it.
 ///
@@ -260,13 +264,54 @@ actor GemmaService {
             toolDispatch: toolDispatch
         )
         MemoryDiagnostics.snapshot(label: "before-generate")
+        // Static (instructions + user prompt) char count is the only
+        // PII-free measure of prefill work we have. We log it alongside
+        // the elapsed-ms after the call so the unified log can be diff'd
+        // before / after a prompt-language change without ever recording
+        // the prompt body itself.
+        let promptChars = prompt.count + (instructions?.count ?? 0)
+        let toolsCount = tools?.count ?? 0
+        let signpostID = gemmaSignposter.makeSignpostID()
+        let signpostState = gemmaSignposter.beginInterval(
+            "generate",
+            id: signpostID,
+            "thinking=\(enableThinking, privacy: .public) tools=\(toolsCount, privacy: .public) promptChars=\(promptChars, privacy: .public)"
+        )
+        let startNs = DispatchTime.now().uptimeNanoseconds
         defer {
             #if !targetEnvironment(simulator)
             MLX.Memory.clearCache()
             #endif
             MemoryDiagnostics.snapshot(label: "after-generate")
         }
-        return try await session.respond(to: prompt)
+        do {
+            let raw = try await session.respond(to: prompt)
+            let elapsedMs = (DispatchTime.now().uptimeNanoseconds - startNs) / 1_000_000
+            // 4 chars/token is a coarse-but-stable approximation for
+            // the Gemma 4 tokenizer on mixed German/English output;
+            // we treat it as a directional metric, not ground truth.
+            let outputTokensApprox = raw.count / 4
+            gemmaSignposter.endInterval(
+                "generate",
+                signpostState,
+                "elapsedMs=\(elapsedMs, privacy: .public) outputTokensApprox=\(outputTokensApprox, privacy: .public)"
+            )
+            gemmaLog.info(
+                "gemma.generate.done elapsedMs=\(elapsedMs, privacy: .public) promptChars=\(promptChars, privacy: .public) outputTokensApprox=\(outputTokensApprox, privacy: .public) thinking=\(enableThinking, privacy: .public) tools=\(toolsCount, privacy: .public)"
+            )
+            return raw
+        } catch {
+            let elapsedMs = (DispatchTime.now().uptimeNanoseconds - startNs) / 1_000_000
+            gemmaSignposter.endInterval(
+                "generate",
+                signpostState,
+                "elapsedMs=\(elapsedMs, privacy: .public) error=true"
+            )
+            gemmaLog.error(
+                "gemma.generate.failed elapsedMs=\(elapsedMs, privacy: .public) promptChars=\(promptChars, privacy: .public)"
+            )
+            throw error
+        }
     }
 
     /// Drop the in-memory model so its ~3.3 GB of weights can be paged out.
