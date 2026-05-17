@@ -111,7 +111,9 @@ struct HandoffDocumentView: View {
 
             if !doc.behandlungsverlauf.isEmpty {
                 Section {
-                    ForEach(doc.behandlungsverlauf, id: \.self) { Text($0) }
+                    ForEach(doc.behandlungsverlauf, id: \.self) { claim in
+                        Self.claimRow(claim)
+                    }
                 } header: {
                     Text(L10n.key("handoff.section.history"))
                 }
@@ -133,7 +135,9 @@ struct HandoffDocumentView: View {
 
             if !doc.reaktionen.isEmpty {
                 Section {
-                    ForEach(doc.reaktionen, id: \.self) { Text($0) }
+                    ForEach(doc.reaktionen, id: \.self) { claim in
+                        Self.claimRow(claim)
+                    }
                 } header: {
                     Text(L10n.key("handoff.section.reactions"))
                 }
@@ -149,11 +153,36 @@ struct HandoffDocumentView: View {
 
             if !doc.familienanliegen.isEmpty {
                 Section {
-                    ForEach(doc.familienanliegen, id: \.self) { Text($0) }
+                    ForEach(doc.familienanliegen, id: \.self) { claim in
+                        Self.claimRow(claim)
+                    }
                 } header: {
                     Text(L10n.key("handoff.section.familyConcerns"))
                 }
             }
+        }
+    }
+
+    /// Render one `HandoffClaim` as a row with the prose plus an
+    /// optional short-UUID chip showing the cited journal entry. Items
+    /// without an `entryId` (history bullets from
+    /// `ChildState.completedPhases`, or Gemma prose where the model
+    /// declined to cite a specific entry) render as a plain line — no
+    /// chip — so the rotating doctor sees citations only where they
+    /// exist.
+    @ViewBuilder
+    private static func claimRow(_ claim: HandoffClaim) -> some View {
+        if let entryId = claim.entryId {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Text(claim.text)
+                Spacer(minLength: 8)
+                Text(String(entryId.uuidString.prefix(8)))
+                    .font(.caption.monospaced())
+                    .foregroundStyle(.purple)
+                    .accessibilityLabel(Text(L10n.t("handoff.claim.citationLabel")))
+            }
+        } else {
+            Text(claim.text)
         }
     }
 
@@ -169,7 +198,7 @@ struct HandoffDocumentView: View {
         lines.append("")
         if !doc.behandlungsverlauf.isEmpty {
             lines.append("BEHANDLUNGSVERLAUF:")
-            lines.append(contentsOf: doc.behandlungsverlauf.map { "  • \($0)" })
+            lines.append(contentsOf: doc.behandlungsverlauf.map { "  • \($0.text)" })
             lines.append("")
         }
         if !doc.aktuelleLabore.isEmpty {
@@ -183,7 +212,7 @@ struct HandoffDocumentView: View {
         }
         if !doc.reaktionen.isEmpty {
             lines.append("REAKTIONEN / NEBENWIRKUNGEN:")
-            lines.append(contentsOf: doc.reaktionen.map { "  • \($0)" })
+            lines.append(contentsOf: doc.reaktionen.map { "  • \($0.text)" })
             lines.append("")
         }
         if !doc.aktuelleMedikation.isEmpty {
@@ -193,7 +222,7 @@ struct HandoffDocumentView: View {
         }
         if !doc.familienanliegen.isEmpty {
             lines.append("ANLIEGEN DER FAMILIE:")
-            lines.append(contentsOf: doc.familienanliegen.map { "  • \($0)" })
+            lines.append(contentsOf: doc.familienanliegen.map { "  • \($0.text)" })
             lines.append("")
         }
         lines.append("— Erstellt mit Begleiter, on-device.")

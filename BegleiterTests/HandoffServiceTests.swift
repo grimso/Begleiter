@@ -107,21 +107,150 @@ final class HandoffServiceTests: XCTestCase {
     // MARK: - Parse prose sections
 
     func test_parseProseSections_decodesValidJSON() throws {
+        let uuidA = UUID()
+        let uuidB = UUID()
         let json = """
         {
-          "behandlungsverlauf": ["Induktion komplett", "Konsolidierung läuft"],
-          "reaktionen": ["Hautausschlag nach Asparaginase"],
-          "familienanliegen": ["Schlafmangel der Eltern"]
+          "behandlungsverlauf": [
+            {"text": "Induktion komplett", "entryId": "\(uuidA.uuidString)"},
+            {"text": "Konsolidierung läuft", "entryId": null}
+          ],
+          "reaktionen": [
+            {"text": "Hautausschlag nach Asparaginase", "entryId": "\(uuidB.uuidString)"}
+          ],
+          "familienanliegen": [
+            {"text": "Schlafmangel der Eltern", "entryId": null}
+          ]
         }
         """
         let prose = try HandoffService.parseProseSections(from: json)
         XCTAssertEqual(prose.behandlungsverlauf.count, 2)
-        XCTAssertEqual(prose.reaktionen, ["Hautausschlag nach Asparaginase"])
-        XCTAssertEqual(prose.familienanliegen, ["Schlafmangel der Eltern"])
+        XCTAssertEqual(prose.behandlungsverlauf[0].text, "Induktion komplett")
+        XCTAssertEqual(prose.behandlungsverlauf[0].entryId, uuidA)
+        XCTAssertNil(prose.behandlungsverlauf[1].entryId)
+        XCTAssertEqual(prose.reaktionen.first?.text, "Hautausschlag nach Asparaginase")
+        XCTAssertEqual(prose.reaktionen.first?.entryId, uuidB)
+        XCTAssertEqual(prose.familienanliegen.first?.text, "Schlafmangel der Eltern")
+        XCTAssertNil(prose.familienanliegen.first?.entryId)
+    }
+
+    /// Legacy wire shape from before §S4 added citations — flat strings
+    /// without entryId. Tolerant Codable decoder on HandoffDocument
+    /// keeps reading older persisted blobs without crashing; same
+    /// pattern needs to hold for the wire shape Gemma emits when
+    /// instruction-following slips. (HandoffClaim's tolerant decoder
+    /// already handles a malformed entryId; this test pins the
+    /// HandoffDocument-side string fallback.)
+    func test_handoffDocument_legacyStringArrays_decodeToClaims() throws {
+        let json = """
+        {
+          "generatedAt": "2026-05-17T10:00:00Z",
+          "language": "de",
+          "patientId": "ABC",
+          "diagnose": "ALL",
+          "riskGroupLabel": "SR",
+          "randomizationLabel": "STANDARD",
+          "phaseLabel": "Konsolidierung",
+          "dayInPhase": 18,
+          "behandlungsverlauf": ["legacy bullet 1", "legacy bullet 2"],
+          "aktuelleLabore": [],
+          "reaktionen": [],
+          "aktuelleMedikation": [],
+          "familienanliegen": ["legacy concern"]
+        }
+        """
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        let doc = try decoder.decode(HandoffDocument.self, from: Data(json.utf8))
+        XCTAssertEqual(doc.behandlungsverlauf.count, 2)
+        XCTAssertEqual(doc.behandlungsverlauf[0].text, "legacy bullet 1")
+        XCTAssertNil(doc.behandlungsverlauf[0].entryId,
+                     "Legacy string bullets must decode with entryId == nil")
+        XCTAssertEqual(doc.familienanliegen.first?.text, "legacy concern")
     }
 
     func test_parseProseSections_throwsOnMissingJSON() {
         XCTAssertThrowsError(try HandoffService.parseProseSections(from: "kein JSON"))
+    }
+
+    // MARK: - Filter + scrub
+
+    /// Bullets whose entryId isn't in the surfaced set must be dropped
+    /// before the document is returned to the rotating doctor — same
+    /// contract as BriefingService.filterUngroundedClaims.
+    func test_filterAndScrub_dropsUnknownEntryIds() {
+        let surfaced = UUID()
+        let hallucinated = UUID()
+        let prose = HandoffService.ProseSections(
+            behandlungsverlauf: [
+                HandoffClaim(text: "Surfaced bullet", entryId: surfaced),
+                HandoffClaim(text: "Hallucinated bullet", entryId: hallucinated),
+                HandoffClaim(text: "No-citation bullet", entryId: nil),
+            ],
+            reaktionen: [HandoffClaim(text: "Hallucinated reaction", entryId: hallucinated)],
+            familienanliegen: []
+        )
+        let filtered = HandoffService.filterAndScrub(
+            prose,
+            validEntryIds: [surfaced]
+        )
+        XCTAssertEqual(filtered.behandlungsverlauf.count, 2,
+                       "Bullets with surfaced or nil entryId are kept; hallucinated dropped")
+        XCTAssertEqual(filtered.behandlungsverlauf.map(\.text),
+                       ["Surfaced bullet", "No-citation bullet"])
+        XCTAssertTrue(filtered.reaktionen.isEmpty,
+                      "Sole hallucinated reaction must be filtered out")
+    }
+
+    /// Advice-shaped prose gets scrubbed to the canonical
+    /// RefusalService redirect message, and the entryId on the scrubbed
+    /// bullet is stripped because the redirected text doesn't cite the
+    /// original source anymore.
+    func test_filterAndScrub_scrubsAdvicePatterns() {
+        let surfaced = UUID()
+        let prose = HandoffService.ProseSections(
+            behandlungsverlauf: [
+                HandoffClaim(
+                    text: "Sie sollten sofort einen Notarzt rufen.",
+                    entryId: surfaced
+                )
+            ],
+            reaktionen: [],
+            familienanliegen: []
+        )
+        let filtered = HandoffService.filterAndScrub(
+            prose,
+            validEntryIds: [surfaced]
+        )
+        XCTAssertEqual(filtered.behandlungsverlauf.count, 1,
+                       "Scrubbing replaces the text but keeps the bullet present")
+        XCTAssertNotEqual(filtered.behandlungsverlauf[0].text,
+                          "Sie sollten sofort einen Notarzt rufen.",
+                          "Advice-shaped prose must be replaced, not preserved verbatim")
+        XCTAssertNil(filtered.behandlungsverlauf[0].entryId,
+                     "Once text is scrubbed to the redirect, the entryId is stripped")
+    }
+
+    /// Prompt pins the citation rule — locks in the §S4 prompt
+    /// contract so a future "trim the rules" diff can't silently
+    /// remove the entryId requirement.
+    func test_buildPrompt_includesEntryIdCitationRule() {
+        let snapshot = ChildStateSnapshot(
+            childId: UUID(),
+            phase: .consolidationM,
+            dayInPhase: 18,
+            riskGroup: .standardRisk,
+            arm: .standard
+        )
+        let prompt = HandoffService.buildPrompt(
+            snapshot: snapshot,
+            recent: [],
+            language: .german
+        )
+        XCTAssertTrue(prompt.contains("entryId"),
+                      "Handoff prompt must mention entryId so Gemma emits citation field")
+        XCTAssertTrue(prompt.contains("cites"),
+                      "Handoff prompt must instruct citation behaviour")
     }
 
     // MARK: - Plain-text serialization
@@ -136,7 +265,7 @@ final class HandoffServiceTests: XCTestCase {
             randomizationLabel: "R-HR",
             phaseLabel: "Reinduktion (Protokoll II)",
             dayInPhase: 22,
-            behandlungsverlauf: ["Induktion IA komplett"],
+            behandlungsverlauf: [HandoffClaim(text: "Induktion IA komplett", entryId: nil)],
             aktuelleLabore: [
                 HandoffLabLine(
                     parameter: "ANC",
@@ -146,9 +275,9 @@ final class HandoffServiceTests: XCTestCase {
                     referenceRange: "1.5–8.0 G/L"
                 )
             ],
-            reaktionen: ["Hautausschlag"],
+            reaktionen: [HandoffClaim(text: "Hautausschlag", entryId: UUID())],
             aktuelleMedikation: ["Vincristin"],
-            familienanliegen: ["Sorge wegen Infekt"]
+            familienanliegen: [HandoffClaim(text: "Sorge wegen Infekt", entryId: nil)]
         )
         let text = HandoffDocumentView.plainText(of: doc)
         XCTAssertTrue(text.contains("ÜBERGABE — ABC12345"))
@@ -160,5 +289,7 @@ final class HandoffServiceTests: XCTestCase {
         XCTAssertTrue(text.contains("AKTUELLE MEDIKATION"))
         XCTAssertTrue(text.contains("ANLIEGEN DER FAMILIE"))
         XCTAssertTrue(text.contains("Begleiter, on-device"))
+        XCTAssertTrue(text.contains("Induktion IA komplett"),
+                      "Plain-text serialization must include claim.text, not the wrapper")
     }
 }

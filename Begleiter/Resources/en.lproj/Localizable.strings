@@ -142,6 +142,7 @@
 "handoff.section.reactions" = "Reactions / adverse events";
 "handoff.section.medication" = "Current medication";
 "handoff.section.familyConcerns" = "Current family concerns";
+"handoff.claim.citationLabel" = "Cited journal entry";
 
 // MARK: - Timeline
 "timeline.title" = "Journal";

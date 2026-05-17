@@ -142,6 +142,7 @@
 "handoff.section.reactions" = "Reaktionen / unerwünschte Ereignisse";
 "handoff.section.medication" = "Aktuelle Medikation";
 "handoff.section.familyConcerns" = "Aktuelle Anliegen der Familie";
+"handoff.claim.citationLabel" = "Zitierter Journal-Eintrag";
 
 // MARK: - Timeline
 "timeline.title" = "Tagebuch";

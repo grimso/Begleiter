@@ -93,6 +93,20 @@ actor HandoffService {
         )
         let prose = try Self.parseProseSections(from: raw)
 
+        // Post-hoc citation filter + RefusalService scrub. Matches the
+        // `BriefingService.filterUngroundedClaims` contract:
+        //   - Drops Gemma-emitted bullets whose entryId isn't in the
+        //     surfaced set (`recent`), so a hallucinated UUID can't
+        //     reach the rotating doctor.
+        //   - Scrubs advice-shaped prose via `RefusalService.scrubbed`
+        //     so the model can't slip a "give the child X mg" line
+        //     past the safety surface even when otherwise grounded.
+        //   - Items without an `entryId` (deterministic history or
+        //     untraceable prose) are kept; the renderer just omits the
+        //     citation chip.
+        let surfacedIds = Set(recent.map(\.entryId))
+        let filtered = Self.filterAndScrub(prose, validEntryIds: surfacedIds)
+
         return HandoffDocument(
             generatedAt: now,
             language: language,
@@ -102,13 +116,13 @@ actor HandoffService {
             randomizationLabel: deterministic.randomizationLabel,
             phaseLabel: deterministic.phaseLabel,
             dayInPhase: deterministic.dayInPhase,
-            behandlungsverlauf: prose.behandlungsverlauf.isEmpty
+            behandlungsverlauf: filtered.behandlungsverlauf.isEmpty
                 ? deterministic.behandlungsverlauf
-                : prose.behandlungsverlauf,
+                : filtered.behandlungsverlauf,
             aktuelleLabore: deterministic.aktuelleLabore,
-            reaktionen: prose.reaktionen,
+            reaktionen: filtered.reaktionen,
             aktuelleMedikation: deterministic.aktuelleMedikation,
-            familienanliegen: prose.familienanliegen
+            familienanliegen: filtered.familienanliegen
         )
     }
 
@@ -121,7 +135,10 @@ actor HandoffService {
         let randomizationLabel: String
         let phaseLabel: String
         let dayInPhase: Int
-        let behandlungsverlauf: [String]
+        /// Treatment history derived from `ChildState.completedPhases`
+        /// — claims here have `entryId == nil` since the protocol state
+        /// machine, not a journal entry, is the source.
+        let behandlungsverlauf: [HandoffClaim]
         let aktuelleLabore: [HandoffLabLine]
         let aktuelleMedikation: [String]
     }
@@ -153,16 +170,19 @@ actor HandoffService {
             ? snapshot.phase.englishLabel
             : snapshot.phase.germanLabel
 
-        // Treatment history: completed phases + current
-        var history: [String] = []
+        // Treatment history: completed phases + current. Sourced from
+        // the deterministic protocol state machine, not from any
+        // journal entry — every claim ships with `entryId == nil` and
+        // the UI renders these bullets without a citation chip.
+        var history: [HandoffClaim] = []
         for completed in child.completedPhases {
             let phase = Phase(rawValue: completed.phaseRaw) ?? .inductionIA
             let label = language == .english ? phase.englishLabel : phase.germanLabel
             let endStr = Self.shortDate(completed.endedOn, language: language)
-            history.append("\(label) — bis \(endStr)")
+            history.append(HandoffClaim(text: "\(label) — bis \(endStr)", entryId: nil))
         }
         let dayWord = language == .english ? "day" : "Tag"
-        history.append("\(phaseLabel) — \(dayWord) \(snapshot.dayInPhase)")
+        history.append(HandoffClaim(text: "\(phaseLabel) — \(dayWord) \(snapshot.dayInPhase)", entryId: nil))
 
         // Lab values from recent entries, deduplicated by parameter, most
         // recent first.
@@ -240,7 +260,11 @@ actor HandoffService {
         let entriesBlock = recent.prefix(12).map { entry -> String in
             let date = dateFmt.string(from: entry.visitDate)
             let f = entry.extractedFields
-            var lines: [String] = ["[\(date)] tag=\(entry.dayInPhase)"]
+            // Header includes the UUID so the model has a citable
+            // anchor for every bullet it generates. Format matches the
+            // single-shot Ask path so the model's existing instruction-
+            // following on `[E:UUID]` markers carries over.
+            var lines: [String] = ["[\(date)] id=\(entry.entryId.uuidString) tag=\(entry.dayInPhase)"]
             if let summary = f.summary?.value { lines.append("zusammenfassung: \(summary)") }
             if let rx = f.reactions?.value, !rx.isEmpty {
                 lines.append("reaktionen: " + rx.map { "\($0.description)\($0.suspectedCause.map { " (\($0))" } ?? "")" }.joined(separator: "; "))
@@ -265,6 +289,7 @@ actor HandoffService {
 
         Rules:
         - Never invent values. Copy concrete numbers and medical terms verbatim from the entries.
+        - Every bullet cites the specific journal entry it summarises via `entryId` — use only the UUIDs that appear in the Entries block below. If no single entry fits, set `entryId` to `null`.
         - No advice, diagnosis, dose calculation, or interpretation — only summarise what's documented.
 
         Context:
@@ -277,9 +302,9 @@ actor HandoffService {
 
         Schema:
         {
-          "behandlungsverlauf": ["<bullet 1>", "<bullet 2>"],
-          "reaktionen": ["<reaction / adverse event>"],
-          "familienanliegen": ["<current family concern>"]
+          "behandlungsverlauf": [{"text": "<bullet 1>", "entryId": "<UUID or null>"}],
+          "reaktionen": [{"text": "<reaction / adverse event>", "entryId": "<UUID or null>"}],
+          "familienanliegen": [{"text": "<current family concern>", "entryId": "<UUID or null>"}]
         }
 
         JSON:
@@ -288,10 +313,14 @@ actor HandoffService {
 
     // MARK: - Parse prose
 
+    /// Wire shape Gemma emits — bullets carry an optional `entryId` per
+    /// the schema in `buildPrompt`. Decoded via the tolerant
+    /// ``HandoffClaim`` decoder so malformed UUIDs fall back to `nil`
+    /// rather than throwing.
     struct ProseSections: Codable, Sendable {
-        let behandlungsverlauf: [String]
-        let reaktionen: [String]
-        let familienanliegen: [String]
+        let behandlungsverlauf: [HandoffClaim]
+        let reaktionen: [HandoffClaim]
+        let familienanliegen: [HandoffClaim]
     }
 
     static func parseProseSections(from raw: String) throws -> ProseSections {
@@ -306,5 +335,49 @@ actor HandoffService {
         } catch {
             throw HandoffError.modelReturnedInvalidJSON(error.localizedDescription)
         }
+    }
+
+    // MARK: - Filter + scrub
+
+    /// Apply the same warn-validate contract `BriefingService` uses
+    /// (`filterUngroundedClaims`, BriefingService.swift:206) to every
+    /// section of a `ProseSections`:
+    ///
+    /// 1. **Drop** any claim with a non-nil `entryId` that isn't in
+    ///    `validEntryIds`. Hallucinated UUIDs never reach the rotating
+    ///    doctor's handoff document.
+    /// 2. **Scrub** advice-shaped prose via `RefusalService.scrubbed`.
+    ///    Replaces text matching the clinical-advice clue-phrase list
+    ///    (RefusalService.swift:66–98) with the canonical redirect
+    ///    message, then strips the `entryId` (the redirected text no
+    ///    longer cites the original source).
+    /// 3. **Keep** claims with `entryId == nil` — they're attributable
+    ///    to the protocol state machine or are Gemma-generated text
+    ///    without a single-entry source. The renderer simply omits the
+    ///    citation chip for those.
+    ///
+    /// Pure function; no Gemma calls. Exposed `static` so tests can
+    /// exercise the contract directly with synthetic ProseSections.
+    static func filterAndScrub(
+        _ prose: ProseSections,
+        validEntryIds: Set<UUID>
+    ) -> ProseSections {
+        func scrub(_ claim: HandoffClaim) -> HandoffClaim {
+            let scrubbed = RefusalService.scrubbed(claim.text)
+            // When the text was rewritten to the redirect message, the
+            // entryId no longer points at the original prose source —
+            // strip it so the UI doesn't render a misleading chip.
+            let preservedId = (scrubbed == claim.text) ? claim.entryId : nil
+            return HandoffClaim(text: scrubbed, entryId: preservedId)
+        }
+        func keep(_ claim: HandoffClaim) -> Bool {
+            guard let id = claim.entryId else { return true }
+            return validEntryIds.contains(id)
+        }
+        return ProseSections(
+            behandlungsverlauf: prose.behandlungsverlauf.filter(keep).map(scrub),
+            reaktionen: prose.reaktionen.filter(keep).map(scrub),
+            familienanliegen: prose.familienanliegen.filter(keep).map(scrub)
+        )
     }
 }
