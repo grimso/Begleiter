@@ -6,8 +6,8 @@ import UIKit
 /// Entry point for the Begleiter iOS app.
 ///
 /// Configures the SwiftData `ModelContainer` for `ChildState` and shows
-/// either onboarding or the home placeholder depending on whether a
-/// `ChildState` already exists in the store.
+/// either onboarding or `HomeView` depending on whether a `ChildState`
+/// already exists in the store.
 @main
 struct BegleiterApp: App {
     /// Shared SwiftData container for the app. Defined as a stored property
@@ -41,12 +41,21 @@ struct BegleiterApp: App {
     }
 }
 
-/// Branches between onboarding (no child yet) and the home placeholder
-/// (onboarding complete). Single-child only in iteration 1.
+/// Identifies the four tabs in the post-onboarding root `TabView`.
+/// Lives at module scope so `HomeView` can take a `Binding<HomeTab>` and
+/// drive tab switches from card taps (Tagebuch → Timeline).
+enum HomeTab: Hashable {
+    case home, timeline, insights, profile
+}
+
+/// Branches between onboarding (no child yet) and the four-tab home
+/// (`TabView` of Home / Timeline / Insights / Profile). Single-child only
+/// in iteration 1.
 struct RootView: View {
     @Environment(\.modelContext) private var modelContext
     @Query private var children: [ChildState]
     @State private var memoryWarningObserver = MemoryWarningObserver()
+    @State private var selectedTab: HomeTab = .home
     // Drives the floating Gemma-latency overlay. Default off (see
     // ``AppSettings.defaultLatencyHUDEnabled``); flipping the
     // Settings → Entwicklung → Latenz-HUD toggle live-updates the
@@ -58,7 +67,34 @@ struct RootView: View {
     var body: some View {
         Group {
             if let child = children.first {
-                TimelineView(child: child)
+                TabView(selection: $selectedTab) {
+                    HomeView(child: child, selectedTab: $selectedTab)
+                        .tabItem {
+                            Label(L10n.t("tab.home"), systemImage: "house.fill")
+                        }
+                        .tag(HomeTab.home)
+
+                    NavigationStack {
+                        TimelineView(child: child)
+                    }
+                    .tabItem {
+                        Label(L10n.t("tab.timeline"), systemImage: "clock")
+                    }
+                    .tag(HomeTab.timeline)
+
+                    InsightsView()
+                        .tabItem {
+                            Label(L10n.t("tab.insights"), systemImage: "chart.line.uptrend.xyaxis")
+                        }
+                        .tag(HomeTab.insights)
+
+                    ProfileTabView()
+                        .tabItem {
+                            Label(L10n.t("tab.profile"), systemImage: "person.crop.circle")
+                        }
+                        .tag(HomeTab.profile)
+                }
+                .tint(Color("BegleiterPrimary"))
             } else {
                 OnboardingView()
             }

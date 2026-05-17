@@ -73,12 +73,29 @@
 "phase.reinductionII.label" = "Reinduction (Protocol II)";
 "phase.maintenance.label" = "Maintenance";
 
-// MARK: - Home placeholder
-"home.placeholder.title" = "Onboarding complete";
-"home.placeholder.subtitle" = "Journal features arrive in the next iteration.";
-"home.placeholder.phaseLabel" = "Current phase";
-"home.placeholder.dayLabel" = "Day in this phase";
-"home.placeholder.diagnosisDays" = "Days since diagnosis";
+// MARK: - Home (post-onboarding entry: wordmark + three primary cards)
+"home.tagline" = "Your health. Your way.";
+"home.greeting.morning" = "Good morning";
+"home.greeting.afternoon" = "Good afternoon";
+"home.greeting.evening" = "Good evening";
+"home.greeting.subheader" = "Here's your overview.";
+"home.card.journal.title" = "Journal";
+"home.card.journal.subtitle" = "Notes that really matter.";
+"home.card.labs.title" = "Lab results";
+"home.card.labs.subtitle" = "Latest values and trends.";
+"home.card.ask.title" = "Ask";
+"home.card.ask.subtitle" = "Answers about health & therapy.";
+"home.encouragement" = "You're doing great. Small steps, lasting impact.";
+
+// MARK: - Tab bar (root TabView labels)
+"tab.home" = "Home";
+"tab.timeline" = "Journal";
+"tab.insights" = "Insights";
+"tab.profile" = "Profile";
+
+// MARK: - Insights (placeholder tab — future home for trends and progress views)
+"insights.title" = "Insights";
+"insights.description" = "Trends and visualizations will arrive in a future iteration.";
 
 // MARK: - Briefing (pre-visit preparation)
 "briefing.title" = "Briefing";

@@ -121,6 +121,9 @@ struct SettingsView: View {
             diagnosticsSection
             developerSection
         }
+        .scrollContentBackground(.hidden)
+        .background(Color("BegleiterBackground").ignoresSafeArea())
+        .listRowBackground(Color("BegleiterCardSurface"))
         .navigationTitle(L10n.key("settings.title"))
         .navigationBarTitleDisplayMode(.inline)
         .alert(

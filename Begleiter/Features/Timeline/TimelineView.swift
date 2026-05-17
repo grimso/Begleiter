@@ -16,93 +16,64 @@ struct TimelineView: View {
     @State private var presentingBriefing = false
     @State private var presentingHandoff = false
     @State private var presentingLabs = false
-    @State private var presentingAsk = false
     @State private var searchText: String = ""
 
     private let retrieval = RetrievalService()
 
     var body: some View {
-        NavigationStack {
-            Group {
-                if entries.isEmpty {
-                    emptyState
-                } else if !searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                    searchResultsList
-                } else {
-                    groupedList
+        Group {
+            if entries.isEmpty {
+                emptyState
+            } else if !searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                searchResultsList
+            } else {
+                groupedList
+            }
+        }
+        .scrollContentBackground(.hidden)
+        .background(Color("BegleiterBackground").ignoresSafeArea())
+        .navigationTitle(L10n.key("timeline.title"))
+        .searchable(
+            text: $searchText,
+            placement: .navigationBarDrawer(displayMode: .automatic),
+            prompt: L10n.t("timeline.search.prompt")
+        )
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Button {
+                    presentingCapture = true
+                } label: {
+                    Label(L10n.t("timeline.add"), systemImage: "plus")
                 }
             }
-            .navigationTitle(L10n.key("timeline.title"))
-            .searchable(
-                text: $searchText,
-                placement: .navigationBarDrawer(displayMode: .automatic),
-                prompt: L10n.t("timeline.search.prompt")
-            )
-            .toolbar {
-                ToolbarItem(placement: .primaryAction) {
-                    Button {
-                        presentingCapture = true
-                    } label: {
-                        Label(L10n.t("timeline.add"), systemImage: "plus")
-                    }
+            ToolbarItem(placement: .topBarLeading) {
+                Button {
+                    presentingBriefing = true
+                } label: {
+                    Label(L10n.t("briefing.title"), systemImage: "calendar.badge.clock")
                 }
-                ToolbarItem(placement: .topBarLeading) {
-                    Button {
-                        presentingBriefing = true
-                    } label: {
-                        Label(L10n.t("briefing.title"), systemImage: "calendar.badge.clock")
-                    }
-                    .disabled(entries.isEmpty)
+                .disabled(entries.isEmpty)
+            }
+            ToolbarItem(placement: .topBarLeading) {
+                Button {
+                    presentingHandoff = true
+                } label: {
+                    Label(L10n.t("handoff.title"), systemImage: "doc.text")
                 }
-                ToolbarItem(placement: .topBarLeading) {
-                    Button {
-                        presentingHandoff = true
-                    } label: {
-                        Label(L10n.t("handoff.title"), systemImage: "doc.text")
-                    }
-                    .disabled(entries.isEmpty)
-                }
-                ToolbarItem(placement: .topBarLeading) {
-                    Button {
-                        presentingLabs = true
-                    } label: {
-                        Label(L10n.t("labs.toolbar"), systemImage: "testtube.2")
-                    }
-                }
-                ToolbarItem(placement: .topBarLeading) {
-                    Button {
-                        presentingAsk = true
-                    } label: {
-                        Label(
-                            L10n.t("ask.toolbar"),
-                            systemImage: "bubble.left.and.text.bubble.right"
-                        )
-                    }
-                }
-                ToolbarItem(placement: .topBarLeading) {
-                    NavigationLink {
-                        SettingsView()
-                    } label: {
-                        Image(systemName: "gear")
-                    }
-                    .accessibilityLabel(L10n.t("settings.toolbar"))
-                }
+                .disabled(entries.isEmpty)
             }
-            .sheet(isPresented: $presentingCapture) {
-                CaptureView(child: child)
-            }
-            .sheet(isPresented: $presentingBriefing) {
-                PreVisitBriefingView(child: child)
-            }
-            .sheet(isPresented: $presentingHandoff) {
-                HandoffDocumentView(child: child)
-            }
-            .sheet(isPresented: $presentingLabs) {
-                LabValuesView(child: child)
-            }
-            .sheet(isPresented: $presentingAsk) {
-                AskView(child: child, scope: .all)
-            }
+        }
+        .sheet(isPresented: $presentingCapture) {
+            CaptureView(child: child)
+        }
+        .sheet(isPresented: $presentingBriefing) {
+            PreVisitBriefingView(child: child)
+        }
+        .sheet(isPresented: $presentingHandoff) {
+            HandoffDocumentView(child: child)
+        }
+        .sheet(isPresented: $presentingLabs) {
+            LabValuesView(child: child)
         }
     }
 
@@ -114,6 +85,7 @@ struct TimelineView: View {
             LabStatusPill(series: aggregatedSeries) {
                 presentingLabs = true
             }
+            .listRowBackground(Color("BegleiterCardSurface"))
             ForEach(groupedByPhase, id: \.phase) { group in
                 Section {
                     ForEach(group.entries) { entry in
@@ -122,6 +94,7 @@ struct TimelineView: View {
                         } label: {
                             TimelineRow(entry: entry)
                         }
+                        .listRowBackground(Color("BegleiterCardSurface"))
                     }
                 } header: {
                     Text(group.phaseLabel)
@@ -155,6 +128,7 @@ struct TimelineView: View {
                         } label: {
                             TimelineRow(entry: entry, highlightingTerm: trimmed)
                         }
+                        .listRowBackground(Color("BegleiterCardSurface"))
                     }
                 } header: {
                     Text(String(format: L10n.t("timeline.search.resultsHeader"), resolved.count))

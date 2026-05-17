@@ -73,12 +73,29 @@
 "phase.reinductionII.label" = "Reinduktion (Protokoll II)";
 "phase.maintenance.label" = "Erhaltungstherapie";
 
-// MARK: - Home placeholder (real home view comes in next iteration)
-"home.placeholder.title" = "Onboarding abgeschlossen";
-"home.placeholder.subtitle" = "Tagebuch-Funktionen folgen in der nächsten Version.";
-"home.placeholder.phaseLabel" = "Aktuelle Phase";
-"home.placeholder.dayLabel" = "Tag in dieser Phase";
-"home.placeholder.diagnosisDays" = "Tage seit Diagnose";
+// MARK: - Home (post-onboarding entry: wordmark + three primary cards)
+"home.tagline" = "Ihre Gesundheit. Ihr Weg.";
+"home.greeting.morning" = "Guten Morgen";
+"home.greeting.afternoon" = "Guten Tag";
+"home.greeting.evening" = "Guten Abend";
+"home.greeting.subheader" = "Hier ist Ihr Überblick.";
+"home.card.journal.title" = "Tagebuch";
+"home.card.journal.subtitle" = "Notizen, die wirklich zählen.";
+"home.card.labs.title" = "Blutwerte";
+"home.card.labs.subtitle" = "Aktuelle Werte und Verläufe.";
+"home.card.ask.title" = "Fragen";
+"home.card.ask.subtitle" = "Antworten zu Gesundheit & Therapie.";
+"home.encouragement" = "Sie machen das großartig. Kleine Schritte, große Wirkung.";
+
+// MARK: - Tab bar (root TabView labels)
+"tab.home" = "Start";
+"tab.timeline" = "Tagebuch";
+"tab.insights" = "Auswertungen";
+"tab.profile" = "Profil";
+
+// MARK: - Insights (placeholder tab — future home for trends and progress views)
+"insights.title" = "Auswertungen";
+"insights.description" = "Verläufe und Trends folgen in einer der nächsten Versionen.";
 
 // MARK: - Briefing (pre-visit preparation)
 "briefing.title" = "Vorbereitung";
