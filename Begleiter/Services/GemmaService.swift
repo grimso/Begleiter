@@ -277,7 +277,17 @@ actor GemmaService {
             id: signpostID,
             "thinking=\(enableThinking, privacy: .public) tools=\(toolsCount, privacy: .public) promptChars=\(promptChars, privacy: .public)"
         )
+        // Nested signpost — same signpostID so Instruments shows this
+        // interval inside the parent `generate`. Ends at the first
+        // decoded chunk, so the visible width is TTFT.
+        let prefillState = gemmaSignposter.beginInterval(
+            "generate.prefill",
+            id: signpostID,
+            "promptChars=\(promptChars, privacy: .public)"
+        )
         let startNs = DispatchTime.now().uptimeNanoseconds
+        var ttftNs: UInt64 = 0
+        var prefillEnded = false
         defer {
             #if !targetEnvironment(simulator)
             MLX.Memory.clearCache()
@@ -285,23 +295,75 @@ actor GemmaService {
             MemoryDiagnostics.snapshot(label: "after-generate")
         }
         do {
-            let raw = try await session.respond(to: prompt)
-            let elapsedMs = (DispatchTime.now().uptimeNanoseconds - startNs) / 1_000_000
+            // Accumulator over the streaming primitive. `ChatSession.respond(to:)`
+            // is internally `for try await chunk in streamResponse { output += chunk }`
+            // (mlx-swift-lm 3.31.3 ChatSession.swift:260–266), so the returned
+            // String is byte-identical to the previous blocking call. Tool
+            // dispatch is preserved by the underlying streamMap (line 433):
+            // tool-call items are intercepted and re-fed into the agent loop
+            // before reaching the chunk transform.
+            var raw = ""
+            for try await chunk in session.streamResponse(to: prompt) {
+                if !prefillEnded {
+                    ttftNs = DispatchTime.now().uptimeNanoseconds - startNs
+                    gemmaSignposter.endInterval(
+                        "generate.prefill",
+                        prefillState,
+                        "ttftMs=\(ttftNs / 1_000_000, privacy: .public)"
+                    )
+                    prefillEnded = true
+                }
+                raw += chunk
+            }
+            let elapsedNs = DispatchTime.now().uptimeNanoseconds - startNs
+            let elapsedMs = elapsedNs / 1_000_000
+            // Zero-chunk edge: model emitted nothing. Close the prefill
+            // interval honestly (ttft == elapsed, no separable decode)
+            // so it doesn't dangle in Instruments.
+            if !prefillEnded {
+                ttftNs = elapsedNs
+                gemmaSignposter.endInterval(
+                    "generate.prefill",
+                    prefillState,
+                    "ttftMs=\(elapsedMs, privacy: .public) noTokens=true"
+                )
+                prefillEnded = true
+            }
+            let ttftMs = ttftNs / 1_000_000
             // 4 chars/token is a coarse-but-stable approximation for
             // the Gemma 4 tokenizer on mixed German/English output;
             // we treat it as a directional metric, not ground truth.
             let outputTokensApprox = raw.count / 4
+            // prefillMs is reported as an alias of ttftMs. mlx-swift-lm
+            // 3.31.3's generateTask doesn't expose a "prefill complete /
+            // first decode step starting" callback distinct from "first
+            // chunk emitted" — the two events collapse into one wall-clock
+            // measurement here. The field is kept so the unified-log query
+            // schema is forward-compatible if a future stream API splits
+            // them.
+            let decodeSec = Double(elapsedNs - ttftNs) / 1_000_000_000.0
+            let decodeTokPerSec = decodeSec > 0
+                ? Double(outputTokensApprox) / decodeSec
+                : 0.0
+            let decodeTokPerSecStr = String(format: "%.1f", decodeTokPerSec)
             gemmaSignposter.endInterval(
                 "generate",
                 signpostState,
-                "elapsedMs=\(elapsedMs, privacy: .public) outputTokensApprox=\(outputTokensApprox, privacy: .public)"
+                "elapsedMs=\(elapsedMs, privacy: .public) ttftMs=\(ttftMs, privacy: .public) outputTokensApprox=\(outputTokensApprox, privacy: .public)"
             )
             gemmaLog.info(
-                "gemma.generate.done elapsedMs=\(elapsedMs, privacy: .public) promptChars=\(promptChars, privacy: .public) outputTokensApprox=\(outputTokensApprox, privacy: .public) thinking=\(enableThinking, privacy: .public) tools=\(toolsCount, privacy: .public)"
+                "gemma.generate.done elapsedMs=\(elapsedMs, privacy: .public) ttftMs=\(ttftMs, privacy: .public) prefillMs=\(ttftMs, privacy: .public) decodeTokPerSec=\(decodeTokPerSecStr, privacy: .public) promptChars=\(promptChars, privacy: .public) outputTokensApprox=\(outputTokensApprox, privacy: .public) thinking=\(enableThinking, privacy: .public) tools=\(toolsCount, privacy: .public)"
             )
             return raw
         } catch {
             let elapsedMs = (DispatchTime.now().uptimeNanoseconds - startNs) / 1_000_000
+            if !prefillEnded {
+                gemmaSignposter.endInterval(
+                    "generate.prefill",
+                    prefillState,
+                    "error=true"
+                )
+            }
             gemmaSignposter.endInterval(
                 "generate",
                 signpostState,
