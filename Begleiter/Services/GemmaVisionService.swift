@@ -155,7 +155,8 @@ actor GemmaVisionService {
         prompt: String,
         imageURLs: [URL],
         parameters: GenerateParameters? = nil,
-        enableThinking: Bool = false
+        enableThinking: Bool = false,
+        surface: String? = nil
     ) async throws -> String {
         let container = try await loadModel()
         let session = ChatSession(
@@ -246,6 +247,20 @@ actor GemmaVisionService {
             visionLog.info(
                 "gemma.vision.generate.done elapsedMs=\(elapsedMs, privacy: .public) ttftMs=\(ttftMs, privacy: .public) prefillMs=\(ttftMs, privacy: .public) decodeTokPerSec=\(decodeTokPerSecStr, privacy: .public) promptChars=\(promptChars, privacy: .public) outputTokensApprox=\(outputTokensApprox, privacy: .public) thinking=\(enableThinking, privacy: .public) imageCount=\(imageCount, privacy: .public)"
             )
+            let sample = GemmaLatencyHUD.Sample(
+                surface: surface ?? "vision",
+                elapsedMs: elapsedMs,
+                ttftMs: ttftMs,
+                decodeTokPerSec: decodeTokPerSec,
+                promptChars: promptChars,
+                outputTokensApprox: outputTokensApprox,
+                thinking: enableThinking,
+                imageCount: imageCount,
+                timestamp: Date()
+            )
+            Task { @MainActor in
+                GemmaLatencyHUD.shared.record(sample)
+            }
             return raw
         } catch {
             let elapsedMs = (DispatchTime.now().uptimeNanoseconds - startNs) / 1_000_000

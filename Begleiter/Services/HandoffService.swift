@@ -86,7 +86,11 @@ actor HandoffService {
             recent: recent,
             language: language
         )
-        let raw = try await gemma.generate(prompt: prompt, parameters: handoffParameters())
+        let raw = try await gemma.generate(
+            prompt: prompt,
+            parameters: handoffParameters(),
+            surface: "handoff"
+        )
         let prose = try Self.parseProseSections(from: raw)
 
         return HandoffDocument(

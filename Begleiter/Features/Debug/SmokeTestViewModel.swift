@@ -57,7 +57,7 @@ final class SmokeTestViewModel {
         Task {
             defer { isGenerating = false }
             do {
-                output = try await service.generate(prompt: trimmed)
+                output = try await service.generate(prompt: trimmed, surface: "smoketest")
             } catch {
                 errorMessage = error.localizedDescription
             }

@@ -598,7 +598,8 @@ actor AskService {
             raw = try await gemma.generate(
                 prompt: prompt,
                 parameters: askParameters(),
-                enableThinking: thinkingEnabled
+                enableThinking: thinkingEnabled,
+                surface: "ask.chat"
             )
         } catch {
             let errMessage = error.localizedDescription
@@ -798,7 +799,8 @@ actor AskService {
                         documents: surfaced.documents
                     )
                     return result
-                }
+                },
+                surface: "ask.agent"
             )
         } catch {
             let msg = error.localizedDescription
@@ -1008,7 +1010,8 @@ actor AskService {
                     enableThinking: true,
                     instructions: instructions,
                     tools: nil,
-                    toolDispatch: nil
+                    toolDispatch: nil,
+                    surface: "ask.customAgent"
                 )
             } catch {
                 let msg = error.localizedDescription

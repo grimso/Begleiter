@@ -311,6 +311,8 @@
 "settings.developer.section" = "Entwicklung";
 "settings.developer.smokeTest" = "Gemma 4 Smoke-Test";
 "settings.developer.askDiagnostics" = "Ask-Diagnose anzeigen";
+"settings.developer.latencyHUD" = "Latenz-HUD anzeigen";
+"settings.developer.latencyHUD.hint" = "Schwebende Anzeige oben rechts. Zeigt Gesamtzeit, TTFT und Decode-Rate der zuletzt ausgeführten Gemma-Generierung. PII-frei.";
 "settings.developer.askThinking" = "Gemma Reasoning aktivieren";
 "settings.developer.askThinking.budgetHint" = "Reasoning braucht mehr Tokens. Empfehlung: Ask-Token-Budget auf 1024 oder höher stellen.";
 "settings.developer.footer" = "Interner Diagnose-Bildschirm für die Entwicklung. Lädt das Modell und führt einen Test-Prompt aus. Bei aktiver Ask-Diagnose zeigt jede Antwort einen Info-Button mit Retrieval-Stats, Roh-Ausgabe und Filter-Status. Aktiviertes Reasoning lässt Gemma vor der Antwort intern nachdenken (langsamer, mehr Tokens, oft bessere Strukturierung). Der Journal-Schutz fängt Fragen wie \"Welche … gab es?\" ohne passenden Journal-Eintrag deterministisch ab — der Korpus wird dann nicht als Ersatz herangezogen.";

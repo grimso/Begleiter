@@ -160,7 +160,11 @@ actor ExtractionService {
 
         extractionLog.info("extract: text=\(trimmedText.count, privacy: .public) chars, ocrText=\(trimmedOCR?.count ?? 0, privacy: .public) chars")
 
-        let raw1 = try await gemma.generate(prompt: prompt, parameters: extractionParameters())
+        let raw1 = try await gemma.generate(
+            prompt: prompt,
+            parameters: extractionParameters(),
+            surface: "extract.text"
+        )
         extractionLog.debug("attempt=1 raw=\(raw1, privacy: .private)")
         if let fields = try? Self.parseExtractedFields(from: raw1) {
             let labCount = fields.labValues?.value.count ?? 0
@@ -177,7 +181,11 @@ actor ExtractionService {
             visitDate: visitDate,
             strictMode: true
         )
-        let raw2 = try await gemma.generate(prompt: retryPrompt, parameters: extractionParameters())
+        let raw2 = try await gemma.generate(
+            prompt: retryPrompt,
+            parameters: extractionParameters(),
+            surface: "extract.text.retry"
+        )
         extractionLog.debug("attempt=2 raw=\(raw2, privacy: .private)")
         let fields = try Self.parseExtractedFields(from: raw2)
         let labCount = fields.labValues?.value.count ?? 0
@@ -215,7 +223,8 @@ actor ExtractionService {
         let raw1 = try await visionGemma.generate(
             prompt: prompt1,
             imageURLs: imageURLs,
-            parameters: extractionParameters()
+            parameters: extractionParameters(),
+            surface: "extract.vision"
         )
         extractionLog.debug("vision.attempt=1 raw=\(raw1, privacy: .private)")
         if let fields = try? Self.parseExtractedFields(from: raw1) {
@@ -236,7 +245,8 @@ actor ExtractionService {
         let raw2 = try await visionGemma.generate(
             prompt: prompt2,
             imageURLs: imageURLs,
-            parameters: extractionParameters()
+            parameters: extractionParameters(),
+            surface: "extract.vision.retry"
         )
         extractionLog.debug("vision.attempt=2 raw=\(raw2, privacy: .private)")
         let fields = try Self.parseExtractedFields(from: raw2)

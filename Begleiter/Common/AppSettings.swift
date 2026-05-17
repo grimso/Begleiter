@@ -112,6 +112,7 @@ enum AppSettings {
     nonisolated static let visionMaxLongEdgeKey    = "visionMaxLongEdge"
     nonisolated static let importedDocsEnabledKey  = "importedDocsEnabled"
     nonisolated static let docImportMaxCharsKey    = "docImportMaxChars"
+    nonisolated static let latencyHUDEnabledKey    = "latencyHUDEnabled"
 
     nonisolated static let defaultExtractionMaxTokens = 2500
     nonisolated static let defaultBriefingMaxTokens   = 640
@@ -156,6 +157,13 @@ enum AppSettings {
     /// can dial up to demonstrate the long-context story without the
     /// 14 Pro default risking OOM mid-import.
     nonisolated static let defaultDocImportMaxChars = 12000
+
+    /// HUD ships off so a returning parent never sees an unexplained
+    /// floating chip after an update. The toggle lives in Settings →
+    /// Entwicklung; flipping it on shows the latest Gemma generation's
+    /// `elapsedMs`, `ttftMs`, and `decodeTokPerSec` as an overlay on
+    /// every screen.
+    nonisolated static let defaultLatencyHUDEnabled = false
 
     /// Plain-Swift read path for non-SwiftUI callers (services / actors).
     /// `@AppStorage` is a SwiftUI property wrapper and can't be read from
@@ -310,6 +318,14 @@ enum AppSettings {
     nonisolated static var docImportMaxChars: Int {
         let v = UserDefaults.standard.integer(forKey: docImportMaxCharsKey)
         return v > 0 ? v : defaultDocImportMaxChars
+    }
+
+    /// When `true`, ``LatencyHUDView`` overlays a small chip on the app
+    /// root showing the most recent Gemma generation's `elapsedMs`,
+    /// `ttftMs`, and `decodeTokPerSec`. Off by default; the toggle lives
+    /// in Settings → Entwicklung.
+    nonisolated static var latencyHUDEnabled: Bool {
+        UserDefaults.standard.bool(forKey: latencyHUDEnabledKey)
     }
 
     /// Write path used by `GemmaService` when E4B load fails and the

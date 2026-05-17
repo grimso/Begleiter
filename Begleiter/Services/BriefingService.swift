@@ -78,7 +78,11 @@ actor BriefingService {
             child: child,
             entries: extractedEntries
         )
-        let raw = try await gemma.generate(prompt: prompt, parameters: briefingParameters())
+        let raw = try await gemma.generate(
+            prompt: prompt,
+            parameters: briefingParameters(),
+            surface: "briefing"
+        )
         briefingLog.debug("raw=\(raw, privacy: .private)")
         let parsed = try Self.parseBriefing(from: raw, visitDate: visitDate)
 

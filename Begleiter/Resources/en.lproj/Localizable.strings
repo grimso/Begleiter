@@ -311,6 +311,8 @@
 "settings.developer.section" = "Developer";
 "settings.developer.smokeTest" = "Gemma 4 smoke test";
 "settings.developer.askDiagnostics" = "Show Ask diagnostics";
+"settings.developer.latencyHUD" = "Show latency HUD";
+"settings.developer.latencyHUD.hint" = "Floating chip in the top-right. Shows total time, TTFT, and decode rate of the most recent Gemma generation. PII-free.";
 "settings.developer.askThinking" = "Enable Gemma reasoning";
 "settings.developer.askThinking.budgetHint" = "Reasoning uses more tokens. Recommended: set Ask token budget to 1024 or higher.";
 "settings.developer.footer" = "Internal diagnostics screen. Loads the model and runs a test prompt. With Ask diagnostics enabled, every answer card shows an info button with retrieval stats, raw model output, and filter status. With reasoning enabled, Gemma thinks step-by-step before the answer (slower, more tokens, often better structure). The journal guard deterministically intercepts questions like \"Which … occurred?\" when no journal entry matches — the corpus is not used as a substitute.";

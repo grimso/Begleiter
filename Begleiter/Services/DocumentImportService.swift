@@ -119,7 +119,8 @@ actor DocumentImportService {
         let prompt1 = Self.buildPrompt(sourceText: trimmed, strictMode: false)
         let raw1 = try await gemma.generate(
             prompt: prompt1,
-            parameters: Self.parameters()
+            parameters: Self.parameters(),
+            surface: "docimport"
         )
         docImportLog.debug("attempt=1 raw=\(raw1, privacy: .private)")
         if let wire = Self.parseWire(from: raw1) {
@@ -137,7 +138,8 @@ actor DocumentImportService {
         let prompt2 = Self.buildPrompt(sourceText: trimmed, strictMode: true)
         let raw2 = try await gemma.generate(
             prompt: prompt2,
-            parameters: Self.parameters()
+            parameters: Self.parameters(),
+            surface: "docimport.retry"
         )
         docImportLog.debug("attempt=2 raw=\(raw2, privacy: .private)")
         guard let wire = Self.parseWire(from: raw2) else {

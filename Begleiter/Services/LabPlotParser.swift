@@ -329,7 +329,8 @@ actor LabPlotParser {
             raw = try await gemma.generate(
                 prompt: prompt,
                 parameters: GenerateParameters(maxTokens: 512, temperature: 0.2),
-                enableThinking: false
+                enableThinking: false,
+                surface: "labplot"
             )
         } catch {
             throw LabPlotParserError.gemmaError(error.localizedDescription)

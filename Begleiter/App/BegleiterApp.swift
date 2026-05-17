@@ -47,6 +47,13 @@ struct RootView: View {
     @Environment(\.modelContext) private var modelContext
     @Query private var children: [ChildState]
     @State private var memoryWarningObserver = MemoryWarningObserver()
+    // Drives the floating Gemma-latency overlay. Default off (see
+    // ``AppSettings.defaultLatencyHUDEnabled``); flipping the
+    // Settings → Entwicklung → Latenz-HUD toggle live-updates the
+    // overlay because @AppStorage publishes on every UserDefaults
+    // change for the bound key.
+    @AppStorage(AppSettings.latencyHUDEnabledKey)
+    private var latencyHUDEnabled: Bool = AppSettings.defaultLatencyHUDEnabled
 
     var body: some View {
         Group {
@@ -54,6 +61,11 @@ struct RootView: View {
                 TimelineView(child: child)
             } else {
                 OnboardingView()
+            }
+        }
+        .overlay(alignment: .topTrailing) {
+            if latencyHUDEnabled {
+                LatencyHUDView()
             }
         }
         .task {

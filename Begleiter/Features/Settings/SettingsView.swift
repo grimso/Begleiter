@@ -69,6 +69,9 @@ struct SettingsView: View {
     @AppStorage(AppSettings.visionMaxLongEdgeKey)
     private var visionMaxLongEdge: Int = AppSettings.defaultVisionMaxLongEdge
 
+    @AppStorage(AppSettings.latencyHUDEnabledKey)
+    private var latencyHUDEnabled: Bool = AppSettings.defaultLatencyHUDEnabled
+
     // MARK: - Transient state
 
     @State private var modelReloading: Bool = false
@@ -367,6 +370,16 @@ struct SettingsView: View {
             Toggle(isOn: $askDiagnosticsEnabled) {
                 Label(L10n.key("settings.developer.askDiagnostics"),
                       systemImage: "stethoscope")
+            }
+            Toggle(isOn: $latencyHUDEnabled) {
+                Label(L10n.key("settings.developer.latencyHUD"),
+                      systemImage: "stopwatch")
+            }
+            if latencyHUDEnabled {
+                Label(L10n.key("settings.developer.latencyHUD.hint"),
+                      systemImage: "info.circle")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
             Toggle(isOn: $askThinkingEnabled) {
                 Label(L10n.key("settings.developer.askThinking"),

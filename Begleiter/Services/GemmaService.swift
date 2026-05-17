@@ -220,7 +220,8 @@ actor GemmaService {
     func generate(
         prompt: String,
         parameters: GenerateParameters? = nil,
-        enableThinking: Bool = false
+        enableThinking: Bool = false,
+        surface: String? = nil
     ) async throws -> String {
         try await generate(
             prompt: prompt,
@@ -228,7 +229,8 @@ actor GemmaService {
             enableThinking: enableThinking,
             instructions: nil,
             tools: nil,
-            toolDispatch: nil
+            toolDispatch: nil,
+            surface: surface
         )
     }
 
@@ -252,7 +254,8 @@ actor GemmaService {
         enableThinking: Bool = false,
         instructions: String? = nil,
         tools: [ToolSpec]? = nil,
-        toolDispatch: (@Sendable (ToolCall) async throws -> String)? = nil
+        toolDispatch: (@Sendable (ToolCall) async throws -> String)? = nil,
+        surface: String? = nil
     ) async throws -> String {
         let container = try await loadModel()
         let session = ChatSession(
@@ -354,6 +357,24 @@ actor GemmaService {
             gemmaLog.info(
                 "gemma.generate.done elapsedMs=\(elapsedMs, privacy: .public) ttftMs=\(ttftMs, privacy: .public) prefillMs=\(ttftMs, privacy: .public) decodeTokPerSec=\(decodeTokPerSecStr, privacy: .public) promptChars=\(promptChars, privacy: .public) outputTokensApprox=\(outputTokensApprox, privacy: .public) thinking=\(enableThinking, privacy: .public) tools=\(toolsCount, privacy: .public)"
             )
+            // Fire-and-forget hop to MainActor so the SwiftUI LatencyHUD
+            // can observe this sample. Failures do not record — the HUD
+            // keeps the last successful value rather than wiping to an
+            // error state.
+            let sample = GemmaLatencyHUD.Sample(
+                surface: surface ?? "gemma",
+                elapsedMs: elapsedMs,
+                ttftMs: ttftMs,
+                decodeTokPerSec: decodeTokPerSec,
+                promptChars: promptChars,
+                outputTokensApprox: outputTokensApprox,
+                thinking: enableThinking,
+                imageCount: nil,
+                timestamp: Date()
+            )
+            Task { @MainActor in
+                GemmaLatencyHUD.shared.record(sample)
+            }
             return raw
         } catch {
             let elapsedMs = (DispatchTime.now().uptimeNanoseconds - startNs) / 1_000_000
