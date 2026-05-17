@@ -1604,6 +1604,12 @@ actor AskService {
     /// - **Does not drop claims** — the parent always sees the model's
     ///   prose. The previous "drop on no surviving citation" behaviour
     ///   caused wholesale refusals when the 4-bit model hallucinated UUIDs.
+    ///
+    /// Public-facing docs must describe this as "citations validated,
+    /// uncited text warned" — not "every claim cited." The reviewer-facing
+    /// honesty is enforced in README, docs/WRITEUP §4.4, and
+    /// docs/KAGGLE_SUBMISSION; any future doc that says "every claim is
+    /// cited" is wrong about this code.
     static func filterAndWarn(
         claims: [AnswerClaim],
         validEntryIds: Set<UUID>,

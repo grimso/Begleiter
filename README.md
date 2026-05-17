@@ -4,12 +4,12 @@
 
 > _"In a two-year leukemia protocol, the doctors rotate. Parents are the only constant. We give them the tools to carry that weight."_
 
-A native iOS app (Swift / SwiftUI) for parents of children in AIEOP-BFM ALL 2017 treatment. Runs entirely on the iPhone — no network, no telemetry, no cloud. Gemma 4 E2B 4-bit (~2 GB resident) handles every model call via MLX-Swift. The architectural principle: **hard-code the protocol, use Gemma 4 for the soft work.** Every claim Gemma generates is cited back to a specific journal entry or corpus chunk; a post-hoc filter drops fabricated IDs before they reach the UI.
+A native iOS app (Swift / SwiftUI) for parents of children in AIEOP-BFM ALL 2017 treatment. Runs entirely on the iPhone — no network, no telemetry, no cloud. Gemma 4 E2B 4-bit (~2 GB resident) handles every model call via MLX-Swift. The architectural principle: **hard-code the protocol, use Gemma 4 for the soft work.** When Gemma cites a journal entry or corpus chunk, a post-hoc filter validates the citation against the surfaced context — fabricated IDs are dropped, and any uncited or advice-shaped claim surfaces a visible warning so the parent always sees both the model's prose and the safety signal attached to it.
 
 ## What it does
 
 - **Capture** — parent types, dictates, or photographs a journal entry. Gemma 4 extracts structured fields (drugs, lab values, decisions, parent observations, open questions) into a longitudinal SwiftData record.
-- **Briefing** — generates the night-before-appointment summary from the running journal, with `[E:UUID]` markers tying every claim back to the source entry.
+- **Briefing** — generates the night-before-appointment summary from the running journal. Claims attributed to a journal entry carry an `[E:UUID]` marker; claims attributed to the deterministic protocol state machine carry none. Advice-shaped prose is scrubbed to the canonical redirect message.
 - **Handoff** — produces a clinical-style one-page catch-up summary when a new rotating doctor takes over.
 - **Ask** — German Q&A grounded in the journal + a curated clinical corpus. Three modes (Settings → Entwicklung → Antwort-Modus):
   1. **Chat** (default) — single-shot retrieve-then-prompt, BM25 + optional E5 dense rerank.
