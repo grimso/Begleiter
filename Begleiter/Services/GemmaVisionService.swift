@@ -12,6 +12,7 @@ import Tokenizers
 import UniformTypeIdentifiers
 
 private let visionLog = Logger(subsystem: "io.grimso.Begleiter", category: "gemma.vision")
+private let gemmaVisionSignposter = OSSignposter(subsystem: "io.grimso.Begleiter", category: "gemma.vision")
 
 /// Loads Gemma 4 (4-bit) via mlx-swift-lm's **MLXVLM** factory and runs
 /// vision-conditioned prompts against it.
@@ -175,13 +176,96 @@ actor GemmaVisionService {
             maxLongEdge: AppSettings.visionMaxLongEdge
         )
         MemoryDiagnostics.snapshot(label: "vision.before-generate")
+        // Mirror of the text-service instrumentation in ``GemmaService.generate``.
+        // Same field schema (`elapsedMs`, `ttftMs`, `prefillMs`,
+        // `decodeTokPerSec`, `promptChars`, `outputTokensApprox`,
+        // `thinking`) so a single unified-log filter on `generate.done`
+        // catches both surfaces. `imageCount` is VLM-specific because
+        // attached patches dominate prefill cost.
+        let promptChars = prompt.count
+        let imageCount = images.count
+        let signpostID = gemmaVisionSignposter.makeSignpostID()
+        let signpostState = gemmaVisionSignposter.beginInterval(
+            "generate",
+            id: signpostID,
+            "thinking=\(enableThinking, privacy: .public) imageCount=\(imageCount, privacy: .public) promptChars=\(promptChars, privacy: .public)"
+        )
+        let prefillState = gemmaVisionSignposter.beginInterval(
+            "generate.prefill",
+            id: signpostID,
+            "promptChars=\(promptChars, privacy: .public) imageCount=\(imageCount, privacy: .public)"
+        )
+        let startNs = DispatchTime.now().uptimeNanoseconds
+        var ttftNs: UInt64 = 0
+        var prefillEnded = false
         defer {
             #if !targetEnvironment(simulator)
             MLX.Memory.clearCache()
             #endif
             MemoryDiagnostics.snapshot(label: "vision.after-generate")
         }
-        return try await session.respond(to: prompt, images: images, videos: [])
+        do {
+            var raw = ""
+            for try await chunk in session.streamResponse(
+                to: prompt, images: images, videos: []
+            ) {
+                if !prefillEnded {
+                    ttftNs = DispatchTime.now().uptimeNanoseconds - startNs
+                    gemmaVisionSignposter.endInterval(
+                        "generate.prefill",
+                        prefillState,
+                        "ttftMs=\(ttftNs / 1_000_000, privacy: .public)"
+                    )
+                    prefillEnded = true
+                }
+                raw += chunk
+            }
+            let elapsedNs = DispatchTime.now().uptimeNanoseconds - startNs
+            let elapsedMs = elapsedNs / 1_000_000
+            if !prefillEnded {
+                ttftNs = elapsedNs
+                gemmaVisionSignposter.endInterval(
+                    "generate.prefill",
+                    prefillState,
+                    "ttftMs=\(elapsedMs, privacy: .public) noTokens=true"
+                )
+                prefillEnded = true
+            }
+            let ttftMs = ttftNs / 1_000_000
+            let outputTokensApprox = raw.count / 4
+            let decodeSec = Double(elapsedNs - ttftNs) / 1_000_000_000.0
+            let decodeTokPerSec = decodeSec > 0
+                ? Double(outputTokensApprox) / decodeSec
+                : 0.0
+            let decodeTokPerSecStr = String(format: "%.1f", decodeTokPerSec)
+            gemmaVisionSignposter.endInterval(
+                "generate",
+                signpostState,
+                "elapsedMs=\(elapsedMs, privacy: .public) ttftMs=\(ttftMs, privacy: .public) outputTokensApprox=\(outputTokensApprox, privacy: .public)"
+            )
+            visionLog.info(
+                "gemma.vision.generate.done elapsedMs=\(elapsedMs, privacy: .public) ttftMs=\(ttftMs, privacy: .public) prefillMs=\(ttftMs, privacy: .public) decodeTokPerSec=\(decodeTokPerSecStr, privacy: .public) promptChars=\(promptChars, privacy: .public) outputTokensApprox=\(outputTokensApprox, privacy: .public) thinking=\(enableThinking, privacy: .public) imageCount=\(imageCount, privacy: .public)"
+            )
+            return raw
+        } catch {
+            let elapsedMs = (DispatchTime.now().uptimeNanoseconds - startNs) / 1_000_000
+            if !prefillEnded {
+                gemmaVisionSignposter.endInterval(
+                    "generate.prefill",
+                    prefillState,
+                    "error=true"
+                )
+            }
+            gemmaVisionSignposter.endInterval(
+                "generate",
+                signpostState,
+                "elapsedMs=\(elapsedMs, privacy: .public) error=true"
+            )
+            visionLog.error(
+                "gemma.vision.generate.failed elapsedMs=\(elapsedMs, privacy: .public) promptChars=\(promptChars, privacy: .public) imageCount=\(imageCount, privacy: .public)"
+            )
+            throw error
+        }
     }
 
     /// Load each URL via ImageIO with a `kCGImageSourceThumbnailMaxPixelSize`
