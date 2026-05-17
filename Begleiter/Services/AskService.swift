@@ -567,17 +567,40 @@ actor AskService {
         // short-circuit to "Im Journal finde ich dazu keinen Eintrag."
         // without calling Gemma. Prevents the model from paraphrasing a
         // topically-relevant corpus chunk into an answer that reads
-        // like a journal claim. In timeline-pack mode the journal
-        // source is empty only when the parent literally has zero
-        // entries matching the scope — the guard's intent ("no journal
-        // material to ground on") is preserved.
+        // like a journal claim.
+        //
+        // In timeline-pack mode the journal source is rarely empty
+        // (the pack pulls every filtered entry), so the original
+        // `journalSourceCount == 0` trigger never fires for a child
+        // with any history. To preserve the guard's intent — "no
+        // entry actually matches the event being asked about" — we
+        // run a one-shot BM25 query over the pack entries and treat
+        // zero hits as the same signal. This restores the §R2.4
+        // contract that an "Asparaginase-Reaktion?" question with no
+        // such reaction in the timeline gets a deterministic refusal
+        // rather than asking Gemma to infer absence from a 30-entry
+        // window.
         let eventDetected = EventQuestionDetector.looksLikeEventQuestion(question.text)
         debug = debug.with(eventQuestionDetected: eventDetected)
-        if AppSettings.askEventGuardEnabled,
-           journalSourceCount == 0,
-           eventDetected
+        let eventGuardEnabled = AppSettings.askEventGuardEnabled
+        let packBM25EventEmpty: Bool = {
+            guard eventGuardEnabled, eventDetected, timelinePackEnabled,
+                  !pack.entries.isEmpty else { return false }
+            let hits = retrieval.search(
+                query: question.text,
+                in: pack.entries,
+                filters: filters,
+                limit: 1
+            )
+            return hits.isEmpty
+        }()
+        if eventGuardEnabled, eventDetected,
+           journalSourceCount == 0 || packBM25EventEmpty
         {
-            askLog.info("event-question guard fired (journal empty, question is event-shaped)")
+            let reason = journalSourceCount == 0
+                ? "journal source empty"
+                : "pack BM25 has zero hits for event question"
+            askLog.info("event-question guard fired (\(reason, privacy: .public))")
             if rerankEnabled {
                 debug = debug.with(rerankSkippedReason: "event-question guard fired")
             }
@@ -1563,29 +1586,22 @@ actor AskService {
         chunks: [CorpusChunk],
         omittedMarker: String? = nil
     ) -> String {
+        // Single source of truth for entry rendering — delegate to
+        // `JournalTimelinePackBuilder.renderEntry` so the legacy BM25
+        // path and the pack path share format. Earlier the two
+        // renderers had drifted (the pack renderer included `frg:`
+        // open-questions and `ent:` decisions; this builder didn't)
+        // which made the "fit the journal into context" improvement
+        // only partial when timelinePackEnabled was off. Per-entry cap
+        // is high enough that BM25 top-4 entries are never truncated
+        // here; the pack builder applies its own tighter cap upstream
+        // when assembling for the long-context path.
         let entryBlocks = entries.enumerated().map { (idx, entry) -> String in
-            let date = dateFormatter.string(from: entry.visitDate)
-            let phase = entry.phase.rawValue
-            let f = entry.extractedFields
-            var lines: [String] = []
-            lines.append("[ENTRY \(idx + 1)] id=\(entry.entryId.uuidString) datum=\(date) phase=\(phase)")
-            if let summary = f.summary?.value, !summary.isEmpty {
-                lines.append("zusf: \(summary)")
-            }
-            if let drugs = f.drugsMentioned?.value, !drugs.isEmpty {
-                lines.append("med: \(drugs.map { $0.germanLabel }.joined(separator: ", "))")
-            }
-            if let labs = f.labValues?.value, !labs.isEmpty {
-                let lab = labs.map { "\($0.germanLabel) \($0.value)\($0.unit)" }.joined(separator: ", ")
-                lines.append("lab: \(lab)")
-            }
-            if let rx = f.reactions?.value, !rx.isEmpty {
-                lines.append("rx: \(rx.map { $0.description }.joined(separator: "; "))")
-            }
-            if let obs = f.parentObservations?.value, !obs.isEmpty {
-                lines.append("obs: \(obs.joined(separator: "; "))")
-            }
-            return lines.joined(separator: "\n")
+            JournalTimelinePackBuilder.renderEntry(
+                entry,
+                index: idx + 1,
+                perEntryCharCap: 4000
+            )
         }.joined(separator: "\n\n")
 
         let chunkBlocks = chunks.enumerated().map { (idx, chunk) -> String in

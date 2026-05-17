@@ -427,6 +427,15 @@ struct AgentTools: @unchecked Sendable {
     // MARK: - Handlers (static so unit tests can call them without
     //         constructing a full registry)
 
+    /// Per-call token budget for the timeline-pack variant of the
+    /// journal tool. Smaller than the single-shot pack budget (10 000
+    /// for E2B) because the custom-agent loop re-injects the tool
+    /// result on every turn — 10 000 tokens × 3 turns would dominate
+    /// the prefill. 4 000 tokens fits ~15 typical entries with full
+    /// extracted fields and leaves headroom for the agent's thinking
+    /// trace + final answer.
+    static let agentPackBudgetTokens: Int = 4000
+
     static func handleSearchJournal(
         _ input: SearchJournalInput,
         retrieval: RetrievalService,
@@ -450,6 +459,47 @@ struct AgentTools: @unchecked Sendable {
             filters.labsOnly = true
         }
 
+        // Timeline-pack path. When the user has the pack toggle on,
+        // the journal tool returns a chronological slice of filtered
+        // entries instead of BM25-ranked one-line snippets — so the
+        // custom-agent path benefits from the same long-context-Gemma
+        // story the `.chat` path ships, instead of the model having to
+        // page through with multiple keyword queries. The `query`
+        // argument is logged but does NOT drive ranking — the pack is
+        // already chronological. Filters (phase, drug, since, until,
+        // labs_only) still apply.
+        if AppSettings.askTimelinePackEnabled {
+            let filtered = RetrievalService.applyFilters(entries: entries, filters: filters)
+            let pack = JournalTimelinePackBuilder.build(
+                entries: filtered,
+                budgetTokens: agentPackBudgetTokens
+            )
+            guard !pack.entries.isEmpty else {
+                return "Keine passenden Journal-Einträge gefunden."
+            }
+            let header = "Timeline-Pack (\(pack.entries.count) Einträge, chronologisch oldest→newest) — jeder Eintrag muss in der Endantwort mit `[E:<UUID>]` zitiert werden. Abfrage: \"\(input.query)\"."
+            let body = pack.entries.enumerated().map { (idx, entry) -> String in
+                // Prefix each entry with its `[E:<UUID>]` citation
+                // marker — same convention as the legacy BM25 path
+                // (`formatEntrySnippet`). Without it the agent has
+                // to derive the citation form from the renderer's
+                // `id=<UUID>` header, which is technically possible
+                // but loses the load-bearing signal that this is
+                // the exact token to copy into a claim.
+                let rendered = JournalTimelinePackBuilder.renderEntry(
+                    entry,
+                    index: idx + 1,
+                    perEntryCharCap: 800
+                )
+                return "[E:\(entry.entryId.uuidString)]\n\(rendered)"
+            }.joined(separator: "\n\n")
+            if let marker = JournalTimelinePackBuilder.omittedMarker(for: pack) {
+                return [header, marker, body].joined(separator: "\n\n")
+            }
+            return [header, body].joined(separator: "\n\n")
+        }
+
+        // Legacy BM25 path — kept for the toggle-off A/B comparison.
         let hits = retrieval.search(
             query: input.query,
             in: entries,

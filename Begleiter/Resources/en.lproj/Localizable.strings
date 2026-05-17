@@ -144,6 +144,10 @@
 "handoff.section.medication" = "Current medication";
 "handoff.section.familyConcerns" = "Current family concerns";
 "handoff.claim.citationLabel" = "Cited journal entry";
+"docSpan.sheet.title" = "Source citation";
+"docSpan.sheet.chunkIndex" = "Chunk";
+"docSpan.sheet.highlightHint" = "The yellow-highlighted span is the longest run of characters from the cited chunk that appears verbatim in the original document.";
+"docSpan.sheet.noSpanHint" = "No verbatim span ≥ 30 characters was recovered — Gemma's paraphrase diverged too far from the source for an exact anchor. Showing the chunk text alone.";
 "briefing.disclaimer.protocolUnreviewed" = "Protocol-derived details (drug schedules, anticipated events, risk-group stratification) come from publicly published BFM 2017 schemas. The deterministic state machine is auditable Swift code; specific clinical values are not yet clinically reviewed and should be confirmed with the treating team.";
 
 // MARK: - Timeline

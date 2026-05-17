@@ -465,6 +465,40 @@ final class AskServiceTests: XCTestCase {
                       "Prompt must spell out the oldest → newest direction")
     }
 
+    /// §R2.3 fix: buildPrompt now delegates per-entry rendering to
+    /// `JournalTimelinePackBuilder.renderEntry`, so open questions
+    /// (`frg:`) and decisions (`ent:`) show up alongside the lab /
+    /// drug / reactions fields the legacy formatter already had.
+    /// Without this, the long-context story was partial — entries
+    /// reached Gemma with their most important parent-voice signals
+    /// stripped.
+    func test_buildPrompt_includesOpenQuestionsAndDecisions() {
+        let entry = JournalEntry(
+            entryId: UUID(),
+            childId: UUID(),
+            visitDate: .now,
+            phase: .consolidationM,
+            dayInPhase: 1,
+            riskGroup: .standardRisk,
+            arm: .standard,
+            inputModalities: ["text"],
+            rawText: nil,
+            extractedFields: ExtractedFields(
+                decisions: ConfidenceField(value: ["HD-MTX Zyklus 1 begonnen"], confidence: 0.9),
+                openQuestions: ConfidenceField(
+                    value: ["Wann darf wieder in die Schule?"],
+                    confidence: 0.9
+                ),
+                summary: ConfidenceField(value: "Routine", confidence: 0.95)
+            )
+        )
+        let prompt = AskService.buildPrompt(question: "x", entries: [entry], chunks: [])
+        XCTAssertTrue(prompt.contains("frg: Wann darf wieder in die Schule?"),
+                      "Prompt must render openQuestions on every entry block")
+        XCTAssertTrue(prompt.contains("ent: HD-MTX Zyklus 1 begonnen"),
+                      "Prompt must render decisions on every entry block")
+    }
+
     // MARK: - Surfaced-IDs scan (custom-agent citation universe)
 
     /// Tool outputs always emit `[E:<UUID>]` for journal hits and

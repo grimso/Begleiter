@@ -26,6 +26,7 @@ struct AskView: View {
 
     @State private var viewModel: AskViewModel?
     @State private var presentedChunk: CorpusChunk?
+    @State private var presentedDocumentSpan: PresentedDocumentSpan?
     @State private var pendingEntryDetailId: UUID?
     @State private var presentedDebugAnswer: AskAnswer?
     @FocusState private var inputFocused: Bool
@@ -53,6 +54,9 @@ struct AskView: View {
             }
             .sheet(item: $presentedChunk) { chunk in
                 CorpusChunkSheet(chunk: chunk)
+            }
+            .sheet(item: $presentedDocumentSpan) { presented in
+                DocumentSpanSheet(document: presented.document, chunk: presented.chunk)
             }
             .sheet(item: $presentedDebugAnswer) { answer in
                 AskDebugSheet(answer: answer)
@@ -283,23 +287,17 @@ struct AskView: View {
         case .corpus(let chunkId):
             presentedChunk = corpus.chunk(id: chunkId)
         case .document(let docId, let chunkIndex):
-            // Open the document store at the chunk. Inline routing
-            // is a follow-up — for now, surface the imported doc's
-            // chunk via the same sheet plumbing we already have by
-            // synthesising a one-off CorpusChunk wrapper.
+            // Open the dedicated document-span sheet at the cited
+            // chunk. When the chunk carries a `sourceSpan`, the sheet
+            // renders the original PDF text with the span highlighted
+            // — closing the "structured-memory citation vs source-
+            // span grounding" gap §R2.6 fixed. Falls back to the
+            // chunk text alone when no verbatim span was recovered.
             guard let doc = importedDocs.first(where: { $0.docId == docId }),
                   let chunk = doc.chunks.first(where: { $0.index == chunkIndex }) else {
                 return
             }
-            presentedChunk = CorpusChunk(
-                id: "D:\(docId.uuidString)#\(chunkIndex)",
-                source: .kinderkrebsinfo,
-                topicTags: [chunk.kind],
-                title: doc.title,
-                text: chunk.text,
-                referenceURL: nil,
-                updatedAt: ""
-            )
+            presentedDocumentSpan = PresentedDocumentSpan(document: doc, chunk: chunk)
         }
     }
 }

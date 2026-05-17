@@ -380,26 +380,38 @@ enum AppSettings {
         UserDefaults.standard.object(forKey: demoDefaultsAppliedAtKey) as? Date
     }
 
-    /// One-shot first-launch posture for fresh installs: flips the
-    /// default lab pipeline to ``LabPipelineMode/directMultimodal`` so a
-    /// judge running a fresh build lands on Gemma 4's multimodal vision
-    /// path without having to dig into Settings → Befund-Verarbeitung
-    /// first. **Guarded**: runs only when no migration has fired yet
+    /// One-shot first-launch posture for fresh installs: flips two
+    /// defaults so a judge running a fresh build lands on the
+    /// flagship Gemma 4 surfaces without having to dig into Settings:
+    ///
+    /// 1. ``LabPipelineMode/directMultimodal`` — Befund photos go
+    ///    straight to the vision tower.
+    /// 2. ``AskMode/customAgent`` — Ask uses the function-calling
+    ///    agent loop (`GemmaToolCallExtractor` + `AgentTools`)
+    ///    instead of the single-shot `.chat` path. Function calling
+    ///    is one of Gemma 4's three core differentiators; the demo
+    ///    video specifically routes through this mode.
+    ///
+    /// **Guarded**: runs only when no migration has fired yet
     /// (`!didApplyDemoDefaults`) AND the caller passes
     /// `isFreshInstall == true` (i.e. the SwiftData store has no
-    /// `ChildState`). Returns `true` iff it actually wrote any defaults.
+    /// `ChildState`). Returns `true` iff it actually wrote any
+    /// defaults.
     ///
     /// Once applied, ``didApplyDemoDefaults`` is `true` and this call
     /// is a no-op for that install. A parent who later switches lab
-    /// pipeline back to `.ocrThenGemma` is never re-overridden — the
-    /// flag stays set and the migration never runs again on that
-    /// device.
+    /// pipeline or ask mode back is never re-overridden — the flag
+    /// stays set and the migration never runs again on that device.
     @discardableResult
     nonisolated static func applyDemoDefaultsIfNeeded(isFreshInstall: Bool) -> Bool {
         guard !didApplyDemoDefaults, isFreshInstall else { return false }
         UserDefaults.standard.set(
             LabPipelineMode.directMultimodal.rawValue,
             forKey: labPipelineModeKey
+        )
+        UserDefaults.standard.set(
+            AskMode.customAgent.rawValue,
+            forKey: askModeKey
         )
         UserDefaults.standard.set(true, forKey: didApplyDemoDefaultsKey)
         UserDefaults.standard.set(Date(), forKey: demoDefaultsAppliedAtKey)

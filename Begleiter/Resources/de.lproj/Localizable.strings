@@ -144,6 +144,10 @@
 "handoff.section.medication" = "Aktuelle Medikation";
 "handoff.section.familyConcerns" = "Aktuelle Anliegen der Familie";
 "handoff.claim.citationLabel" = "Zitierter Journal-Eintrag";
+"docSpan.sheet.title" = "Quellenangabe";
+"docSpan.sheet.chunkIndex" = "Abschnitt";
+"docSpan.sheet.highlightHint" = "Der gelb markierte Bereich ist die längste Zeichenfolge aus dem zitierten Abschnitt, die wörtlich im Originaldokument vorkommt.";
+"docSpan.sheet.noSpanHint" = "Keine wörtliche Übereinstimmung ≥ 30 Zeichen gefunden — Gemmas Paraphrase weicht zu stark vom Quelltext ab, um eine eindeutige Verankerung zuzulassen. Es wird nur der Abschnittstext angezeigt.";
 "briefing.disclaimer.protocolUnreviewed" = "Protokoll-basierte Angaben (Medikamentenpläne, zu erwartende Ereignisse, Risikogruppen-Stratifizierung) stammen aus öffentlich publizierten BFM-2017-Schemata. Die deterministische Logik ist nachvollziehbarer Swift-Code; konkrete klinische Werte sind noch nicht klinisch validiert und mit dem Behandlungsteam abzugleichen.";
 
 // MARK: - Timeline
