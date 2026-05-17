@@ -199,8 +199,8 @@ enum DemoDataLoader {
                     DrugMention(name: "vincristine", germanLabel: "Vincristin", doseDescription: "1.5 mg/m² i.v.", administeredAt: nil),
                 ],
                 labs: [
-                    lab("WBC", "Leukozyten", value: 2.1, unit: "G/L", refMin: 4.0, refMax: 10.0, daysAgo: 63),
-                    lab("ANC", "Neutrophile", value: 0.9, unit: "G/L", refMin: 1.5, refMax: 7.0, daysAgo: 63),
+                    lab("WBC", "Leukozyten", value: 2.1, unit: "10³/µL", refMin: 4.0, refMax: 10.0, daysAgo: 63),
+                    lab("ANC", "Neutrophile", value: 0.9, unit: "10³/µL", refMin: 1.5, refMax: 7.0, daysAgo: 63),
                 ],
                 observations: ["leicht müde", "isst gut", "schläft normal"]
             ),
@@ -238,8 +238,8 @@ enum DemoDataLoader {
                     DrugMention(name: "piperacillin-tazobactam", germanLabel: "Piperacillin/Tazobactam", doseDescription: "4 g/0.5 g i.v.", administeredAt: nil),
                 ],
                 labs: [
-                    lab("WBC", "Leukozyten", value: 0.8, unit: "G/L", refMin: 4.0, refMax: 10.0, daysAgo: 42),
-                    lab("ANC", "Neutrophile", value: 0.2, unit: "G/L", refMin: 1.5, refMax: 7.0, daysAgo: 42),
+                    lab("WBC", "Leukozyten", value: 0.8, unit: "10³/µL", refMin: 4.0, refMax: 10.0, daysAgo: 42),
+                    lab("ANC", "Neutrophile", value: 0.2, unit: "10³/µL", refMin: 1.5, refMax: 7.0, daysAgo: 42),
                     lab("CRP", "CRP", value: 48, unit: "mg/L", refMin: 0, refMax: 5, daysAgo: 42),
                 ],
                 reactions: [
@@ -253,9 +253,9 @@ enum DemoDataLoader {
                 summary: "Aplasie überwunden, Werte erholen sich",
                 rawText: "Heute beim Kontrolltermin. WBC zurück auf 1.8, ANC bei 0.6 und wieder steigend. Entlassung gestern aus der Klinik. Stimmung deutlich besser, isst wieder normal.",
                 labs: [
-                    lab("WBC", "Leukozyten", value: 1.8, unit: "G/L", refMin: 4.0, refMax: 10.0, daysAgo: 30),
-                    lab("ANC", "Neutrophile", value: 0.6, unit: "G/L", refMin: 1.5, refMax: 7.0, daysAgo: 30),
-                    lab("PLT", "Thrombozyten", value: 95, unit: "G/L", refMin: 150, refMax: 400, daysAgo: 30),
+                    lab("WBC", "Leukozyten", value: 1.8, unit: "10³/µL", refMin: 4.0, refMax: 10.0, daysAgo: 30),
+                    lab("ANC", "Neutrophile", value: 0.6, unit: "10³/µL", refMin: 1.5, refMax: 7.0, daysAgo: 30),
+                    lab("PLT", "Thrombozyten", value: 95, unit: "10³/µL", refMin: 150, refMax: 400, daysAgo: 30),
                     lab("Hb", "Hämoglobin", value: 9.4, unit: "g/dL", refMin: 11.0, refMax: 14.0, daysAgo: 30),
                 ],
                 observations: ["isst gut", "spielt wieder", "schläft normal"]
@@ -284,9 +284,9 @@ enum DemoDataLoader {
                     DrugMention(name: "leucovorin", germanLabel: "Leucovorin", doseDescription: "Rescue 15 mg/m²", administeredAt: nil),
                 ],
                 labs: [
-                    lab("WBC", "Leukozyten", value: 4.2, unit: "G/L", refMin: 4.0, refMax: 10.0, daysAgo: 13),
-                    lab("ANC", "Neutrophile", value: 2.1, unit: "G/L", refMin: 1.5, refMax: 7.0, daysAgo: 13),
-                    lab("PLT", "Thrombozyten", value: 165, unit: "G/L", refMin: 150, refMax: 400, daysAgo: 13),
+                    lab("WBC", "Leukozyten", value: 4.2, unit: "10³/µL", refMin: 4.0, refMax: 10.0, daysAgo: 13),
+                    lab("ANC", "Neutrophile", value: 2.1, unit: "10³/µL", refMin: 1.5, refMax: 7.0, daysAgo: 13),
+                    lab("PLT", "Thrombozyten", value: 165, unit: "10³/µL", refMin: 150, refMax: 400, daysAgo: 13),
                 ],
                 observations: ["fühlt sich okay", "viel Trinken klappt"],
                 decisions: ["HD-MTX Zyklus 1 begonnen", "Leucovorin nach Schema"]
@@ -305,9 +305,9 @@ enum DemoDataLoader {
                 summary: "Routinekontrolle, Werte stabil",
                 rawText: "Routinekontrolle ambulant. Labor abgenommen, klinisch unauffällig. Stimmung gut, wir konnten heute eine Stunde rausgehen.",
                 labs: [
-                    lab("WBC", "Leukozyten", value: 3.8, unit: "G/L", refMin: 4.0, refMax: 10.0, daysAgo: 4),
-                    lab("ANC", "Neutrophile", value: 1.6, unit: "G/L", refMin: 1.5, refMax: 7.0, daysAgo: 4),
-                    lab("PLT", "Thrombozyten", value: 178, unit: "G/L", refMin: 150, refMax: 400, daysAgo: 4),
+                    lab("WBC", "Leukozyten", value: 3.8, unit: "10³/µL", refMin: 4.0, refMax: 10.0, daysAgo: 4),
+                    lab("ANC", "Neutrophile", value: 1.6, unit: "10³/µL", refMin: 1.5, refMax: 7.0, daysAgo: 4),
+                    lab("PLT", "Thrombozyten", value: 178, unit: "10³/µL", refMin: 150, refMax: 400, daysAgo: 4),
                     lab("Hb", "Hämoglobin", value: 10.1, unit: "g/dL", refMin: 11.0, refMax: 14.0, daysAgo: 4),
                 ],
                 observations: ["aktiv", "isst gut", "fragt nach Schule"],
