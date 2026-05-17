@@ -399,19 +399,18 @@ struct SettingsView: View {
                 Label(L10n.key("settings.developer.askEventGuard"),
                       systemImage: "calendar.badge.exclamationmark")
             }
+            // Picker intentionally omits `.mlxToolCall` — that mode is the
+            // broken-upstream evidence path (see
+            // `docs/upstream-issue-gemma4-toolcall.md`). The enum case + the
+            // engine code stay so the existing UserDefaults migration in
+            // `AppSettings.askMode` still resolves cleanly for legacy
+            // installs; we just don't expose it as a parent-facing option.
             Picker(selection: askMode) {
                 Text(L10n.key("settings.developer.askMode.chat")).tag(AskMode.chat)
-                Text(L10n.key("settings.developer.askMode.mlxToolCall")).tag(AskMode.mlxToolCall)
                 Text(L10n.key("settings.developer.askMode.customAgent")).tag(AskMode.customAgent)
             } label: {
                 Label(L10n.key("settings.developer.askMode"),
                       systemImage: "wrench.and.screwdriver")
-            }
-            if askMode.wrappedValue == .mlxToolCall {
-                Label(L10n.key("settings.developer.askMode.mlxToolCall.warning"),
-                      systemImage: "exclamationmark.triangle.fill")
-                    .font(.caption)
-                    .foregroundStyle(.red)
             }
             if askMode.wrappedValue == .customAgent {
                 Label(L10n.key("settings.developer.askMode.customAgent.hint"),
