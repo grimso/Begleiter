@@ -175,10 +175,14 @@ final class HandoffServiceTests: XCTestCase {
 
     // MARK: - Filter + scrub
 
-    /// Bullets whose entryId isn't in the surfaced set must be dropped
-    /// before the document is returned to the rotating doctor — same
-    /// contract as BriefingService.filterUngroundedClaims.
-    func test_filterAndScrub_dropsUnknownEntryIds() {
+    /// §R2.2 contract: handoff filterAndScrub now drops BOTH
+    /// hallucinated and uncited (entryId == nil) Gemma bullets. The
+    /// prompt forbids uncited prose; an uncited bullet in the output
+    /// is instruction-following failure and must not reach the
+    /// rotating doctor's document. Deterministic history (entryId
+    /// nil) is grafted on later in `generateHandoff()` and does not
+    /// go through this filter.
+    func test_filterAndScrub_dropsHallucinatedAndUncitedBullets() {
         let surfaced = UUID()
         let hallucinated = UUID()
         let prose = HandoffService.ProseSections(
@@ -188,18 +192,19 @@ final class HandoffServiceTests: XCTestCase {
                 HandoffClaim(text: "No-citation bullet", entryId: nil),
             ],
             reaktionen: [HandoffClaim(text: "Hallucinated reaction", entryId: hallucinated)],
-            familienanliegen: []
+            familienanliegen: [HandoffClaim(text: "Uncited concern", entryId: nil)]
         )
         let filtered = HandoffService.filterAndScrub(
             prose,
             validEntryIds: [surfaced]
         )
-        XCTAssertEqual(filtered.behandlungsverlauf.count, 2,
-                       "Bullets with surfaced or nil entryId are kept; hallucinated dropped")
-        XCTAssertEqual(filtered.behandlungsverlauf.map(\.text),
-                       ["Surfaced bullet", "No-citation bullet"])
+        XCTAssertEqual(filtered.behandlungsverlauf.count, 1,
+                       "Only the surfaced-entry bullet survives the filter")
+        XCTAssertEqual(filtered.behandlungsverlauf[0].text, "Surfaced bullet")
         XCTAssertTrue(filtered.reaktionen.isEmpty,
-                      "Sole hallucinated reaction must be filtered out")
+                      "Hallucinated reaction is dropped")
+        XCTAssertTrue(filtered.familienanliegen.isEmpty,
+                      "§R2.2: uncited (entryId == nil) bullets are dropped")
     }
 
     /// Advice-shaped prose gets scrubbed to the canonical
@@ -249,13 +254,22 @@ final class HandoffServiceTests: XCTestCase {
         )
         XCTAssertTrue(prompt.contains("entryId"),
                       "Handoff prompt must mention entryId so Gemma emits citation field")
-        XCTAssertTrue(prompt.contains("cites"),
+        XCTAssertTrue(prompt.contains("cite"),
                       "Handoff prompt must instruct citation behaviour")
+        XCTAssertTrue(prompt.contains("omit"),
+                      "Handoff prompt must instruct the model to omit (not emit-and-uncited) when no entry fits")
     }
 
     // MARK: - Plain-text serialization
 
-    func test_plainText_includesAllSections() {
+    /// §R2.1 contract: the share-sheet artifact must carry the
+    /// clinical-validation disclaimer as a HINWEIS: block and tag
+    /// every Gemma-sourced bullet with `[E:<short-uuid>]` so
+    /// traceability survives AirDrop / Mail / share-sheet export.
+    /// Deterministic history bullets (entryId nil) export without a
+    /// marker.
+    func test_plainText_includesDisclaimerAndCitationMarkers() {
+        let reactionEntryId = UUID()
         let doc = HandoffDocument(
             generatedAt: .now,
             language: .german,
@@ -275,11 +289,22 @@ final class HandoffServiceTests: XCTestCase {
                     referenceRange: "1.5–8.0 G/L"
                 )
             ],
-            reaktionen: [HandoffClaim(text: "Hautausschlag", entryId: UUID())],
+            reaktionen: [HandoffClaim(text: "Hautausschlag", entryId: reactionEntryId)],
             aktuelleMedikation: ["Vincristin"],
             familienanliegen: [HandoffClaim(text: "Sorge wegen Infekt", entryId: nil)]
         )
         let text = HandoffDocumentView.plainText(of: doc)
+        XCTAssertTrue(text.contains("HINWEIS:"),
+                      "Export must carry the clinical-validation disclaimer header")
+        XCTAssertTrue(text.contains("BFM-2017"),
+                      "Disclaimer text must mention the protocol so the receiving doctor sees the context")
+        let shortMarker = "[E:\(reactionEntryId.uuidString.prefix(8))]"
+        XCTAssertTrue(text.contains(shortMarker),
+                      "Gemma-sourced bullets must carry the short-UUID marker — actual: \(text)")
+        // Deterministic-history bullet must NOT carry a marker.
+        XCTAssertTrue(text.contains("Induktion IA komplett"))
+        XCTAssertFalse(text.contains("Induktion IA komplett [E:"),
+                       "Deterministic history bullets (entryId nil) export without a marker")
         XCTAssertTrue(text.contains("ÜBERGABE — ABC12345"))
         XCTAssertTrue(text.contains("BEHANDLUNGSVERLAUF"))
         XCTAssertTrue(text.contains("AKTUELLE LABORE"))

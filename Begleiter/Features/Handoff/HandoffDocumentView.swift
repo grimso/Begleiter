@@ -204,9 +204,24 @@ struct HandoffDocumentView: View {
     }
 
     /// Plain-text serialization for AirDrop / Mail / share sheet.
+    ///
+    /// The exported artifact is what reaches a rotating doctor — the
+    /// reviewer flagged that the in-app safety surface (clinical
+    /// disclaimer banner + citation chips) had no equivalent on the
+    /// share-sheet boundary. This rewrite restores both:
+    /// - The clinical-validation disclaimer ships as a `HINWEIS:` block
+    ///   immediately under the patient header, so the receiving
+    ///   physician sees it before any clinical content.
+    /// - Every bullet sourced from a journal entry appends `[E:<short>]`
+    ///   where `<short>` is the first 8 characters of the entry UUID,
+    ///   matching the chip the in-app view renders. Bullets without an
+    ///   `entryId` (deterministic phase history from
+    ///   `ChildState.completedPhases`) export without a marker.
     static func plainText(of doc: HandoffDocument) -> String {
         var lines: [String] = []
         lines.append("ÜBERGABE — \(doc.patientId)")
+        lines.append("")
+        lines.append("HINWEIS: Protokoll-basierte Angaben (Medikamentenpläne, zu erwartende Ereignisse, Risikogruppen-Stratifizierung) stammen aus öffentlich publizierten BFM-2017-Schemata. Konkrete klinische Werte sind nicht klinisch validiert und mit dem Behandlungsteam abzugleichen.")
         lines.append("")
         lines.append("Diagnose: \(doc.diagnose)")
         lines.append("Risikogruppe: \(doc.riskGroupLabel)")
@@ -215,7 +230,7 @@ struct HandoffDocumentView: View {
         lines.append("")
         if !doc.behandlungsverlauf.isEmpty {
             lines.append("BEHANDLUNGSVERLAUF:")
-            lines.append(contentsOf: doc.behandlungsverlauf.map { "  • \($0.text)" })
+            lines.append(contentsOf: doc.behandlungsverlauf.map(Self.formatBullet))
             lines.append("")
         }
         if !doc.aktuelleLabore.isEmpty {
@@ -229,7 +244,7 @@ struct HandoffDocumentView: View {
         }
         if !doc.reaktionen.isEmpty {
             lines.append("REAKTIONEN / NEBENWIRKUNGEN:")
-            lines.append(contentsOf: doc.reaktionen.map { "  • \($0.text)" })
+            lines.append(contentsOf: doc.reaktionen.map(Self.formatBullet))
             lines.append("")
         }
         if !doc.aktuelleMedikation.isEmpty {
@@ -239,11 +254,19 @@ struct HandoffDocumentView: View {
         }
         if !doc.familienanliegen.isEmpty {
             lines.append("ANLIEGEN DER FAMILIE:")
-            lines.append(contentsOf: doc.familienanliegen.map { "  • \($0.text)" })
+            lines.append(contentsOf: doc.familienanliegen.map(Self.formatBullet))
             lines.append("")
         }
         lines.append("— Erstellt mit Begleiter, on-device.")
         return lines.joined(separator: "\n")
+    }
+
+    private static func formatBullet(_ claim: HandoffClaim) -> String {
+        if let entryId = claim.entryId {
+            let short = String(entryId.uuidString.prefix(8))
+            return "  • \(claim.text) [E:\(short)]"
+        }
+        return "  • \(claim.text)"
     }
 }
 

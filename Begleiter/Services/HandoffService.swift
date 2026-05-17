@@ -289,7 +289,7 @@ actor HandoffService {
 
         Rules:
         - Never invent values. Copy concrete numbers and medical terms verbatim from the entries.
-        - Every bullet cites the specific journal entry it summarises via `entryId` — use only the UUIDs that appear in the Entries block below. If no single entry fits, set `entryId` to `null`.
+        - Every bullet MUST cite the specific journal entry it summarises via `entryId` — use only the UUIDs that appear in the Entries block below. Do not emit a bullet that you cannot tie to a single entry; omit it entirely instead.
         - No advice, diagnosis, dose calculation, or interpretation — only summarise what's documented.
 
         Context:
@@ -302,9 +302,9 @@ actor HandoffService {
 
         Schema:
         {
-          "behandlungsverlauf": [{"text": "<bullet 1>", "entryId": "<UUID or null>"}],
-          "reaktionen": [{"text": "<reaction / adverse event>", "entryId": "<UUID or null>"}],
-          "familienanliegen": [{"text": "<current family concern>", "entryId": "<UUID or null>"}]
+          "behandlungsverlauf": [{"text": "<bullet 1>", "entryId": "<UUID>"}],
+          "reaktionen": [{"text": "<reaction / adverse event>", "entryId": "<UUID>"}],
+          "familienanliegen": [{"text": "<current family concern>", "entryId": "<UUID>"}]
         }
 
         JSON:
@@ -339,22 +339,29 @@ actor HandoffService {
 
     // MARK: - Filter + scrub
 
-    /// Apply the same warn-validate contract `BriefingService` uses
-    /// (`filterUngroundedClaims`, BriefingService.swift:206) to every
-    /// section of a `ProseSections`:
+    /// Strict cite-or-drop contract for Gemma-generated handoff prose:
     ///
-    /// 1. **Drop** any claim with a non-nil `entryId` that isn't in
-    ///    `validEntryIds`. Hallucinated UUIDs never reach the rotating
-    ///    doctor's handoff document.
-    /// 2. **Scrub** advice-shaped prose via `RefusalService.scrubbed`.
+    /// 1. **Drop** any claim with `entryId == nil` — the prompt
+    ///    instructs Gemma to omit bullets it can't tie to a specific
+    ///    journal entry. After the §R2.2 tightening, an uncited bullet
+    ///    is treated as instruction-following failure and dropped at
+    ///    the boundary rather than reaching the rotating doctor as
+    ///    untraceable clinical prose.
+    /// 2. **Drop** any claim whose `entryId` isn't in `validEntryIds`
+    ///    (hallucinated UUID).
+    /// 3. **Scrub** advice-shaped prose via `RefusalService.scrubbed`.
     ///    Replaces text matching the clinical-advice clue-phrase list
     ///    (RefusalService.swift:66–98) with the canonical redirect
     ///    message, then strips the `entryId` (the redirected text no
-    ///    longer cites the original source).
-    /// 3. **Keep** claims with `entryId == nil` — they're attributable
-    ///    to the protocol state machine or are Gemma-generated text
-    ///    without a single-entry source. The renderer simply omits the
-    ///    citation chip for those.
+    ///    longer cites the original source — surviving as a scrubbed
+    ///    bullet with no chip is fine; the redirect is itself a
+    ///    parent-facing string, not a clinical claim).
+    ///
+    /// Deterministic history (e.g. completed phases from
+    /// `ChildState.completedPhases`) carries `entryId == nil` by design
+    /// and **must not** go through this filter — it's grafted on later
+    /// inside `generateHandoff()` as the fallback when filtered Gemma
+    /// output is empty.
     ///
     /// Pure function; no Gemma calls. Exposed `static` so tests can
     /// exercise the contract directly with synthetic ProseSections.
@@ -362,6 +369,11 @@ actor HandoffService {
         _ prose: ProseSections,
         validEntryIds: Set<UUID>
     ) -> ProseSections {
+        func keep(_ claim: HandoffClaim) -> Bool {
+            // Drop uncited Gemma prose — the prompt forbids it.
+            guard let id = claim.entryId else { return false }
+            return validEntryIds.contains(id)
+        }
         func scrub(_ claim: HandoffClaim) -> HandoffClaim {
             let scrubbed = RefusalService.scrubbed(claim.text)
             // When the text was rewritten to the redirect message, the
@@ -369,10 +381,6 @@ actor HandoffService {
             // strip it so the UI doesn't render a misleading chip.
             let preservedId = (scrubbed == claim.text) ? claim.entryId : nil
             return HandoffClaim(text: scrubbed, entryId: preservedId)
-        }
-        func keep(_ claim: HandoffClaim) -> Bool {
-            guard let id = claim.entryId else { return true }
-            return validEntryIds.contains(id)
         }
         return ProseSections(
             behandlungsverlauf: prose.behandlungsverlauf.filter(keep).map(scrub),
