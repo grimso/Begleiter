@@ -66,9 +66,6 @@ struct SettingsView: View {
     @AppStorage(AppSettings.askTimelinePackEnabledKey)
     private var askTimelinePackEnabled: Bool = AppSettings.defaultAskTimelinePackEnabled
 
-    @AppStorage(AppSettings.askAgentEnabledKey)
-    private var askAgentEnabled: Bool = AppSettings.defaultAskAgentEnabled
-
     @AppStorage(AppSettings.askModeKey)
     private var askModeRaw: String = AskMode.chat.rawValue
 
