@@ -103,11 +103,8 @@ struct HandoffDocumentView: View {
     private func documentForm(_ doc: HandoffDocument) -> some View {
         Form {
             // Same clinical-validation disclaimer the briefing surface
-            // ships. The handoff is a clinician-facing document but
-            // still draws phase / risk-group / drug labels from the
-            // CLINICAL-REVIEW-marked `PhaseMetadata` tables; pinning
-            // the disclaimer here keeps the receiving doctor honest
-            // about what's auditable code vs what needs advisor sweep.
+            // ships. The handoff draws phase / risk-group / drug labels
+            // from the CLINICAL-REVIEW-marked `PhaseMetadata` tables.
             Section {
                 Label {
                     Text(L10n.key("briefing.disclaimer.protocolUnreviewed"))
