@@ -17,28 +17,24 @@ nonisolated struct Briefing: Codable, Hashable, Sendable {
     let offenePunkte: [BriefingClaim]
     /// Three suggested questions the parent might want to ask.
     let fragenVorschlaege: [String]
-    /// Concrete things to bring (lab booklet, Heparin pen, ID, etc.).
-    let mitzunehmen: [String]
 
     init(
         targetDate: Date,
         aktuellerStand: BriefingClaim,
         seitDemLetztenTermin: [BriefingClaim],
         offenePunkte: [BriefingClaim],
-        fragenVorschlaege: [String],
-        mitzunehmen: [String]
+        fragenVorschlaege: [String]
     ) {
         self.targetDate = targetDate
         self.aktuellerStand = aktuellerStand
         self.seitDemLetztenTermin = seitDemLetztenTermin
         self.offenePunkte = offenePunkte
         self.fragenVorschlaege = fragenVorschlaege
-        self.mitzunehmen = mitzunehmen
     }
 
     private enum CodingKeys: String, CodingKey {
         case targetDate, aktuellerStand, seitDemLetztenTermin
-        case offenePunkte, fragenVorschlaege, mitzunehmen
+        case offenePunkte, fragenVorschlaege
     }
 
     /// Tolerant decoder. Briefing's schema has many required fields; the
@@ -65,7 +61,6 @@ nonisolated struct Briefing: Codable, Hashable, Sendable {
         self.seitDemLetztenTermin = (try? c.decode([BriefingClaim].self, forKey: .seitDemLetztenTermin)) ?? []
         self.offenePunkte = (try? c.decode([BriefingClaim].self, forKey: .offenePunkte)) ?? []
         self.fragenVorschlaege = (try? c.decode([String].self, forKey: .fragenVorschlaege)) ?? []
-        self.mitzunehmen = (try? c.decode([String].self, forKey: .mitzunehmen)) ?? []
     }
 
     private static let dateFormatter: DateFormatter = {

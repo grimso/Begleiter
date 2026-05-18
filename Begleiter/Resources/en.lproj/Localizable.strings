@@ -118,7 +118,6 @@
 "briefing.section.seitDemLetztenTermin" = "Since the last appointment";
 "briefing.section.offenePunkte" = "Open points";
 "briefing.section.fragen" = "Suggested questions";
-"briefing.section.mitzunehmen" = "What to bring";
 
 // MARK: - Handoff (one-page document for new rotating doctor)
 "handoff.title" = "Handover";

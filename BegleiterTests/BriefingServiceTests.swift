@@ -112,8 +112,7 @@ final class BriefingServiceTests: XCTestCase {
             offenePunkte: [
                 BriefingClaim(text: "fabricated open", entryId: unknownId),
             ],
-            fragenVorschlaege: ["Frage 1"],
-            mitzunehmen: ["Heparin"]
+            fragenVorschlaege: ["Frage 1"]
         )
         let filtered = BriefingService.filterUngroundedClaims(briefing, validEntryIds: [validId])
         XCTAssertEqual(filtered.seitDemLetztenTermin.count, 2,
@@ -135,8 +134,7 @@ final class BriefingServiceTests: XCTestCase {
             aktuellerStand: BriefingClaim(text: "header", entryId: unknownId),
             seitDemLetztenTermin: [],
             offenePunkte: [],
-            fragenVorschlaege: [],
-            mitzunehmen: []
+            fragenVorschlaege: []
         )
         let filtered = BriefingService.filterUngroundedClaims(briefing, validEntryIds: [validId])
         // Keeps the text but strips the bogus entryId so the UI doesn't show
@@ -155,8 +153,7 @@ final class BriefingServiceTests: XCTestCase {
           "aktuellerStand": {"text": "Phase IA Tag 12", "entryId": "\(id.uuidString)"},
           "seitDemLetztenTermin": [],
           "offenePunkte": [],
-          "fragenVorschlaege": ["Frage A"],
-          "mitzunehmen": ["Pass"]
+          "fragenVorschlaege": ["Frage A"]
         }
         """
         let briefing = try BriefingService.parseBriefing(from: json, visitDate: .now)

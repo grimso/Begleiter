@@ -94,8 +94,7 @@ actor BriefingService {
                 aktuellerStand: parsed.aktuellerStand,
                 seitDemLetztenTermin: parsed.seitDemLetztenTermin,
                 offenePunkte: parsed.offenePunkte,
-                fragenVorschlaege: parsed.fragenVorschlaege,
-                mitzunehmen: parsed.mitzunehmen
+                fragenVorschlaege: parsed.fragenVorschlaege
             )
             : parsed
 
@@ -150,7 +149,6 @@ actor BriefingService {
         - Never invent values. Copy concrete numbers and German medical terms verbatim from the entries.
         - No advice, diagnosis, dose calculation, or interpretation — structure and summarise what the parent documented.
         - Three "fragenVorschlaege" — concrete, anchored in this child's history.
-        - "mitzunehmen" — practical items the parent should bring (e.g. Heparin-Block, Wäsche, Pass, Impfheft, Lab-Werte).
 
         Context:
         - visitDate: \(dateString)
@@ -171,8 +169,7 @@ actor BriefingService {
           "offenePunkte": [
             { "text": "<open item, German>", "entryId": "<UUID>" }
           ],
-          "fragenVorschlaege": ["<German question 1>", "<German question 2>", "<German question 3>"],
-          "mitzunehmen": ["<item 1>", "<item 2>"]
+          "fragenVorschlaege": ["<German question 1>", "<German question 2>", "<German question 3>"]
         }
 
         JSON:
@@ -223,8 +220,7 @@ actor BriefingService {
             aktuellerStand: stand,
             seitDemLetztenTermin: briefing.seitDemLetztenTermin.filter(keep).map(scrub),
             offenePunkte: briefing.offenePunkte.filter(keep).map(scrub),
-            fragenVorschlaege: briefing.fragenVorschlaege,
-            mitzunehmen: briefing.mitzunehmen
+            fragenVorschlaege: briefing.fragenVorschlaege
         )
     }
 

@@ -8,7 +8,6 @@ import SwiftUI
 /// - Was war seit dem letzten Termin
 /// - Offene Punkte
 /// - Drei Vorschläge für Fragen
-/// - Was mitnehmen
 ///
 /// Every claim has a tappable citation chip that opens the source
 /// `JournalEntry` via `EntryDetailView`.
@@ -93,11 +92,8 @@ struct PreVisitBriefingView: View {
     private func briefingSections(_ briefing: Briefing) -> some View {
         // Clinical-validation disclaimer. Briefing prose draws on
         // `PhaseMetadata` drug schedules and concern lists that are
-        // currently marked CLINICAL-REVIEW across `Begleiter/Protocol/`
-        // (90+ markers; risk-group stratification + anticipated events
-        // are stub data). The banner makes that surface honest for
-        // judges + parents: the structure is auditable Swift code, but
-        // specific clinical values still need an advisor sweep.
+        // marked CLINICAL-REVIEW: the structure is auditable Swift,
+        // but specific clinical values still need an advisor sweep.
         Section {
             Label {
                 Text(L10n.key("briefing.disclaimer.protocolUnreviewed"))
@@ -153,16 +149,6 @@ struct PreVisitBriefingView: View {
             .listRowBackground(Color("BegleiterCardSurface"))
         }
 
-        if !briefing.mitzunehmen.isEmpty {
-            Section {
-                ForEach(briefing.mitzunehmen, id: \.self) { item in
-                    Label(item, systemImage: "bag")
-                }
-            } header: {
-                Text(L10n.key("briefing.section.mitzunehmen"))
-            }
-            .listRowBackground(Color("BegleiterCardSurface"))
-        }
     }
 
     @ViewBuilder
