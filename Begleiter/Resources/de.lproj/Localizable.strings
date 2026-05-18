@@ -76,10 +76,6 @@
 
 // MARK: - Home (post-onboarding entry: wordmark + three primary cards)
 "home.tagline" = "Companion — Your smart AIEOP-BFM ALL continuity layer";
-"home.greeting.morning" = "Guten Morgen";
-"home.greeting.afternoon" = "Guten Tag";
-"home.greeting.evening" = "Guten Abend";
-"home.greeting.subheader" = "Hier ist Ihr Überblick.";
 "home.card.journal.title" = "Tagebuch";
 "home.card.journal.subtitle" = "Notizen, die wirklich zählen.";
 "home.card.labs.title" = "Blutwerte";

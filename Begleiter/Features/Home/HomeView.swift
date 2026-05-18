@@ -3,10 +3,8 @@ import SwiftUI
 
 /// Home tab in the root `TabView`. Visual identity:
 ///
-/// - Warm parchment background (`BegleiterBackground`) with a serif italic
-///   wordmark flanked by thin rules and a time-of-day greeting.
-/// - Optional `Image("crane")` illustration above the greeting (renders only
-///   when the asset is present; otherwise the slot collapses to zero height).
+/// - Warm parchment background (`BegleiterBackground`) with the app-icon
+///   logo and a serif italic tagline at the top.
 /// - Five primary cards (Tagebuch / Blutwerte / Fragen / Vorbereitung /
 ///   Übergabe) with circular dark-teal icon containers.
 /// - A small beige encouragement pill at the bottom.
@@ -34,7 +32,6 @@ struct HomeView: View {
         ScrollView {
             VStack(spacing: 24) {
                 hero
-                greetingBlock
                 cards
                 encouragementPill
             }
@@ -73,28 +70,6 @@ struct HomeView: View {
                 .padding(.horizontal, 24)
         }
         .padding(.top, 8)
-    }
-
-    // MARK: - Greeting
-
-    private var greetingBlock: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(L10n.key(greetingKey))
-                .font(.title2.weight(.semibold))
-                .foregroundStyle(Color("BegleiterPrimary"))
-            Text(L10n.key("home.greeting.subheader"))
-                .font(.subheadline.italic())
-                .foregroundStyle(Color("BegleiterPrimary").opacity(0.7))
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    private var greetingKey: String {
-        switch Calendar.current.component(.hour, from: .now) {
-        case 5..<12:  return "home.greeting.morning"
-        case 12..<18: return "home.greeting.afternoon"
-        default:      return "home.greeting.evening"
-        }
     }
 
     // MARK: - Cards
