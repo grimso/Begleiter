@@ -116,6 +116,7 @@ enum AppSettings {
     nonisolated static let didApplyDemoDefaultsKey = "didApplyDemoDefaults"
     nonisolated static let demoDefaultsAppliedAtKey = "demoDefaultsAppliedAt"
     nonisolated static let askTimelinePackEnabledKey = "askTimelinePackEnabled"
+    nonisolated static let labExtractionShortcutEnabledKey = "labExtractionShortcutEnabled"
 
     nonisolated static let defaultExtractionMaxTokens = 2500
     nonisolated static let defaultBriefingMaxTokens   = 640
@@ -177,6 +178,18 @@ enum AppSettings {
     /// `elapsedMs`, `ttftMs`, and `decodeTokPerSec` as an overlay on
     /// every screen.
     nonisolated static let defaultLatencyHUDEnabled = false
+
+    /// "Befund auslesen" shortcut surfaces a focused lab-only capture path
+    /// inside CaptureView — photo pick → OCR → CBC-only Gemma extraction,
+    /// no parent text field. Defaulted on for the hackathon iteration
+    /// window so the user can verify the research-validated prompt #7
+    /// produces labs reachable from the plots without first toggling
+    /// it via Settings. The toggle still exists (Settings →
+    /// Befund-Verarbeitung) so the path can be hidden once the omnibus
+    /// extractor regains parity. Overrides the project-wide "every new AI
+    /// surface ships off" convention for the same reason as
+    /// ``defaultImportedDocsEnabled``.
+    nonisolated static let defaultLabExtractionShortcutEnabled = true
 
     /// Plain-Swift read path for non-SwiftUI callers (services / actors).
     /// `@AppStorage` is a SwiftUI property wrapper and can't be read from
@@ -314,6 +327,16 @@ enum AppSettings {
     nonisolated static var visionMaxLongEdge: Int {
         let v = UserDefaults.standard.integer(forKey: visionMaxLongEdgeKey)
         return v > 0 ? v : defaultVisionMaxLongEdge
+    }
+
+    /// When `true`, CaptureView surfaces a "Befund auslesen" button that
+    /// routes through the focused CBC-only extraction path
+    /// (`ExtractionService.extractLabValuesOnly`). Default `true` for the
+    /// hackathon iteration window — see
+    /// ``defaultLabExtractionShortcutEnabled``.
+    nonisolated static var labExtractionShortcutEnabled: Bool {
+        UserDefaults.standard.object(forKey: labExtractionShortcutEnabledKey) as? Bool
+            ?? defaultLabExtractionShortcutEnabled
     }
 
     /// When `true`, the "Dokument-Speicher" surface is reachable from

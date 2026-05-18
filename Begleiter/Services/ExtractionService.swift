@@ -212,14 +212,7 @@ actor ExtractionService {
             "extractWithVision: text=\(text.count, privacy: .public) chars, images=\(imageURLs.count, privacy: .public)"
         )
 
-        let prompt1 = Self.buildVisionPrompt(
-            text: text,
-            phase: phase,
-            dayInPhase: dayInPhase,
-            visitDate: visitDate,
-            imageCount: imageURLs.count,
-            strictMode: false
-        )
+        let prompt1 = Self.buildVisionPrompt(strictMode: false)
         let raw1 = try await visionGemma.generate(
             prompt: prompt1,
             imageURLs: imageURLs,
@@ -227,21 +220,14 @@ actor ExtractionService {
             surface: "extract.vision"
         )
         extractionLog.debug("vision.attempt=1 raw=\(raw1, privacy: .private)")
-        if let fields = try? Self.parseExtractedFields(from: raw1) {
+        if let fields = try? Self.parseVisionFields(from: raw1, visitDate: visitDate) {
             let labCount = fields.labValues?.value.count ?? 0
             extractionLog.info("vision.attempt=1 parsed OK, labs=\(labCount, privacy: .public)")
             return ExtractionResult(fields: fields, rawResponse: raw1, attempt: 1)
         }
 
         extractionLog.warning("vision.attempt=1 parse failed, retrying in strict mode")
-        let prompt2 = Self.buildVisionPrompt(
-            text: text,
-            phase: phase,
-            dayInPhase: dayInPhase,
-            visitDate: visitDate,
-            imageCount: imageURLs.count,
-            strictMode: true
-        )
+        let prompt2 = Self.buildVisionPrompt(strictMode: true)
         let raw2 = try await visionGemma.generate(
             prompt: prompt2,
             imageURLs: imageURLs,
@@ -249,9 +235,55 @@ actor ExtractionService {
             surface: "extract.vision.retry"
         )
         extractionLog.debug("vision.attempt=2 raw=\(raw2, privacy: .private)")
-        let fields = try Self.parseExtractedFields(from: raw2)
+        let fields = try Self.parseVisionFields(from: raw2, visitDate: visitDate)
         let labCount = fields.labValues?.value.count ?? 0
         extractionLog.info("vision.attempt=2 parsed OK, labs=\(labCount, privacy: .public)")
+        return ExtractionResult(fields: fields, rawResponse: raw2, attempt: 2)
+    }
+
+    /// Focused CBC extraction against OCR'd Sysmex text. Bypasses the
+    /// omnibus 10-field prompt — produces only `labValues`. Used by the
+    /// "Befund auslesen" capture shortcut: the user picks a Befund photo,
+    /// Apple Vision OCRs it, and this method asks Gemma 4 to map the OCR
+    /// text into a `blood_count` JSON array.
+    ///
+    /// Same two-attempt retry as the other paths (loose → strict). The
+    /// vision-side parser (`parseVisionFields`) handles the shared
+    /// `blood_count` schema and stamps each entry with `visitDate` +
+    /// `source = .befundPhoto`.
+    func extractLabValuesOnly(
+        ocrText: String,
+        visitDate: Date
+    ) async throws -> ExtractionResult {
+        let trimmed = ocrText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { throw ExtractionError.emptyInput }
+
+        extractionLog.info("extractLabValuesOnly: ocrText=\(trimmed.count, privacy: .public) chars")
+
+        let prompt1 = Self.buildLabsOnlyPrompt(ocrText: trimmed, strictMode: false)
+        let raw1 = try await gemma.generate(
+            prompt: prompt1,
+            parameters: extractionParameters(),
+            surface: "extract.labsOnly"
+        )
+        extractionLog.debug("labsOnly.attempt=1 raw=\(raw1, privacy: .private)")
+        if let fields = try? Self.parseVisionFields(from: raw1, visitDate: visitDate) {
+            let labCount = fields.labValues?.value.count ?? 0
+            extractionLog.info("labsOnly.attempt=1 parsed OK, labs=\(labCount, privacy: .public)")
+            return ExtractionResult(fields: fields, rawResponse: raw1, attempt: 1)
+        }
+
+        extractionLog.warning("labsOnly.attempt=1 parse failed, retrying in strict mode")
+        let prompt2 = Self.buildLabsOnlyPrompt(ocrText: trimmed, strictMode: true)
+        let raw2 = try await gemma.generate(
+            prompt: prompt2,
+            parameters: extractionParameters(),
+            surface: "extract.labsOnly.retry"
+        )
+        extractionLog.debug("labsOnly.attempt=2 raw=\(raw2, privacy: .private)")
+        let fields = try Self.parseVisionFields(from: raw2, visitDate: visitDate)
+        let labCount = fields.labValues?.value.count ?? 0
+        extractionLog.info("labsOnly.attempt=2 parsed OK, labs=\(labCount, privacy: .public)")
         return ExtractionResult(fields: fields, rawResponse: raw2, attempt: 2)
     }
 
@@ -332,71 +364,109 @@ actor ExtractionService {
         """
     }
 
-    /// Prompt for the `.directMultimodal` path. Same JSON contract as
-    /// the text path but the Befund context comes from an attached
-    /// image (or images) rather than a pre-extracted OCR block.
+    /// Prompt for the `.directMultimodal` path. Focused CBC-extraction prompt
+    /// derived from the prompt-engineering sweep in `kaggle_gemma4-prompts`
+    /// (`research/REPORT_prompt_engineering.md`): on 33 real Sysmex XN-L
+    /// prints, **#7 `explicit_dual_value_handling`** combined the highest
+    /// parse rate (1.00 on cropped, 0.97 on raw) with 0.65–0.82 parameter
+    /// recall — vs the prior all-in-one nested-confidence schema which
+    /// plateaus around 0.43 because the dual-value rows (NEUT/LYMPH/MONO…)
+    /// drop silently.
+    ///
+    /// Trade-off vs the text path: this prompt asks ONLY for the blood
+    /// count, so other ExtractedFields (drugs, observations, summary, …)
+    /// are not populated in `.directMultimodal`. Real Befund photos are
+    /// lab reports — the prose fields belong on the OCR-then-text path.
+    /// `parseVisionFields(from:visitDate:)` maps the `blood_count` array
+    /// onto `ExtractedFields.labValues` so the rest of the pipeline
+    /// (timeline, plots, briefing) sees the same shape it always has.
     ///
     /// We do NOT inline the image inside the prompt string — mlx-swift's
     /// `ChatSession.respond(to:images:)` attaches the image(s) to the
-    /// user turn via the model's chat template (`Gemma4MessageGenerator`
-    /// emits `{"type": "image"}` content parts). The prompt's job is to
-    /// (a) restate the schema and rules, and (b) tell the model to
-    /// consult the attached image(s) for lab values.
-    static func buildVisionPrompt(
-        text: String,
-        phase: Phase,
-        dayInPhase: Int,
-        visitDate: Date,
-        imageCount: Int,
-        strictMode: Bool
-    ) -> String {
-        let dateString = Self.dateFormatter.string(from: visitDate)
-        let phaseLabel = phase.germanLabel
-
+    /// user turn via the model's chat template.
+    static func buildVisionPrompt(strictMode: Bool) -> String {
         let header = strictMode
             ? "Strict mode: respond with valid JSON only. No markdown, no prose. Start with { and end with }."
-            : "Return JSON only, following the schema below."
-
-        let imagePhrase = imageCount == 1
-            ? "one Befund photo"
-            : "\(imageCount) Befund photos"
+            : "Return only the JSON object. No markdown fences, no commentary."
 
         return """
-        You extract structured facts from a parent's German journal entry AND the attached Befund image(s) for a child in AIEOP-BFM ALL 2017 treatment.
+        Extract Sysmex blood count data from the attached lab report image into JSON.
 
         \(header)
 
-        Rules:
-        - \(imagePhrase) is attached. Read ALL clearly readable lab values directly off the image(s) (parameter, value, unit). Multiple values are the rule, not the exception.
-        - Never invent values. If a value in the image is unreadable, OMIT the field. Never emit "value": null or "value": [].
-        - Each field carries both "value" and "confidence" (0.0–1.0; 1.0 means explicit and clearly readable, < 0.3 means very uncertain — e.g. handwritten or blurred).
-        - No advice, diagnosis, dose calculation, or interpretation — only structure what's in the image or parent text.
-        - Copy names and medical terms verbatim from the Befund ("Vincristin", "Methotrexat", "Hb", "ANC"). Do not anglicise.
-        - All free-text values inside the JSON are German.
+        CRITICAL: some rows contain TWO measurements — an absolute count AND a percentage. These must become TWO separate JSON entries:
+        - absolute entry → parameter name + "#" suffix
+        - percentage entry → parameter name + "%" suffix
 
-        Context (for sanity-check, do not copy into JSON):
-        - phase: \(phaseLabel)
-        - dayInPhase: \(dayInPhase)
-        - date: \(dateString)
+        Example — a row reading:   NEUT  0.38 * [10^3/uL]  20.9 * [%]
+        becomes:
+          {"parameter": "NEUT#", "value": 0.38, "unit": "10^3/uL", "flag": "abnormal"},
+          {"parameter": "NEUT%", "value": 20.9, "unit": "%", "flag": "abnormal"}
 
-        Schema (every field optional — omit if not mentioned):
+        This applies to: NEUT, LYMPH, MONO, EO, BASO, IG, and RET.
+        All other rows are single-value.
+
+        Schema:
         {
-          "visitType": { "value": "ambulant|stationaer|notfall|telefonisch|zuhause", "confidence": 0.0-1.0 },
-          "doctorName": { "value": "<name>", "confidence": 0.0-1.0 },
-          "drugsMentioned": { "value": [{ "name": "<INN>", "germanLabel": "<as written>", "doseDescription": "<free text>", "administeredAt": null }], "confidence": 0.0-1.0 },
-          "labValues": { "value": [{ "parameter": "<short code, e.g. WBC, ANC, Hb, HGB, PLT, CRP, ALT, AST, Na, K, Glucose>", "germanLabel": "<German label or same as parameter>", "value": <number>, "unit": "<unit>", "measuredAt": "\(dateString)", "source": "befund_photo" }], "confidence": 0.0-1.0 },
-          "proceduresMentioned": { "value": ["<procedure>"], "confidence": 0.0-1.0 },
-          "decisions": { "value": ["<team decision>"], "confidence": 0.0-1.0 },
-          "parentObservations": { "value": ["<parent observation>"], "confidence": 0.0-1.0 },
-          "openQuestions": { "value": ["<open question>"], "confidence": 0.0-1.0 },
-          "reactions": { "value": [{ "description": "<free text>", "suspectedCause": "<drug/procedure or null>", "parentSeverity": "leicht|mittel|schwer|null", "occurredAt": null }], "confidence": 0.0-1.0 },
-          "summary": { "value": "<one German sentence>", "confidence": 0.0-1.0 }
+          "blood_count": [
+            {"parameter": "<name>", "value": <number>, "unit": "<unit>", "flag": "<low|abnormal>"}
+          ]
         }
 
-        Input (parent text, German):
-        \(text.isEmpty ? "(no parent text — see attached Befund image)" : text)
+        Flag markers: "-" after the value → "flag": "low". "*" after the value → "flag": "abnormal". No marker → omit the "flag" field.
+        Values are numeric, not strings. Units appear in square brackets.
+        Never invent values. If a value is unreadable, omit that entry entirely.
+        Return only the JSON.
+        """
+    }
 
-        JSON:
+    /// Text-side counterpart to `buildVisionPrompt` — runs against OCR'd
+    /// Sysmex text rather than an attached image. Same prompt #7 structure
+    /// (`explicit_dual_value_handling`) and same `blood_count` schema, so
+    /// the same `parseVisionFields` parser handles both paths. Used by the
+    /// "Befund auslesen" shortcut, which already runs Apple Vision OCR in
+    /// the photo sheet before reaching this prompt.
+    ///
+    /// The `-`/`*` flag markers and `[unit]` brackets survive OCR cleanly
+    /// on Sysmex prints, so the same dual-value rule applies.
+    static func buildLabsOnlyPrompt(ocrText: String, strictMode: Bool) -> String {
+        let header = strictMode
+            ? "Strict mode: respond with valid JSON only. No markdown, no prose. Start with { and end with }."
+            : "Return only the JSON object. No markdown fences, no commentary."
+
+        return """
+        Extract Sysmex blood count data from the OCR text below into JSON.
+
+        \(header)
+
+        CRITICAL: some rows contain TWO measurements — an absolute count AND a percentage. These must become TWO separate JSON entries:
+        - absolute entry → parameter name + "#" suffix
+        - percentage entry → parameter name + "%" suffix
+
+        Example — a row reading:   NEUT  0.38 * [10^3/uL]  20.9 * [%]
+        becomes:
+          {"parameter": "NEUT#", "value": 0.38, "unit": "10^3/uL", "flag": "abnormal"},
+          {"parameter": "NEUT%", "value": 20.9, "unit": "%", "flag": "abnormal"}
+
+        This applies to: NEUT, LYMPH, MONO, EO, BASO, IG, and RET.
+        All other rows are single-value.
+
+        Schema:
+        {
+          "blood_count": [
+            {"parameter": "<name>", "value": <number>, "unit": "<unit>", "flag": "<low|abnormal>"}
+          ]
+        }
+
+        Flag markers: "-" after the value → "flag": "low". "*" after the value → "flag": "abnormal". No marker → omit the "flag" field.
+        Values are numeric, not strings. Units appear in square brackets.
+        Never invent values. If a value is unreadable, omit that entry entirely.
+        Return only the JSON.
+
+        OCR TEXT:
+        ```
+        \(ocrText)
+        ```
         """
     }
 
@@ -416,6 +486,62 @@ actor ExtractionService {
         } catch {
             throw ExtractionError.modelReturnedInvalidJSON(error.localizedDescription)
         }
+    }
+
+    /// Parse the vision-path output — the CBC-only schema emitted by
+    /// `buildVisionPrompt`: `{"blood_count": [{parameter, value, unit, flag?}]}`.
+    /// Maps each entry to a `LabValue` stamped with `visitDate` and
+    /// `source = .befundPhoto`, then wraps as `ExtractedFields` with only
+    /// `labValues` populated (the focused prompt doesn't ask for the other
+    /// fields — see `buildVisionPrompt` doc comment).
+    ///
+    /// Tolerant on the units side (defaults to ""), strict on `parameter`
+    /// and numeric `value` (entries with missing/null value are dropped —
+    /// the rest of the array still surfaces).
+    static func parseVisionFields(from raw: String, visitDate: Date) throws -> ExtractedFields {
+        guard let jsonString = firstJSONObject(in: raw) else {
+            throw ExtractionError.modelReturnedNoJSON
+        }
+        guard let data = jsonString.data(using: .utf8) else {
+            throw ExtractionError.modelReturnedInvalidJSON("UTF-8 encoding failed")
+        }
+
+        struct VisionPayload: Decodable {
+            struct Item: Decodable {
+                let parameter: String
+                let value: Double?
+                let unit: String?
+                let flag: String?
+            }
+            let blood_count: [Item]
+        }
+
+        let payload: VisionPayload
+        do {
+            payload = try JSONDecoder().decode(VisionPayload.self, from: data)
+        } catch {
+            throw ExtractionError.modelReturnedInvalidJSON(error.localizedDescription)
+        }
+
+        let labs: [LabValue] = payload.blood_count.compactMap { item in
+            guard let value = item.value else { return nil }
+            return LabValue(
+                parameter: item.parameter,
+                germanLabel: item.parameter,
+                value: value,
+                unit: item.unit ?? "",
+                measuredAt: visitDate,
+                source: .befundPhoto
+            )
+        }
+
+        guard !labs.isEmpty else {
+            throw ExtractionError.modelReturnedInvalidJSON("blood_count empty after dropping unreadable entries")
+        }
+
+        return ExtractedFields(
+            labValues: ConfidenceField(value: labs, confidence: 0.9)
+        )
     }
 
     /// Find the first top-level balanced `{...}` block in a string. Handles

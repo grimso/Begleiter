@@ -75,6 +75,9 @@ struct SettingsView: View {
     @AppStorage(AppSettings.visionMaxLongEdgeKey)
     private var visionMaxLongEdge: Int = AppSettings.defaultVisionMaxLongEdge
 
+    @AppStorage(AppSettings.labExtractionShortcutEnabledKey)
+    private var labExtractionShortcutEnabled: Bool = AppSettings.defaultLabExtractionShortcutEnabled
+
     @AppStorage(AppSettings.latencyHUDEnabledKey)
     private var latencyHUDEnabled: Bool = AppSettings.defaultLatencyHUDEnabled
 
@@ -266,6 +269,14 @@ struct SettingsView: View {
                             .monospacedDigit()
                             .foregroundStyle(.secondary)
                     }
+                }
+            }
+            Toggle(isOn: $labExtractionShortcutEnabled) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(L10n.key("settings.lab.shortcut.title"))
+                    Text(L10n.key("settings.lab.shortcut.subtitle"))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
             }
         } header: {

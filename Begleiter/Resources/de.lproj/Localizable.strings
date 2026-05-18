@@ -258,6 +258,10 @@
 "capture.voice.button" = "Sprachaufnahme";
 "capture.photo.button" = "Befund hinzufügen";
 "capture.photo.attached" = "%d Befund(e) angehängt";
+"capture.labShortcut.button" = "Blutbild aus Befund";
+"entry.title.bloodCount" = "Blutbild";
+"entry.title.bloodCount.pending" = "Blutbild (wird ausgewertet …)";
+"entry.title.bloodCount.failed" = "Blutbild (Auswertung fehlgeschlagen)";
 
 // MARK: - Photo capture sheet
 "photo.title" = "Befund-Foto";
@@ -350,6 +354,8 @@
 "settings.lab.multimodal" = "Direkt Gemma 4 (multimodal)";
 "settings.lab.experimentalBadge" = "Experimentell";
 "settings.lab.maxLongEdge" = "Max. Bildkante";
+"settings.lab.shortcut.title" = "Schnellzugriff „Blutbild aus Befund“";
+"settings.lab.shortcut.subtitle" = "Zeigt eine Taste in der Eintrags-Erfassung, die das Blutbild aus einem Befund-Foto extrahiert (Prompt #7, OCR-Text).";
 "settings.lab.footer" = "OCR → Gemma ist der erprobte Weg. Der direkte multimodale Weg gibt das Befund-Foto unverändert an Gemma 4 — stärker bei handschriftlichen Notizen und mehrspaltigen Tabellen, kostet aber mehr Speicher und ist beim ersten Laden langsamer. Die Bilder werden vor der Übergabe auf die maximale Kantenlänge verkleinert, um den Speicher zu schonen; kleinere Werte helfen auf älteren Geräten.";
 
 "settings.diagnostics.section" = "Diagnose";

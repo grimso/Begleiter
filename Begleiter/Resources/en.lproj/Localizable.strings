@@ -258,6 +258,10 @@
 "capture.voice.button" = "Voice recording";
 "capture.photo.button" = "Add Befund / lab printout";
 "capture.photo.attached" = "%d attachment(s)";
+"capture.labShortcut.button" = "Blood count from Befund";
+"entry.title.bloodCount" = "Blood count";
+"entry.title.bloodCount.pending" = "Blood count (extracting…)";
+"entry.title.bloodCount.failed" = "Blood count (extraction failed)";
 
 // MARK: - Photo capture sheet
 "photo.title" = "Lab printout";
@@ -350,6 +354,8 @@
 "settings.lab.multimodal" = "Direct Gemma 4 (multimodal)";
 "settings.lab.experimentalBadge" = "Experimental";
 "settings.lab.maxLongEdge" = "Max. image edge";
+"settings.lab.shortcut.title" = "“Blood count from Befund” shortcut";
+"settings.lab.shortcut.subtitle" = "Adds a button in the capture screen that extracts the blood count from a Befund photo (prompt #7, OCR text).";
 "settings.lab.footer" = "OCR → Gemma is the proven path. The direct multimodal path hands the Befund photo to Gemma 4 unchanged — stronger on handwritten notes and multi-column tables, but it costs more memory and is slower on first load. Images are downscaled to the max edge before they reach the model to keep memory in check; lower values help on older devices.";
 
 "settings.diagnostics.section" = "Diagnostics";

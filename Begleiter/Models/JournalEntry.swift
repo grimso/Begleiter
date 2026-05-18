@@ -86,6 +86,13 @@ final class JournalEntry {
     /// Used to decide whether to back off automatic retries.
     var extractionAttempts: Int = 0
 
+    /// Which extraction prompt the queue should run against this entry.
+    /// `"general"` (default) runs the omnibus 10-field schema; `"labOnly"`
+    /// runs the focused CBC prompt from the "Befund auslesen" shortcut.
+    /// Persisted as a raw string for SwiftData migration stability. Older
+    /// rows missing the column default to `"general"`.
+    var extractionModeRaw: String = "general"
+
     init(
         entryId: UUID = UUID(),
         childId: UUID,
@@ -103,7 +110,8 @@ final class JournalEntry {
         rawExtractionResponse: String? = nil,
         embedding: [Float] = [],
         graphNodeIds: [String] = [],
-        processingStatus: ProcessingStatus = .extracted
+        processingStatus: ProcessingStatus = .extracted,
+        extractionMode: ExtractionMode = .general
     ) {
         self.entryId = entryId
         self.childId = childId
@@ -125,7 +133,26 @@ final class JournalEntry {
         self.processingFailureMessage = processingStatus.failureMessage
         self.processingUpdatedAt = .now
         self.extractionAttempts = 0
+        self.extractionModeRaw = extractionMode.rawValue
     }
+}
+
+/// Which extraction prompt the background queue runs against an entry.
+///
+/// `.general` — omnibus prompt (`ExtractionService.buildPrompt`) covering
+/// visitType, drugs, observations, labs, summary, etc. The default for
+/// every entry created through the regular capture flow.
+///
+/// `.labOnly` — focused CBC prompt
+/// (`ExtractionService.buildLabsOnlyPrompt`) for entries created via the
+/// "Befund auslesen" shortcut. Produces an `ExtractedFields` with only
+/// `labValues` populated, sourced from `befund_photo`. Skips the omnibus
+/// schema so Gemma 4 E2B isn't asked to emit ten nested confidence
+/// fields per call — see `kaggle_gemma4-prompts/research/REPORT_prompt_engineering.md`
+/// for why the omnibus shape collapses recall on small VLMs.
+enum ExtractionMode: String, Sendable, Hashable, CaseIterable {
+    case general
+    case labOnly
 }
 
 /// Lifecycle position of an entry in the background extraction pipeline.
@@ -203,10 +230,33 @@ extension JournalEntry {
         }
     }
 
+    /// Which extraction prompt the queue runs against this entry.
+    /// Defaults to `.general` for any persisted row missing the column.
+    var extractionMode: ExtractionMode {
+        get { ExtractionMode(rawValue: extractionModeRaw) ?? .general }
+        set { extractionModeRaw = newValue.rawValue }
+    }
+
     /// One-line title for the timeline row. Prefers the summary from
     /// extraction, then falls back to the first non-empty line of raw text,
     /// then a generic phrase.
+    ///
+    /// `.labOnly` entries (from the "Blutbild aus Befund" shortcut) carry
+    /// no parent prose and the focused prompt doesn't emit a `summary`, so
+    /// they would otherwise read as "Tagebucheintrag" in the timeline.
+    /// We override with a clinically-accurate "Blutbild" title that makes
+    /// the row's purpose obvious at a glance.
     var displayTitle: String {
+        if extractionMode == .labOnly {
+            switch processingStatus {
+            case .pending, .extracting:
+                return L10n.t("entry.title.bloodCount.pending")
+            case .failed:
+                return L10n.t("entry.title.bloodCount.failed")
+            case .extracted:
+                return L10n.t("entry.title.bloodCount")
+            }
+        }
         if let summary = extractedFields.summary?.value, !summary.isEmpty {
             return summary
         }

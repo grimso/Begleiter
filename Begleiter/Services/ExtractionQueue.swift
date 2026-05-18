@@ -163,20 +163,32 @@ actor ExtractionQueue {
         }
 
         do {
-            let result = try await ExtractionService.shared.extract(
-                text: text,
-                phase: phase,
-                dayInPhase: dayInPhase,
-                visitDate: visitDate,
-                ocrText: ocr,
-                imageURLs: imageURLs
-            )
+            let result: ExtractionResult
+            switch entry.extractionMode {
+            case .labOnly:
+                // "Befund auslesen" shortcut: focused CBC prompt against
+                // the OCR text only. Parent text / images are ignored even
+                // if present, because the shortcut UI doesn't surface them.
+                result = try await ExtractionService.shared.extractLabValuesOnly(
+                    ocrText: ocr ?? "",
+                    visitDate: visitDate
+                )
+            case .general:
+                result = try await ExtractionService.shared.extract(
+                    text: text,
+                    phase: phase,
+                    dayInPhase: dayInPhase,
+                    visitDate: visitDate,
+                    ocrText: ocr,
+                    imageURLs: imageURLs
+                )
+            }
             entry.extractedJSON = result.fields.encoded()
             entry.rawExtractionResponse = result.rawResponse
             entry.processingStatus = .extracted
             entry.extractionAttempts += 1
             try? context.save()
-            queueLog.info("process \(entryId.uuidString, privacy: .public) → extracted (attempts=\(entry.extractionAttempts, privacy: .public))")
+            queueLog.info("process \(entryId.uuidString, privacy: .public) mode=\(entry.extractionMode.rawValue, privacy: .public) → extracted (attempts=\(entry.extractionAttempts, privacy: .public))")
         } catch {
             entry.processingStatus = .failed(message: error.localizedDescription)
             entry.extractionAttempts += 1

@@ -147,6 +147,76 @@ final class CaptureViewModel {
         }
     }
 
+    /// "Befund auslesen" shortcut path: persist a labs-only entry from a
+    /// single Befund photo + its OCR text, enqueue it for the focused
+    /// CBC-only extraction pass (`ExtractionMode.labOnly`), and surface
+    /// the same `phase = .done` so CaptureView dismisses on success.
+    ///
+    /// Does not touch `text`, `voiceTranscript`, or `pendingPhotoData` —
+    /// the shortcut sheet is independent of whatever the parent had in
+    /// the main form. The new entry carries only the photo and the OCR'd
+    /// text; everything else stays empty until the queue's labOnly path
+    /// fills in `labValues`.
+    func submitLabsOnly(
+        child: ChildState,
+        context: ModelContext,
+        photoData: Data,
+        fileExtension: String,
+        ocrText: String
+    ) {
+        let snapshotDate = visitDate
+        let childPhase = child.currentPhase
+        let dayInPhase = child.currentPhaseInfo().dayInPhase
+        let riskGroup = child.riskGroup
+        let arm = child.randomizationArm
+        let childId = child.childId
+
+        phase = .saving
+        Task {
+            do {
+                let entryId = UUID()
+
+                let ext = fileExtension.lowercased()
+                var photoFilenames: [String] = []
+                if ext == "jpg" || ext == "jpeg" {
+                    if let name = try? PhotoStorage.saveJPEG(photoData, entryId: entryId, index: 0) {
+                        photoFilenames.append(name)
+                    }
+                } else {
+                    if let name = try? PhotoStorage.saveRawFile(photoData, entryId: entryId, index: 0, ext: ext) {
+                        photoFilenames.append(name)
+                    }
+                }
+
+                let entry = JournalEntry(
+                    entryId: entryId,
+                    childId: childId,
+                    visitDate: snapshotDate,
+                    phase: childPhase,
+                    dayInPhase: dayInPhase,
+                    riskGroup: riskGroup,
+                    arm: arm,
+                    inputModalities: ["photo"],
+                    rawText: nil,
+                    rawVoiceTranscript: nil,
+                    rawPhotoFilenames: photoFilenames,
+                    extractedFields: .empty,
+                    rawExtractionResponse: nil,
+                    processingStatus: .pending,
+                    extractionMode: .labOnly
+                )
+                entry.rawPhotoOCRText = ocrText.isEmpty ? nil : ocrText
+                context.insert(entry)
+                try context.save()
+
+                await ExtractionQueue.shared.enqueue(entryId: entryId)
+                phase = .done
+            } catch {
+                phase = .failed(message: error.localizedDescription)
+            }
+        }
+    }
+
     func reset() {
         text = ""
         visitDate = .now

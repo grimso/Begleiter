@@ -17,6 +17,7 @@ struct CaptureView: View {
     @State private var model = CaptureViewModel()
     @State private var presentingVoiceRecorder = false
     @State private var presentingPhotoCapture = false
+    @State private var presentingBefundShortcut = false
     @FocusState private var textFocused: Bool
 
     var body: some View {
@@ -54,6 +55,18 @@ struct CaptureView: View {
                         Label(L10n.t("capture.photo.button"), systemImage: "camera.fill")
                     }
                     .disabled(model.isBusy)
+                    if AppSettings.labExtractionShortcutEnabled {
+                        Button {
+                            textFocused = false
+                            presentingBefundShortcut = true
+                        } label: {
+                            Label(
+                                L10n.t("capture.labShortcut.button"),
+                                systemImage: "list.bullet.rectangle.portrait.fill"
+                            )
+                        }
+                        .disabled(model.isBusy)
+                    }
                     if !model.pendingPhotoData.isEmpty {
                         Label {
                             Text(String(
@@ -136,6 +149,21 @@ struct CaptureView: View {
                     if !recognisedText.isEmpty {
                         model.pendingOCRTexts.append(recognisedText)
                     }
+                }
+            }
+            // "Befund auslesen" shortcut: same photo+OCR sheet, but the
+            // adopt callback creates a labs-only JournalEntry directly
+            // (extractionMode = .labOnly) and enqueues — no detour through
+            // the parent text field or the omnibus 10-field schema.
+            .sheet(isPresented: $presentingBefundShortcut) {
+                PhotoCaptureView { fileData, recognisedText, fileExtension in
+                    model.submitLabsOnly(
+                        child: child,
+                        context: modelContext,
+                        photoData: fileData,
+                        fileExtension: fileExtension,
+                        ocrText: recognisedText
+                    )
                 }
             }
         }

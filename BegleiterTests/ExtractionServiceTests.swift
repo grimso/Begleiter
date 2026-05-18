@@ -88,28 +88,119 @@ final class ExtractionServiceTests: XCTestCase {
     }
 
     func test_buildVisionPrompt_staticSizeBelowBudget() {
-        let prompt = ExtractionService.buildVisionPrompt(
-            text: "", phase: .inductionIA, dayInPhase: 0,
-            visitDate: Date(timeIntervalSince1970: 0),
-            imageCount: 1, strictMode: false
-        )
-        // Budget held at 2 600 chars — measurably below the 2 880-char
-        // German baseline; the bigger win comes from English tokenizer
-        // density (~3.4 → ~4 chars/token) on top of the cuts.
-        XCTAssertLessThan(prompt.count, 2600,
-                          "vision extraction static prompt size budget: 2 600 chars")
+        let prompt = ExtractionService.buildVisionPrompt(strictMode: false)
+        // CBC-focused prompt (#7 explicit_dual_value_handling) is far
+        // smaller than the prior all-in-one schema; tightened budget
+        // guards against future bloat.
+        XCTAssertLessThan(prompt.count, 1500,
+                          "vision extraction static prompt size budget: 1 500 chars")
     }
 
-    func test_buildVisionPrompt_includesEnglishControlClauses() {
-        let prompt = ExtractionService.buildVisionPrompt(
-            text: "", phase: .inductionIA, dayInPhase: 1,
-            visitDate: .now, imageCount: 1, strictMode: false
-        )
+    /// Load-bearing instruction substrings the model must see every
+    /// time. Sourced from the winning prompt in the sweep
+    /// (`kaggle_gemma4-prompts/research/REPORT_prompt_engineering.md`,
+    /// #7 explicit_dual_value_handling). If a future rewrite drops one,
+    /// recall regresses to ~0.43 because the dual-value rows drop.
+    func test_buildVisionPrompt_includesLoadBearingClauses() {
+        let prompt = ExtractionService.buildVisionPrompt(strictMode: false)
+        XCTAssertTrue(prompt.contains("blood_count"),
+                      "vision prompt must request the proven blood_count schema")
+        XCTAssertTrue(prompt.contains("NEUT#") && prompt.contains("NEUT%"),
+                      "vision prompt must carry the dual-value split rule")
+        XCTAssertTrue(prompt.contains("Sysmex"),
+                      "vision prompt must anchor on the Sysmex report layout")
+        XCTAssertTrue(prompt.contains("\"flag\": \"abnormal\""),
+                      "vision prompt must carry the Sysmex flag legend")
+        XCTAssertTrue(prompt.contains("Never invent"),
+                      "vision prompt must keep the no-hallucination rule")
+    }
+
+    func test_buildVisionPrompt_strictMode_addsJSONOnlyDirective() {
+        let strict = ExtractionService.buildVisionPrompt(strictMode: true)
+        let lax = ExtractionService.buildVisionPrompt(strictMode: false)
+        XCTAssertTrue(strict.contains("Strict mode"))
+        XCTAssertFalse(lax.contains("Strict mode"))
+    }
+
+    // MARK: - buildLabsOnlyPrompt (text path, "Befund auslesen" shortcut)
+
+    func test_buildLabsOnlyPrompt_embedsOCRTextVerbatim() {
+        let ocr = "WBC 1.82 * [10^3/uL]\nHGB 10.3 - [g/dL]"
+        let prompt = ExtractionService.buildLabsOnlyPrompt(ocrText: ocr, strictMode: false)
+        XCTAssertTrue(prompt.contains(ocr),
+                      "OCR block must be embedded verbatim so Gemma sees the source rows")
+        XCTAssertTrue(prompt.contains("OCR TEXT:"),
+                      "OCR block must be labelled so the model knows where the source starts")
+    }
+
+    func test_buildLabsOnlyPrompt_includesLoadBearingClauses() {
+        let prompt = ExtractionService.buildLabsOnlyPrompt(ocrText: "x", strictMode: false)
+        XCTAssertTrue(prompt.contains("blood_count"))
+        XCTAssertTrue(prompt.contains("NEUT#") && prompt.contains("NEUT%"))
+        XCTAssertTrue(prompt.contains("Sysmex"))
+        XCTAssertTrue(prompt.contains("\"flag\": \"abnormal\""))
         XCTAssertTrue(prompt.contains("Never invent"))
-        XCTAssertTrue(prompt.contains("No advice"))
-        XCTAssertTrue(prompt.contains("German"))
-        XCTAssertTrue(prompt.contains("Befund"),
-                      "vision prompt must keep the German domain term verbatim")
+    }
+
+    func test_buildLabsOnlyPrompt_strictMode_addsJSONOnlyDirective() {
+        let strict = ExtractionService.buildLabsOnlyPrompt(ocrText: "x", strictMode: true)
+        let lax = ExtractionService.buildLabsOnlyPrompt(ocrText: "x", strictMode: false)
+        XCTAssertTrue(strict.contains("Strict mode"))
+        XCTAssertFalse(lax.contains("Strict mode"))
+    }
+
+    func test_buildLabsOnlyPrompt_staticSizeBelowBudget() {
+        let prompt = ExtractionService.buildLabsOnlyPrompt(ocrText: "", strictMode: false)
+        XCTAssertLessThan(prompt.count, 1600,
+                          "labs-only static prompt size budget: 1 600 chars (slightly wider than vision because of the OCR block scaffolding)")
+    }
+
+    // MARK: - parseVisionFields
+
+    func test_parseVisionFields_mapsBloodCountIntoLabValues() throws {
+        let raw = """
+        ```json
+        {
+          "blood_count": [
+            {"parameter": "WBC", "value": 1.82, "unit": "10^3/uL", "flag": "abnormal"},
+            {"parameter": "HGB", "value": 10.3, "unit": "g/dL"},
+            {"parameter": "NEUT#", "value": 0.38, "unit": "10^3/uL", "flag": "abnormal"},
+            {"parameter": "NEUT%", "value": 20.9, "unit": "%", "flag": "abnormal"}
+          ]
+        }
+        ```
+        """
+        let visitDate = Date(timeIntervalSince1970: 1_700_000_000)
+        let fields = try ExtractionService.parseVisionFields(from: raw, visitDate: visitDate)
+        let labs = try XCTUnwrap(fields.labValues?.value)
+        XCTAssertEqual(labs.count, 4)
+        XCTAssertEqual(labs.map(\.parameter), ["WBC", "HGB", "NEUT#", "NEUT%"])
+        XCTAssertEqual(labs[0].value, 1.82, accuracy: 0.001)
+        XCTAssertEqual(labs[1].unit, "g/dL")
+        // Every entry stamped with the visit date — the model isn't
+        // asked to read dates off the report.
+        XCTAssertTrue(labs.allSatisfy { $0.measuredAt == visitDate })
+        XCTAssertTrue(labs.allSatisfy { $0.source == .befundPhoto })
+    }
+
+    func test_parseVisionFields_dropsEntriesWithNullValue() throws {
+        let raw = #"{"blood_count":[{"parameter":"WBC","value":1.0,"unit":"x"},{"parameter":"HGB","value":null,"unit":"y"}]}"#
+        let fields = try ExtractionService.parseVisionFields(from: raw, visitDate: .now)
+        XCTAssertEqual(fields.labValues?.value.count, 1)
+        XCTAssertEqual(fields.labValues?.value.first?.parameter, "WBC")
+    }
+
+    func test_parseVisionFields_throwsWhenEverythingDropped() {
+        let raw = #"{"blood_count":[{"parameter":"WBC","value":null}]}"#
+        XCTAssertThrowsError(try ExtractionService.parseVisionFields(from: raw, visitDate: .now))
+    }
+
+    func test_parseVisionFields_throwsOnMissingJSON() {
+        XCTAssertThrowsError(try ExtractionService.parseVisionFields(from: "no json", visitDate: .now)) { error in
+            guard case ExtractionError.modelReturnedNoJSON = error else {
+                return XCTFail("Expected .modelReturnedNoJSON, got \(error)")
+            }
+        }
     }
 
     // MARK: - Tolerant JSON parsing
