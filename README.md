@@ -16,6 +16,14 @@ Native iOS, built on [Gemma 4](https://ai.google.dev/gemma) running locally thro
 
 </div>
 
+> [!WARNING]
+> **Hackathon demo, not a medical product.**
+> Begleiter is a research prototype built as a Kaggle Gemma 4 Good
+> Hackathon submission. It is not a medical device, has not been
+> reviewed by any regulator, and is not intended for parents, patients,
+> or clinicians. Do not use it to make any treatment decision. It does
+> not diagnose, dose, interpret emergencies, or replace your care team.
+
 > In a long leukemia protocol, doctors rotate. Parents are often the continuity layer. Begleiter helps them carry that story without sending it to a server.
 
 ---
